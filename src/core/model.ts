@@ -118,6 +118,17 @@ export class SketchModel {
     return rotated;
   }
 
+  deleteEntity(id: EntityId): boolean {
+    if (!this.entities.has(id)) return false;
+    this.entities.delete(id);
+    for (const component of [...this.components.values()]) {
+      const entityIds = component.entityIds.filter((entityId) => entityId !== id);
+      if (entityIds.length === 0) this.components.delete(component.id);
+      else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
+    }
+    return true;
+  }
+
   createComponent(name: string, entityIds: EntityId[]): Component {
     if (entityIds.length === 0) throw new Error('Eine Komponente braucht mindestens ein Element.');
     for (const id of entityIds) this.requireEntity(id);

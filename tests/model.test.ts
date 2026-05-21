@@ -80,4 +80,30 @@ describe('SketchModel geometry tools', () => {
       expect(copiedEdge.end).toEqual(vec(1050, -200, 0));
     }
   });
+
+  it('deletes a selected entity from the model', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 100, 100);
+
+    expect(model.deleteEntity(box.id)).toBe(true);
+
+    expect(model.getEntity(box.id)).toBeUndefined();
+    expect(model.allEntities()).toEqual([]);
+  });
+
+  it('updates component membership and removes empty components when deleting members', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 100, 100);
+    const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+    const component = model.createComponent('Rahmen', [box.id, line.id]);
+
+    model.deleteEntity(box.id);
+
+    expect(model.allComponents()).toEqual([{ ...component, entityIds: [line.id] }]);
+    expect(model.getEntity(line.id)?.componentId).toBe(component.id);
+
+    model.deleteEntity(line.id);
+
+    expect(model.allComponents()).toEqual([]);
+  });
 });
