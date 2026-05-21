@@ -1,20 +1,41 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { type SketchModel } from '../core/model';
-import { applyOrbitToCamera, createModelGroup, createOrbitCameraState, orbitCameraDrag, type OrbitCameraState } from './viewportController';
+import { type Vec3 } from '../core/geometry';
+import { type SketchModel, type ToolName } from '../core/model';
+import {
+  applyOrbitToCamera,
+  createModelGroup,
+  createOrbitCameraState,
+  orbitCameraDrag,
+  screenPointToGround,
+  type OrbitCameraState
+} from './viewportController';
 
 type ThreeViewportProps = {
   model: SketchModel;
+  activeTool: ToolName;
   selectedId?: string;
   onSelect?: (entityId: string | undefined) => void;
+  onCreateLine?: (start: Vec3, end: Vec3) => void;
+  onCreateRectangle?: (first: Vec3, second: Vec3) => void;
+  onCreateBox?: (origin: Vec3) => void;
 };
 
-export function ThreeViewport({ model, selectedId, onSelect }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
   const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingDrawPointRef = useRef<Vec3 | null>(null);
+  const activeToolRef = useRef(activeTool);
   const onSelectRef = useRef(onSelect);
+  const onCreateLineRef = useRef(onCreateLine);
+  const onCreateRectangleRef = useRef(onCreateRectangle);
+  const onCreateBoxRef = useRef(onCreateBox);
+  activeToolRef.current = activeTool;
   onSelectRef.current = onSelect;
+  onCreateLineRef.current = onCreateLine;
+  onCreateRectangleRef.current = onCreateRectangle;
+  onCreateBoxRef.current = onCreateBox;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -64,6 +85,28 @@ export function ThreeViewport({ model, selectedId, onSelect }: ThreeViewportProp
       }
       if (event.button === 0) {
         const rect = renderer.domElement.getBoundingClientRect();
+        const groundPoint = screenPointToGround(
+          { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
+          camera,
+          50
+        );
+        if ((activeToolRef.current === 'line' || activeToolRef.current === 'rectangle') && groundPoint) {
+          const first = pendingDrawPointRef.current;
+          if (!first) {
+            pendingDrawPointRef.current = groundPoint;
+            return;
+          }
+          if (activeToolRef.current === 'line') onCreateLineRef.current?.(first, groundPoint);
+          else onCreateRectangleRef.current?.(first, groundPoint);
+          pendingDrawPointRef.current = null;
+          return;
+        }
+        if (activeToolRef.current === 'box' && groundPoint) {
+          pendingDrawPointRef.current = null;
+          onCreateBoxRef.current?.(groundPoint);
+          return;
+        }
+        pendingDrawPointRef.current = null;
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
@@ -116,8 +159,8 @@ export function ThreeViewport({ model, selectedId, onSelect }: ThreeViewportProp
   }, [model]);
 
   return (
-    <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''}>
-      <div className="viewport-help">Rechte Maustaste halten und ziehen: Ansicht drehen. Linksklick: Objekt auswählen.</div>
+    <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
+      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck: zwei Linksklicks auf das Raster.</div>
     </div>
   );
 }

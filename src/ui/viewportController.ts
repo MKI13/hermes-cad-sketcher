@@ -17,6 +17,13 @@ export type OrbitDrag = Readonly<{
   viewportHeight: number;
 }>;
 
+export type ScreenPoint = Readonly<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}>;
+
 const MIN_POLAR = 0.1;
 const MAX_POLAR = Math.PI - 0.1;
 
@@ -65,6 +72,28 @@ export function createModelGroup(model: SketchModel): THREE.Group {
     group.add(object);
   }
   return group;
+}
+
+export function snapToGrid(point: Vec3, gridSize = 50): Vec3 {
+  const safeGrid = Math.max(1, gridSize);
+  return {
+    x: Math.round(point.x / safeGrid) * safeGrid,
+    y: Math.round(point.y / safeGrid) * safeGrid,
+    z: Math.round(point.z / safeGrid) * safeGrid
+  };
+}
+
+export function screenPointToGround(point: ScreenPoint, camera: THREE.PerspectiveCamera, gridSize = 50): Vec3 | undefined {
+  const width = Math.max(1, point.width);
+  const height = Math.max(1, point.height);
+  const pointer = new THREE.Vector2((point.x / width) * 2 - 1, -(point.y / height) * 2 + 1);
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, camera);
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const hit = new THREE.Vector3();
+  const hasHit = raycaster.ray.intersectPlane(groundPlane, hit);
+  if (!hasHit) return undefined;
+  return snapToGrid({ x: hit.x, y: hit.z, z: 0 }, gridSize);
 }
 
 function clamp(value: number, min: number, max: number): number {

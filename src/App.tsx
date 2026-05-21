@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Component, Download, Move3D, Ruler, RotateCw, Square, Slash, Upload } from 'lucide-react';
 import { SketchModel, formatMillimeters, type ToolName } from './core/model';
-import { vec } from './core/geometry';
+import { vec, type Vec3 } from './core/geometry';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { ThreeViewport } from './ui/ThreeViewport';
@@ -49,6 +49,22 @@ export default function App() {
     });
   }
 
+  function createLineFromViewport(start: Vec3, end: Vec3) {
+    mutate((m) => setSelectedId(m.createLine(start, end).id));
+  }
+
+  function createRectangleFromViewport(first: Vec3, second: Vec3) {
+    const origin = vec(Math.min(first.x, second.x), Math.min(first.y, second.y), 0);
+    const width = Math.abs(second.x - first.x);
+    const depth = Math.abs(second.y - first.y);
+    if (width === 0 || depth === 0) return;
+    mutate((m) => setSelectedId(m.createRectangle(origin, width, depth).id));
+  }
+
+  function createBoxFromViewport(origin: Vec3) {
+    mutate((m) => setSelectedId(m.createBox(origin, 600, 600, 600).id));
+  }
+
   function download(filename: string, content: string, mime = 'text/plain') {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -75,10 +91,20 @@ export default function App() {
       </aside>
       <section className="workspace">
         <div className="viewport-placeholder">
-          <ThreeViewport model={model} selectedId={selectedId} onSelect={setSelectedId} />
+          <ThreeViewport
+            model={model}
+            activeTool={tool}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onCreateLine={createLineFromViewport}
+            onCreateRectangle={createRectangleFromViewport}
+            onCreateBox={createBoxFromViewport}
+          />
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>
             <span>Rechts gedrückt ziehen: Ansicht drehen.</span>
+            <span>Linie/Rechteck: zwei Klicks auf das Raster.</span>
+            <span>Körper: ein Klick auf das Raster.</span>
             <span>Aktuelle Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>

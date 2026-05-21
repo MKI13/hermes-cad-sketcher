@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
-import { createOrbitCameraState, orbitCameraDrag, cameraPositionFromOrbit, createModelGroup } from '../src/ui/viewportController';
+import {
+  createOrbitCameraState,
+  orbitCameraDrag,
+  cameraPositionFromOrbit,
+  createModelGroup,
+  snapToGrid,
+  screenPointToGround
+} from '../src/ui/viewportController';
 
 describe('interactive Three.js viewport foundation', () => {
   it('orbits camera when the right mouse button drag delta is applied', () => {
@@ -40,5 +47,22 @@ describe('interactive Three.js viewport foundation', () => {
     expect(group).toBeInstanceOf(THREE.Group);
     expect(group.children).toHaveLength(2);
     expect(group.children.map((child) => child.userData.entityId)).toEqual([box.id, line.id]);
+  });
+
+  it('snaps ground points to the configured millimeter grid', () => {
+    expect(snapToGrid(vec(124, 276, 0), 50)).toEqual(vec(100, 300, 0));
+    expect(snapToGrid(vec(-124, -276, 0), 100)).toEqual(vec(-100, -300, 0));
+  });
+
+  it('projects the center of the screen onto the millimeter ground plane', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+    camera.position.set(0, 1000, 1000);
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+
+    const groundPoint = screenPointToGround({ x: 500, y: 500, width: 1000, height: 1000 }, camera, 50);
+
+    expect(groundPoint).toEqual(vec(0, 0, 0));
   });
 });
