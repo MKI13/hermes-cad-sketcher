@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Box, Component, Download, Move3D, Ruler, RotateCw, Square, Slash, Upload } from 'lucide-react';
+import { Box, Component, Download, FolderOpen, Move3D, Ruler, RotateCw, Save, Square, Slash, Upload } from 'lucide-react';
 import { SketchModel, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
+import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { ThreeViewport } from './ui/ThreeViewport';
@@ -30,6 +31,7 @@ export default function App() {
   const [tool, setTool] = useState<ToolName>('select');
   const [selectedId, setSelectedId] = useState<string | undefined>(model.allEntities()[0]?.id);
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
+  const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
 
@@ -80,6 +82,23 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  function saveProjectFile() {
+    download('hermes-cad-sketcher.hcad.json', exportProjectFile(model), 'application/json');
+    setProjectStatus('Projekt als .hcad.json exportiert');
+  }
+
+  async function openProjectFile(file: File) {
+    try {
+      const text = await file.text();
+      const next = importProjectFile(text);
+      setModel(next);
+      setSelectedId(next.allEntities()[0]?.id);
+      setProjectStatus(`Projekt geladen: ${file.name}`);
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'Projekt konnte nicht geladen werden.');
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="toolbar">
@@ -91,6 +110,19 @@ export default function App() {
           </button>
         ))}
         <button className="primary" onClick={demoAction}>Demo-Aktion mit Werkzeug</button>
+        <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
+        <label className="file-button">
+          <FolderOpen size={18}/> Projekt laden
+          <input
+            type="file"
+            accept=".hcad.json,application/json"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) void openProjectFile(file);
+              event.currentTarget.value = '';
+            }}
+          />
+        </label>
         <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
         <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
       </aside>
@@ -119,6 +151,7 @@ export default function App() {
           <span>Werkzeug: {tool}</span>
           <span>Auswahl: {selected?.id ?? 'keine'}</span>
           <span>Maßband: {lastMeasurement}</span>
+          <span>Projekt: {projectStatus}</span>
           <span>Einheit: mm</span>
         </footer>
       </section>
