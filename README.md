@@ -1,5 +1,7 @@
 # Hermes CAD Sketcher
 
+**Wichtig für Hermes Agenten, andere KI-Agenten und Contributor:** Lies zuerst [`AGENTS.md`](AGENTS.md). Dort stehen die verbindlichen Regeln für neue Erweiterungen, Funktionen und Werkzeuge: stabile Branch-/Versionsstrategie, keine ungeprüften Commits, immer `npm run check`, keine unautorisierten Änderungen am Hauptprojekt, Aufgabenliste pflegen und erledigte Erweiterungen dokumentieren.
+
 **Hermes CAD Sketcher** ist ein neues Linux-CAD-Projekt für Marios und EF-Sinn: ein leichtes, SketchUp-ähnliches Programm für Ubuntu, mit dem man Körper schnell zeichnen, verschieben, drehen, messen, gruppieren und später in wichtige CAD-Formate importieren/exportieren kann.
 
 Das Ziel ist **nicht**, SketchUp-Plugins (`.rb`, `.rbz`) nachzubauen. Diese Plugin-Kompatibilität ist absichtlich ausgeschlossen. Das Ziel ist ein stabiles, offenes Linux-Werkzeug für echte Arbeit mit Maßen.
