@@ -4,6 +4,7 @@ import { SketchModel, formatMillimeters, type ToolName } from './core/model';
 import { vec } from './core/geometry';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
+import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
 
 const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
@@ -74,10 +75,10 @@ export default function App() {
       </aside>
       <section className="workspace">
         <div className="viewport-placeholder">
-          <div className="grid-floor" />
-          <div className="model-card">
-            <strong>3D-Viewport MVP</strong>
-            <span>Rechte Maustaste: Orbit/Ansicht drehen ist als Three.js-Integration geplant.</span>
+          <ThreeViewport model={model} selectedId={selectedId} onSelect={setSelectedId} />
+          <div className="model-card compact">
+            <strong>Interaktiver 3D-Viewport</strong>
+            <span>Rechts gedrückt ziehen: Ansicht drehen.</span>
             <span>Aktuelle Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
