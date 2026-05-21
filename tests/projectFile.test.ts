@@ -42,4 +42,35 @@ describe('Hermes CAD project files', () => {
     expect(() => importProjectFile(JSON.stringify({ ...parsed, version: 999 }))).toThrow('Nicht unterstützte Projektdatei-Version.');
     expect(() => importProjectFile(JSON.stringify({ ...parsed, model: { ...parsed.model, unit: 'inch' } }))).toThrow('Nur Millimeter-Projekte werden unterstützt.');
   });
+
+  it('rejects malformed entity payloads before restoring the model', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    const malformedEdge = {
+      id: 'edge_1',
+      type: 'edge',
+      start: vec(0, 0, 0),
+      end: { x: 100, y: 0 }
+    };
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [malformedEdge] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
+  it('rejects components that reference missing entities', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: {
+        ...parsed.model,
+        entities: [],
+        components: [{ id: 'component_1', name: 'Leer', entityIds: ['edge_missing'] }]
+      }
+    }))).toThrow('Projektdatei enthält ungültige Komponenten.');
+  });
 });

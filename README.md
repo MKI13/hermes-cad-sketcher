@@ -39,6 +39,7 @@ Vorhanden im Code:
 - DXF-Export-Grundlage
 - einfacher DXF-LINE-Import
 - ASCII-STL-Export für Boxkörper
+- `.hcad.json` Projektdatei-Export und -Import mit Versionsprüfung
 - React/Vite-Oberfläche mit Werkzeugleiste
 - lokale Tests mit Vitest
 
@@ -58,6 +59,7 @@ Noch nicht fertig:
 
 - `.dxf`: einfacher Export und LINE-Import
 - `.stl`: ASCII-STL-Export für Boxkörper
+- `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten
 
 ### Geplant
 
@@ -200,9 +202,10 @@ Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss m
    - Komponente als Instanz mit eigener Transformation modellieren.
    - Test: IDs und Transformationen bleiben stabil.
 
-9. **Projektdatei speichern/laden**
+9. **Projektdatei speichern/laden** — Status: umgesetzt
    - Eigenes JSON-Format `.hcad.json` einführen.
    - Snapshot enthält Einheit, Entities, Komponenten und Version.
+   - Import prüft Format, Version, Millimeter-Einheit, Entity-Struktur und Komponenten-Referenzen.
    - Test: `save -> load -> snapshot` bleibt identisch.
 
 10. **DXF verbessern**
