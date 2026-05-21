@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
 import { type SketchModel, type ToolName } from '../core/model';
+import { cancelToolState, createInitialToolState, handleGroundClick, type ToolCommand, type ToolState } from '../core/toolState';
 import {
   applyOrbitToCamera,
   createModelGroup,
@@ -25,7 +26,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const hostRef = useRef<HTMLDivElement | null>(null);
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
   const dragRef = useRef<{ x: number; y: number } | null>(null);
-  const pendingDrawPointRef = useRef<Vec3 | null>(null);
+  const toolStateRef = useRef<ToolState>(createInitialToolState());
   const activeToolRef = useRef(activeTool);
   const onSelectRef = useRef(onSelect);
   const onCreateLineRef = useRef(onCreateLine);
@@ -76,6 +77,13 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const render = () => renderer.render(scene, camera);
 
+    const executeCommand = (command?: ToolCommand) => {
+      if (!command) return;
+      if (command.type === 'createLine') onCreateLineRef.current?.(command.start, command.end);
+      if (command.type === 'createRectangle') onCreateRectangleRef.current?.(command.first, command.second);
+      if (command.type === 'createBox') onCreateBoxRef.current?.(command.origin);
+    };
+
     const pointerDown = (event: PointerEvent) => {
       if (event.button === 2) {
         dragRef.current = { x: event.clientX, y: event.clientY };
@@ -90,23 +98,13 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
           camera,
           50
         );
-        if ((activeToolRef.current === 'line' || activeToolRef.current === 'rectangle') && groundPoint) {
-          const first = pendingDrawPointRef.current;
-          if (!first) {
-            pendingDrawPointRef.current = groundPoint;
-            return;
-          }
-          if (activeToolRef.current === 'line') onCreateLineRef.current?.(first, groundPoint);
-          else onCreateRectangleRef.current?.(first, groundPoint);
-          pendingDrawPointRef.current = null;
+        if (groundPoint && (activeToolRef.current === 'line' || activeToolRef.current === 'rectangle' || activeToolRef.current === 'box')) {
+          const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint);
+          toolStateRef.current = step.state;
+          executeCommand(step.command);
           return;
         }
-        if (activeToolRef.current === 'box' && groundPoint) {
-          pendingDrawPointRef.current = null;
-          onCreateBoxRef.current?.(groundPoint);
-          return;
-        }
-        pendingDrawPointRef.current = null;
+        toolStateRef.current = cancelToolState(toolStateRef.current);
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
@@ -137,6 +135,9 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const contextMenu = (event: MouseEvent) => event.preventDefault();
+    const keyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') toolStateRef.current = cancelToolState(toolStateRef.current);
+    };
 
     renderer.domElement.addEventListener('pointerdown', pointerDown);
     renderer.domElement.addEventListener('pointermove', pointerMove);
@@ -144,6 +145,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     renderer.domElement.addEventListener('pointercancel', pointerUp);
     renderer.domElement.addEventListener('contextmenu', contextMenu);
     window.addEventListener('resize', resize);
+    window.addEventListener('keydown', keyDown);
     resize();
 
     return () => {
@@ -153,6 +155,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       renderer.domElement.removeEventListener('pointerup', pointerUp);
       renderer.domElement.removeEventListener('pointercancel', pointerUp);
       renderer.domElement.removeEventListener('contextmenu', contextMenu);
+      window.removeEventListener('keydown', keyDown);
       host.removeChild(renderer.domElement);
       renderer.dispose();
     };
@@ -160,7 +163,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
-      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck: zwei Linksklicks auf das Raster.</div>
+      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck: zwei Linksklicks. Escape: Zeichnen abbrechen.</div>
     </div>
   );
 }
