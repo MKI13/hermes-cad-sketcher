@@ -6,6 +6,7 @@ import { formatTapeMeasurement } from './core/toolState';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
+import { createBoxDraft, createLineDraft, createRectangleDraft } from './ui/drawingController';
 import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
 
@@ -53,19 +54,21 @@ export default function App() {
   }
 
   function createLineFromViewport(start: Vec3, end: Vec3) {
-    mutate((m) => setSelectedId(m.createLine(start, end).id));
+    const draft = createLineDraft(start, end);
+    if (!draft.ok) return;
+    mutate((m) => setSelectedId(m.createLine(draft.start, draft.end).id));
   }
 
   function createRectangleFromViewport(first: Vec3, second: Vec3) {
-    const origin = vec(Math.min(first.x, second.x), Math.min(first.y, second.y), 0);
-    const width = Math.abs(second.x - first.x);
-    const depth = Math.abs(second.y - first.y);
-    if (width === 0 || depth === 0) return;
-    mutate((m) => setSelectedId(m.createRectangle(origin, width, depth).id));
+    const draft = createRectangleDraft(first, second);
+    if (!draft.ok) return;
+    mutate((m) => setSelectedId(m.createRectangle(draft.origin, draft.width, draft.depth).id));
   }
 
   function createBoxFromViewport(origin: Vec3) {
-    mutate((m) => setSelectedId(m.createBox(origin, 600, 600, 600).id));
+    const draft = createBoxDraft(origin);
+    if (!draft.ok) return;
+    mutate((m) => setSelectedId(m.createBox(draft.origin, draft.width, draft.depth, draft.height).id));
   }
 
   function measureFromViewport(start: Vec3, end: Vec3) {
