@@ -1,9 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { Box, Component, Download, Move3D, Ruler, RotateCw, Square, Slash, Upload } from 'lucide-react';
-import { SketchModel, formatMillimeters, type ToolName } from './core/model';
-import { vec } from './core/geometry';
+import React, { useState } from 'react';
+import { Box, Component, Download, FolderOpen, Move3D, Ruler, RotateCw, Save, Square, Slash, Upload } from 'lucide-react';
+import { SketchModel, type ToolName } from './core/model';
+import { vec, type Vec3 } from './core/geometry';
+import { formatTapeMeasurement } from './core/toolState';
+import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
+import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
 
 const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
@@ -27,9 +30,10 @@ export default function App() {
   });
   const [tool, setTool] = useState<ToolName>('select');
   const [selectedId, setSelectedId] = useState<string | undefined>(model.allEntities()[0]?.id);
+  const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
+  const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
-  const measure = useMemo(() => formatMillimeters(model.measure(vec(0, 0, 0), vec(2400, 0, 0))), [model]);
 
   function mutate(action: (m: SketchModel) => void) {
     const next = SketchModel.fromSnapshot(model.snapshot());
@@ -48,6 +52,33 @@ export default function App() {
     });
   }
 
+  function createLineFromViewport(start: Vec3, end: Vec3) {
+    mutate((m) => setSelectedId(m.createLine(start, end).id));
+  }
+
+  function createRectangleFromViewport(first: Vec3, second: Vec3) {
+    const origin = vec(Math.min(first.x, second.x), Math.min(first.y, second.y), 0);
+    const width = Math.abs(second.x - first.x);
+    const depth = Math.abs(second.y - first.y);
+    if (width === 0 || depth === 0) return;
+    mutate((m) => setSelectedId(m.createRectangle(origin, width, depth).id));
+  }
+
+  function createBoxFromViewport(origin: Vec3) {
+    mutate((m) => setSelectedId(m.createBox(origin, 600, 600, 600).id));
+  }
+
+  function measureFromViewport(start: Vec3, end: Vec3) {
+    setLastMeasurement(formatTapeMeasurement(model, start, end));
+  }
+
+  function moveFromViewport(entityId: string, delta: Vec3) {
+    mutate((m) => {
+      m.moveEntity(entityId, delta);
+      setSelectedId(entityId);
+    });
+  }
+
   function download(filename: string, content: string, mime = 'text/plain') {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -56,6 +87,23 @@ export default function App() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function saveProjectFile() {
+    download('hermes-cad-sketcher.hcad.json', exportProjectFile(model), 'application/json');
+    setProjectStatus('Projekt als .hcad.json exportiert');
+  }
+
+  async function openProjectFile(file: File) {
+    try {
+      const text = await file.text();
+      const next = importProjectFile(text);
+      setModel(next);
+      setSelectedId(next.allEntities()[0]?.id);
+      setProjectStatus(`Projekt geladen: ${file.name}`);
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'Projekt konnte nicht geladen werden.');
+    }
   }
 
   return (
@@ -69,15 +117,41 @@ export default function App() {
           </button>
         ))}
         <button className="primary" onClick={demoAction}>Demo-Aktion mit Werkzeug</button>
+        <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
+        <label className="file-button">
+          <FolderOpen size={18}/> Projekt laden
+          <input
+            type="file"
+            accept=".hcad.json,application/json"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) void openProjectFile(file);
+              event.currentTarget.value = '';
+            }}
+          />
+        </label>
         <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
         <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
       </aside>
       <section className="workspace">
         <div className="viewport-placeholder">
-          <div className="grid-floor" />
-          <div className="model-card">
-            <strong>3D-Viewport MVP</strong>
-            <span>Rechte Maustaste: Orbit/Ansicht drehen ist als Three.js-Integration geplant.</span>
+          <ThreeViewport
+            model={model}
+            activeTool={tool}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onCreateLine={createLineFromViewport}
+            onCreateRectangle={createRectangleFromViewport}
+            onCreateBox={createBoxFromViewport}
+            onMeasure={measureFromViewport}
+            onMove={moveFromViewport}
+          />
+          <div className="model-card compact">
+            <strong>Interaktiver 3D-Viewport</strong>
+            <span>Rechts gedrückt ziehen: Ansicht drehen.</span>
+            <span>Linie/Rechteck/Maßband: zwei Klicks auf das Raster.</span>
+            <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
+            <span>Körper: ein Klick auf das Raster.</span>
             <span>Aktuelle Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
@@ -85,7 +159,8 @@ export default function App() {
         <footer className="statusbar">
           <span>Werkzeug: {tool}</span>
           <span>Auswahl: {selected?.id ?? 'keine'}</span>
-          <span>Maßband-Beispiel: {measure}</span>
+          <span>Maßband: {lastMeasurement}</span>
+          <span>Projekt: {projectStatus}</span>
           <span>Einheit: mm</span>
         </footer>
       </section>

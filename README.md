@@ -39,6 +39,7 @@ Vorhanden im Code:
 - DXF-Export-Grundlage
 - einfacher DXF-LINE-Import
 - ASCII-STL-Export für Boxkörper
+- `.hcad.json` Projektdatei-Export und -Import mit Versionsprüfung
 - React/Vite-Oberfläche mit Werkzeugleiste
 - lokale Tests mit Vitest
 
@@ -58,6 +59,7 @@ Noch nicht fertig:
 
 - `.dxf`: einfacher Export und LINE-Import
 - `.stl`: ASCII-STL-Export für Boxkörper
+- `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten
 
 ### Geplant
 
@@ -148,50 +150,93 @@ Jeder Pull Request muss enthalten:
 
 ### Agenten-Aufgabenliste
 
-Gute nächste Aufgaben für Hermes Agenten oder GitHub User:
+Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss mit Tests beginnen und vor Commit `npm run check` bestehen.
 
-1. **Echter Three.js-Viewport**
+#### Bereits angefangen
+
+1. **Echter Three.js-Viewport** — Status: begonnen
    - Szene aus `SketchModel` rendern.
-   - Rechte Maustaste soll Orbit/View drehen.
-   - Linke Maustaste soll auswählen.
-   - Test: Rendering-Adapter und Tool-State prüfen.
+   - Rechte Maustaste dreht Orbit/View.
+   - Linke Maustaste wählt Objekte.
+   - Tests: Orbit-Mathematik und Entity-Mapping.
 
-2. **Maus-Zeichnen im 3D-Raum**
+2. **Maus-Zeichnen im 3D-Raum** — Status: begonnen
    - Grid-Snapping in Millimeter.
    - Linie durch zwei Klicks.
    - Rechteck durch zwei Punkte.
-   - Test: Koordinatenumrechnung und Snap-Regeln.
+   - Körper durch einen Klick als 600 × 600 × 600 mm Startkörper.
+   - Tests: Koordinatenumrechnung und Snap-Regeln.
 
-3. **Push/Pull für Flächen**
+#### Nächste priorisierte Aufgaben
+
+3. **Live-Vorschau beim Zeichnen** — Status: umgesetzt
+   - Wenn der erste Punkt für Linie/Rechteck gesetzt ist, zeigt die Mausbewegung eine Vorschau-Linie oder Vorschau-Fläche.
+   - Escape bricht den begonnenen Zeichenmodus ab und entfernt die Vorschau.
+   - Tests: Tool-State `idle -> firstPoint -> preview -> committed/cancelled` ohne Browser-Abhängigkeit prüfen.
+
+4. **Werkzeug-State aus React lösen** — Status: begonnen
+   - `src/core/toolState.ts` enthält reine Zustandsübergänge für Line, Rectangle, Box und Tape.
+   - Ziel: Select, Move, Rotate und weitere Werkzeugaktionen ebenfalls als reine Funktionen testbar machen.
+   - Test: Jede Werkzeugaktion muss als reine Funktion testbar sein.
+
+5. **Echtes Verschieben mit Maus** — Status: umgesetzt
+   - Objekt auswählen.
+   - Move-Werkzeug aktivieren.
+   - Startpunkt auf Raster anklicken, Zielpunkt anklicken, Objekt bewegt sich um Delta.
+   - Test: Delta bleibt in Millimeter korrekt, auch bei negativen Koordinaten.
+
+6. **Maßband-Werkzeug produktiv machen** — Status: umgesetzt
+   - Zwei Punkte anklicken.
+   - Distanz im Statusbar anzeigen.
+   - Später Maß-Hilfslinie im Viewport anzeigen.
+   - Test: Messung nutzt `SketchModel.measure` und formatiert Millimeter sauber.
+
+7. **Push/Pull für Flächen**
    - Aus Rechteck eine Box extrudieren.
    - Box-Flächen in Höhe/Tiefe/Breite ziehen.
-   - Test: Maße bleiben korrekt.
+   - Test: Maße bleiben korrekt und negative/Null-Extrusion wird blockiert.
 
-4. **Komponenten verbessern**
+8. **Komponenten verbessern**
    - Komponenten duplizieren.
    - Verschachtelte Komponenten vorbereiten.
+   - Komponente als Instanz mit eigener Transformation modellieren.
    - Test: IDs und Transformationen bleiben stabil.
 
-5. **DXF verbessern**
-   - LWPOLYLINE importieren.
-   - Layer auslesen.
-   - Einheiten prüfen.
-   - Testdateien unter `tests/fixtures/` ergänzen.
+9. **Projektdatei speichern/laden** — Status: umgesetzt
+   - Eigenes JSON-Format `.hcad.json` einführen.
+   - Snapshot enthält Einheit, Entities, Komponenten und Version.
+   - Import prüft Format, Version, Millimeter-Einheit, Entity-Struktur und Komponenten-Referenzen.
+   - Test: `save -> load -> snapshot` bleibt identisch.
 
-6. **STL Import ergänzen**
-   - ASCII-STL lesen.
-   - Mesh als Referenzkörper anzeigen.
-   - Test: bekannte STL-Datei ergibt erwartete Dreieckszahl.
+10. **DXF verbessern**
+    - LWPOLYLINE importieren.
+    - Layer auslesen.
+    - Einheiten prüfen.
+    - Testdateien unter `tests/fixtures/` ergänzen.
 
-7. **DWG Bridge planen**
-   - LibreDWG/ODA-Workflow dokumentieren.
-   - Keine falsche native DWG-Unterstützung behaupten.
-   - Test: Bridge-Adapter muss fehlende Tools sauber melden.
+11. **STL Import ergänzen**
+    - ASCII-STL lesen.
+    - Mesh als Referenzkörper anzeigen.
+    - Test: bekannte STL-Datei ergibt erwartete Dreieckszahl.
 
-8. **SKP Bridge planen**
-   - Offizielle SketchUp C API prüfen.
-   - Lizenz und Linux-Build realistisch dokumentieren.
-   - Test: Adapter-Interface ohne SketchUp-Abhängigkeit.
+12. **Bundle-Größe reduzieren**
+    - Three.js-Viewport dynamisch laden oder Vite-Code-Splitting nutzen.
+    - Test/Check: `npm run build` bleibt grün; Bundle-Warnung dokumentieren oder reduzieren.
+
+13. **DWG Bridge planen**
+    - LibreDWG/ODA-Workflow dokumentieren.
+    - Keine falsche native DWG-Unterstützung behaupten.
+    - Test: Bridge-Adapter muss fehlende Tools sauber melden.
+
+14. **SKP Bridge planen**
+    - Offizielle SketchUp C API prüfen.
+    - Lizenz und Linux-Build realistisch dokumentieren.
+    - Test: Adapter-Interface ohne SketchUp-Abhängigkeit.
+
+15. **GitHub Actions CI aktivieren**
+    - Erst möglich, wenn ein GitHub-Token mit `workflow`-Scope verfügbar ist.
+    - Siehe Issue #2.
+    - CI soll `npm ci` und `npm run check` ausführen.
 
 ## Architektur
 
