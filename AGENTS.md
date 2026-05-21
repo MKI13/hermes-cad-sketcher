@@ -74,16 +74,35 @@ npm run check
      - `changes`
      - `work`
 
-## Branch- und Repository-Regeln
+## Repository-Sicherheit, Branches und Versionen
 
-- Kein direkter Push auf `main`.
-- Neue Arbeit immer auf einem eigenen Branch.
-- Branch-Namen:
-  - `feat/...` für neue Funktionen,
-  - `fix/...` für Fehlerbehebungen,
-  - `docs/...` für Dokumentation,
-  - `test/...` für reine Tests,
-  - `refactor/...` für Umbau ohne neue Funktion.
+Dieses Repository soll stabil bleiben. Nicht jeder Agent oder externe User darf frei Dateien ändern oder ungeprüften Code in das Projekt bringen.
+
+### Schreibrechte
+
+- Änderungen am offiziellen Repository dürfen nur durch Marios oder ausdrücklich autorisierte Maintainer/Hermes-Agenten erfolgen.
+- Externe Personen oder fremde Agenten sollen Vorschläge als Pull Request, Patch oder Issue liefern, aber nicht ungeprüft direkt in das Hauptprojekt schreiben.
+- `main` bleibt der stabile Stand.
+- Direkte Pushes auf `main` sind nicht erlaubt.
+- Neue Änderungen werden erst nach Prüfung und bestandenem `npm run check` übernommen.
+
+### Branch-Strategie
+
+Nicht für jede kleine Idee wahllos neue Branches anlegen. Zu viele parallele Branches machen das Projekt chaotisch.
+
+Bevorzugte Struktur:
+
+- `main` — stabiler geprüfter Stand.
+- `dev/vX.Y` — gebündelte Entwicklungsarbeit für die nächste Version, zum Beispiel `dev/v0.2`.
+- `release/vX.Y` — Release-Vorbereitung, nur wenn wirklich ein Release vorbereitet wird.
+- `feat/...`, `fix/...`, `docs/...` — nur für klar abgegrenzte, kurzlebige Arbeiten.
+
+Regeln:
+
+- Kleine geprüfte Dokumentations- oder Reparaturänderungen sollen möglichst auf einem bestehenden passenden Arbeitsbranch landen, statt immer neue Branches zu erzeugen.
+- Feature-Branches müssen nach Merge geschlossen oder gelöscht werden.
+- Ein Commit darf erst gepusht werden, wenn die lokale Prüfung bestanden hat.
+- Wenn mehrere Agenten arbeiten, müssen sie vorher den aktuellen Stand holen und dürfen keine fremden Änderungen überschreiben.
 
 ## Qualitätsmaßstab
 
@@ -146,6 +165,16 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
     - `.obj`, `.glb`, `.ifc` oder `.step` nur nach realistischer technischer Prüfung ergänzen.
     - Import/Export nie als fertig markieren, wenn nur ein Teilformat unterstützt wird.
 
+11. **Hermes-Agenten-Konsole planen**
+    - Interne Bedienkonsole für Hermes Agenten entwerfen.
+    - Sichere Befehle für Modellaktionen definieren.
+    - Keine direkte Ausführung ungeprüfter Systembefehle erlauben.
+
+12. **Eigenes Erweiterungsformat planen**
+    - Format wie `.hcad-ext` oder `.hcad-extension.json` prüfen.
+    - Manifest, Berechtigungen, Versionen und Kompatibilitätsprüfung definieren.
+    - Testbarer Loader ohne SketchUp-Ruby-Abhängigkeit.
+
 ## Erledigte Funktionen und Werkzeuge
 
 Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
@@ -167,9 +196,39 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 
 - Keine Unterstützung für SketchUp-Ruby-Plugins (`.rb`, `.rbz`) versprechen.
 - Keine native DWG- oder SKP-Kompatibilität behaupten, solange nur eine geplante Bridge existiert.
+- Die Benutzeroberfläche darf SketchUp-ähnlich und vertraut wirken, aber keine geschützten SketchUp-/Trimble-Layouts, Logos, Icons, Werkzeug-Symbole oder markenrechtlich geschützten Designs kopieren.
+- Werkzeugnamen und Symbole sollen eigenständig gestaltet werden, auch wenn die Bedienlogik für CAD-Nutzer vertraut ist.
 - Keine großen Binärdateien, generierten Ordner oder unnötigen Build-Artefakte committen.
 - Keine Zugangsdaten, Tokens oder privaten Dateien committen.
 - Keine Funktion als fertig dokumentieren, wenn sie nur teilweise funktioniert.
+
+## Benutzeroberfläche und SketchUp-Ähnlichkeit
+
+Hermes CAD Sketcher soll sich für Anwender vertraut anfühlen, die moderne SketchUp-Versionen kennen: schnelle Werkzeugleiste, Orbit/Pan/Zoom, Push/Pull-artiges Arbeiten, Maßband, Gruppen/Komponenten und direkte Arbeit mit Maßen.
+
+Wichtig:
+
+- Das Programm darf nicht als SketchUp-Kopie auftreten.
+- Keine SketchUp-/Trimble-Marken, Logos, Icons oder exakt kopierten UI-Elemente verwenden.
+- Eigene Icons, eigene Farben und eigene Benennungen verwenden, wenn rechtliche Unsicherheit besteht.
+- Vor größeren UI-Änderungen prüfen, ob sie nur vom Bedienkonzept inspiriert sind oder zu nah an geschützten Originalen liegen.
+- Ziel ist eine eigene, rechtlich saubere Linux-CAD-Oberfläche für EF-Sinn und Marios.
+
+## Hermes-Agenten-Bedienung und eigenes Erweiterungsformat
+
+Langfristig soll Hermes CAD Sketcher eine direkte Bedien- und Automationsschnittstelle für Hermes Agenten bekommen. Das soll ähnlich nützlich sein wie eine Ruby Console in SketchUp, aber nicht SketchUp-Ruby, `.rb` oder `.rbz` nachbauen.
+
+Zielbild:
+
+- Eine interne Agenten-/Skript-Konsole im Programm.
+- Klare Befehle für Modellaktionen, zum Beispiel Zeichnen, Messen, Auswählen, Gruppieren, Exportieren und Prüfen.
+- Ein eigenes kompatibles Erweiterungsformat für dieses Programm, zum Beispiel `.hcad-ext` oder `.hcad-extension.json`.
+- Erweiterungen müssen deklarieren, welche Werkzeuge, Befehle, UI-Elemente und Berechtigungen sie brauchen.
+- Jede Erweiterung muss ohne SketchUp-Abhängigkeit laufen.
+- Jede Erweiterung braucht Tests und muss mit `npm run check` geprüft werden.
+- Unsichere Erweiterungen dürfen nicht automatisch geladen werden.
+
+Regel: Statt `.rb`/`.rbz` wird ein eigenes Hermes-CAD-Erweiterungssystem geplant, das 100% zu diesem Programm passt und nicht fremde Plugin-APIs vortäuscht.
 
 ## Pull-Request-Checkliste
 
