@@ -72,6 +72,13 @@ export default function App() {
     setLastMeasurement(formatTapeMeasurement(model, start, end));
   }
 
+  function moveFromViewport(entityId: string, delta: Vec3) {
+    mutate((m) => {
+      m.moveEntity(entityId, delta);
+      setSelectedId(entityId);
+    });
+  }
+
   function download(filename: string, content: string, mime = 'text/plain') {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -137,11 +144,13 @@ export default function App() {
             onCreateRectangle={createRectangleFromViewport}
             onCreateBox={createBoxFromViewport}
             onMeasure={measureFromViewport}
+            onMove={moveFromViewport}
           />
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>
             <span>Rechts gedrückt ziehen: Ansicht drehen.</span>
             <span>Linie/Rechteck/Maßband: zwei Klicks auf das Raster.</span>
+            <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
             <span>Körper: ein Klick auf das Raster.</span>
             <span>Aktuelle Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>

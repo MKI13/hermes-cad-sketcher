@@ -21,25 +21,30 @@ type ThreeViewportProps = {
   onCreateRectangle?: (first: Vec3, second: Vec3) => void;
   onCreateBox?: (origin: Vec3) => void;
   onMeasure?: (start: Vec3, end: Vec3) => void;
+  onMove?: (entityId: string, delta: Vec3) => void;
 };
 
-export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
   const activeToolRef = useRef(activeTool);
+  const selectedIdRef = useRef(selectedId);
   const onSelectRef = useRef(onSelect);
   const onCreateLineRef = useRef(onCreateLine);
   const onCreateRectangleRef = useRef(onCreateRectangle);
   const onCreateBoxRef = useRef(onCreateBox);
   const onMeasureRef = useRef(onMeasure);
+  const onMoveRef = useRef(onMove);
   activeToolRef.current = activeTool;
+  selectedIdRef.current = selectedId;
   onSelectRef.current = onSelect;
   onCreateLineRef.current = onCreateLine;
   onCreateRectangleRef.current = onCreateRectangle;
   onCreateBoxRef.current = onCreateBox;
   onMeasureRef.current = onMeasure;
+  onMoveRef.current = onMove;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -87,6 +92,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       if (command.type === 'createRectangle') onCreateRectangleRef.current?.(command.first, command.second);
       if (command.type === 'createBox') onCreateBoxRef.current?.(command.origin);
       if (command.type === 'measureDistance') onMeasureRef.current?.(command.start, command.end);
+      if (command.type === 'moveEntity') onMoveRef.current?.(command.entityId, command.delta);
     };
 
     const toPreviewVector = (point: Vec3) => new THREE.Vector3(point.x, point.z + 3, point.y);
@@ -155,8 +161,14 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
           camera,
           50
         );
-        if (groundPoint && (activeToolRef.current === 'line' || activeToolRef.current === 'rectangle' || activeToolRef.current === 'box' || activeToolRef.current === 'tape')) {
-          const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint);
+        const usesGroundPoint =
+          activeToolRef.current === 'line' ||
+          activeToolRef.current === 'rectangle' ||
+          activeToolRef.current === 'box' ||
+          activeToolRef.current === 'tape' ||
+          (activeToolRef.current === 'move' && selectedIdRef.current !== undefined);
+        if (groundPoint && usesGroundPoint) {
+          const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current);
           toolStateRef.current = step.state;
           executeCommand(step.command);
           updateDrawingPreview(groundPoint);
@@ -236,7 +248,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
-      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck/Maßband: zwei Linksklicks. Escape: Zeichnen abbrechen.</div>
+      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
     </div>
   );
 }

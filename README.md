@@ -177,7 +177,7 @@ Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss m
    - Ziel: Select, Move, Rotate und weitere Werkzeugaktionen ebenfalls als reine Funktionen testbar machen.
    - Test: Jede Werkzeugaktion muss als reine Funktion testbar sein.
 
-5. **Echtes Verschieben mit Maus**
+5. **Echtes Verschieben mit Maus** — Status: umgesetzt
    - Objekt auswählen.
    - Move-Werkzeug aktivieren.
    - Startpunkt auf Raster anklicken, Zielpunkt anklicken, Objekt bewegt sich um Delta.

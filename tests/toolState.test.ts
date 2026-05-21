@@ -90,4 +90,21 @@ describe('pure CAD tool state', () => {
 
     expect(formatTapeMeasurement(model, vec(0, 0, 0), vec(300, 400, 0))).toBe('500 mm');
   });
+
+  it('stores first move point then commits selected entity movement delta', () => {
+    const first = handleGroundClick(createInitialToolState(), 'move', vec(100, 200, 0), 'box_1');
+    expect(first.state).toEqual({ mode: 'moving', pendingPoint: vec(100, 200, 0), selectedId: 'box_1', tool: 'move' });
+    expect(first.command).toBeUndefined();
+
+    const second = handleGroundClick(first.state, 'move', vec(-50, 500, 0), 'box_1');
+    expect(second.state).toEqual({ mode: 'idle', pendingPoint: undefined });
+    expect(second.command).toEqual({ type: 'moveEntity', entityId: 'box_1', delta: vec(-150, 300, 0) });
+  });
+
+  it('ignores move clicks without a selected entity', () => {
+    const result = handleGroundClick(createInitialToolState(), 'move', vec(100, 200, 0));
+
+    expect(result.state).toEqual({ mode: 'idle', pendingPoint: undefined });
+    expect(result.command).toBeUndefined();
+  });
 });
