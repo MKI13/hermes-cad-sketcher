@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { vec } from '../src/core/geometry';
-import { cancelToolState, createInitialToolState, handleGroundClick } from '../src/core/toolState';
+import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick } from '../src/core/toolState';
 
 describe('pure CAD tool state', () => {
   it('starts in idle state without a pending point', () => {
@@ -44,5 +44,33 @@ describe('pure CAD tool state', () => {
 
     expect(switched.state).toEqual({ mode: 'drawing', pendingPoint: vec(100, 100, 0), tool: 'rectangle' });
     expect(switched.command).toBeUndefined();
+  });
+
+  it('previews a pending line while hovering over the second point', () => {
+    const first = handleGroundClick(createInitialToolState(), 'line', vec(0, 0, 0));
+
+    expect(getDrawingPreview(first.state, 'line', vec(1000, 500, 0))).toEqual({
+      type: 'linePreview',
+      start: vec(0, 0, 0),
+      end: vec(1000, 500, 0)
+    });
+  });
+
+  it('previews a pending rectangle while hovering over the opposite corner', () => {
+    const first = handleGroundClick(createInitialToolState(), 'rectangle', vec(500, 700, 0));
+
+    expect(getDrawingPreview(first.state, 'rectangle', vec(100, 200, 0))).toEqual({
+      type: 'rectanglePreview',
+      first: vec(500, 700, 0),
+      second: vec(100, 200, 0)
+    });
+  });
+
+  it('does not preview when idle, cancelled or another tool is active', () => {
+    const first = handleGroundClick(createInitialToolState(), 'line', vec(0, 0, 0));
+
+    expect(getDrawingPreview(createInitialToolState(), 'line', vec(100, 0, 0))).toBeUndefined();
+    expect(getDrawingPreview(cancelToolState(first.state), 'line', vec(100, 0, 0))).toBeUndefined();
+    expect(getDrawingPreview(first.state, 'rectangle', vec(100, 0, 0))).toBeUndefined();
   });
 });

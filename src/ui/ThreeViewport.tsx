@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
 import { type SketchModel, type ToolName } from '../core/model';
-import { cancelToolState, createInitialToolState, handleGroundClick, type ToolCommand, type ToolState } from '../core/toolState';
+import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick, type ToolCommand, type ToolPreview, type ToolState } from '../core/toolState';
 import {
   applyOrbitToCamera,
   createModelGroup,
@@ -59,6 +59,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const modelGroup = createModelGroup(model);
     scene.add(modelGroup);
+    let previewObject: THREE.Object3D | undefined;
 
     const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
     applyOrbitToCamera(camera, orbitRef.current);
@@ -84,6 +85,58 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       if (command.type === 'createBox') onCreateBoxRef.current?.(command.origin);
     };
 
+    const toPreviewVector = (point: Vec3) => new THREE.Vector3(point.x, point.z + 3, point.y);
+
+    const rectanglePreviewCorners = (first: Vec3, second: Vec3): Vec3[] => [
+      first,
+      { x: second.x, y: first.y, z: first.z },
+      second,
+      { x: first.x, y: second.y, z: second.z }
+    ];
+
+    const createPreviewObject = (preview: ToolPreview): THREE.Object3D => {
+      if (preview.type === 'linePreview') {
+        const geometry = new THREE.BufferGeometry().setFromPoints([toPreviewVector(preview.start), toPreviewVector(preview.end)]);
+        return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9 }));
+      }
+
+      const corners = rectanglePreviewCorners(preview.first, preview.second);
+      const group = new THREE.Group();
+      group.name = 'drawing-preview';
+      const fillGeometry = new THREE.BufferGeometry().setFromPoints([toPreviewVector(corners[0]), toPreviewVector(corners[1]), toPreviewVector(corners[2]), toPreviewVector(corners[0]), toPreviewVector(corners[2]), toPreviewVector(corners[3])]);
+      fillGeometry.setIndex([0, 1, 2, 3, 4, 5]);
+      group.add(new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({ color: 0x2563eb, side: THREE.DoubleSide, transparent: true, opacity: 0.16 })));
+      const outlineGeometry = new THREE.BufferGeometry().setFromPoints([...corners.map(toPreviewVector), toPreviewVector(corners[0])]);
+      group.add(new THREE.Line(outlineGeometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.95 })));
+      return group;
+    };
+
+    const disposeObject = (object: THREE.Object3D) => {
+      object.traverse((child) => {
+        const mesh = child as THREE.Object3D & { geometry?: THREE.BufferGeometry; material?: THREE.Material | THREE.Material[] };
+        mesh.geometry?.dispose();
+        if (Array.isArray(mesh.material)) mesh.material.forEach((material) => material.dispose());
+        else mesh.material?.dispose();
+      });
+    };
+
+    const clearDrawingPreview = () => {
+      if (!previewObject) return;
+      scene.remove(previewObject);
+      disposeObject(previewObject);
+      previewObject = undefined;
+    };
+
+    const updateDrawingPreview = (groundPoint?: Vec3) => {
+      clearDrawingPreview();
+      const preview = groundPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      if (preview) {
+        previewObject = createPreviewObject(preview);
+        scene.add(previewObject);
+      }
+      render();
+    };
+
     const pointerDown = (event: PointerEvent) => {
       if (event.button === 2) {
         dragRef.current = { x: event.clientX, y: event.clientY };
@@ -102,9 +155,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
           const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint);
           toolStateRef.current = step.state;
           executeCommand(step.command);
+          updateDrawingPreview(groundPoint);
           return;
         }
         toolStateRef.current = cancelToolState(toolStateRef.current);
+        updateDrawingPreview();
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
@@ -114,17 +169,27 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const pointerMove = (event: PointerEvent) => {
-      if (!dragRef.current) return;
-      const last = dragRef.current;
-      orbitRef.current = orbitCameraDrag(orbitRef.current, {
-        deltaX: event.clientX - last.x,
-        deltaY: event.clientY - last.y,
-        viewportWidth: host.clientWidth,
-        viewportHeight: host.clientHeight
-      });
-      dragRef.current = { x: event.clientX, y: event.clientY };
-      applyOrbitToCamera(camera, orbitRef.current);
-      render();
+      if (dragRef.current) {
+        const last = dragRef.current;
+        orbitRef.current = orbitCameraDrag(orbitRef.current, {
+          deltaX: event.clientX - last.x,
+          deltaY: event.clientY - last.y,
+          viewportWidth: host.clientWidth,
+          viewportHeight: host.clientHeight
+        });
+        dragRef.current = { x: event.clientX, y: event.clientY };
+        applyOrbitToCamera(camera, orbitRef.current);
+        render();
+        return;
+      }
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      const groundPoint = screenPointToGround(
+        { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
+        camera,
+        50
+      );
+      updateDrawingPreview(groundPoint);
     };
 
     const pointerUp = (event: PointerEvent) => {
@@ -136,7 +201,10 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const contextMenu = (event: MouseEvent) => event.preventDefault();
     const keyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') toolStateRef.current = cancelToolState(toolStateRef.current);
+      if (event.key === 'Escape') {
+        toolStateRef.current = cancelToolState(toolStateRef.current);
+        updateDrawingPreview();
+      }
     };
 
     renderer.domElement.addEventListener('pointerdown', pointerDown);
@@ -156,6 +224,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       renderer.domElement.removeEventListener('pointercancel', pointerUp);
       renderer.domElement.removeEventListener('contextmenu', contextMenu);
       window.removeEventListener('keydown', keyDown);
+      clearDrawingPreview();
       host.removeChild(renderer.domElement);
       renderer.dispose();
     };

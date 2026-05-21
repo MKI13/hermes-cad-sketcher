@@ -12,6 +12,10 @@ export type ToolCommand =
   | { type: 'createRectangle'; first: Vec3; second: Vec3 }
   | { type: 'createBox'; origin: Vec3 };
 
+export type ToolPreview =
+  | { type: 'linePreview'; start: Vec3; end: Vec3 }
+  | { type: 'rectanglePreview'; first: Vec3; second: Vec3 };
+
 export type ToolStep = Readonly<{
   state: ToolState;
   command?: ToolCommand;
@@ -23,6 +27,13 @@ export function createInitialToolState(): ToolState {
 
 export function cancelToolState(_state: ToolState): ToolState {
   return createInitialToolState();
+}
+
+export function getDrawingPreview(state: ToolState, tool: ToolName, point: Vec3): ToolPreview | undefined {
+  if (state.mode !== 'drawing' || state.tool !== tool) return undefined;
+  if (tool === 'line') return { type: 'linePreview', start: state.pendingPoint, end: point };
+  if (tool === 'rectangle') return { type: 'rectanglePreview', first: state.pendingPoint, second: point };
+  return undefined;
 }
 
 export function handleGroundClick(state: ToolState, tool: ToolName, point: Vec3): ToolStep {

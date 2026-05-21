@@ -167,10 +167,10 @@ Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss m
 
 #### Nächste priorisierte Aufgaben
 
-3. **Live-Vorschau beim Zeichnen**
-   - Wenn der erste Punkt für Linie/Rechteck gesetzt ist, soll die Mausbewegung eine Vorschau-Linie oder Vorschau-Fläche zeigen.
-   - Escape soll den begonnenen Zeichenmodus abbrechen.
-   - Test: Tool-State `idle -> firstPoint -> committed/cancelled` ohne Browser-Abhängigkeit prüfen.
+3. **Live-Vorschau beim Zeichnen** — Status: begonnen
+   - Wenn der erste Punkt für Linie/Rechteck gesetzt ist, zeigt die Mausbewegung eine Vorschau-Linie oder Vorschau-Fläche.
+   - Escape bricht den begonnenen Zeichenmodus ab und entfernt die Vorschau.
+   - Tests: Tool-State `idle -> firstPoint -> preview -> committed/cancelled` ohne Browser-Abhängigkeit prüfen.
 
 4. **Werkzeug-State aus React lösen**
    - Aktuell steckt Zeichenlogik teilweise in `ThreeViewport` und `App`.
