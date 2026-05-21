@@ -7,6 +7,7 @@ import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { createBoxDraft, createLineDraft, createRectangleDraft } from './ui/drawingController';
+import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
 
@@ -42,15 +43,15 @@ export default function App() {
     setModel(next);
   }
 
-  function demoAction() {
-    mutate((m) => {
-      if (tool === 'line') setSelectedId(m.createLine(vec(0, 0, 0), vec(1000, 0, 0)).id);
-      if (tool === 'rectangle') setSelectedId(m.createRectangle(vec(0, 1200, 0), 1000, 700).id);
-      if (tool === 'box') setSelectedId(m.createBox(vec(0, 0, 0), 600, 600, 600).id);
-      if (tool === 'move' && selectedId) m.moveEntity(selectedId, vec(100, 0, 0));
-      if (tool === 'pushPull' && selectedId) m.pushPullBoxFace(selectedId, 100);
-      if (tool === 'rotate' && selectedId) m.rotateEntityZ(selectedId, Math.PI / 12);
-    });
+  function loadExampleModel() {
+    const m = new SketchModel();
+    const box = m.createBox(vec(0, 0, 0), 2400, 900, 720);
+    const line = m.createLine(vec(0, -300, 0), vec(2400, -300, 0));
+    m.createComponent('Beispiel-Komponente Tischkörper', [box.id, line.id]);
+    setModel(m);
+    setSelectedId(box.id);
+    setLastMeasurement('noch keine Messung');
+    setProjectStatus('Beispiel geladen');
   }
 
   function createLineFromViewport(start: Vec3, end: Vec3) {
@@ -127,7 +128,8 @@ export default function App() {
             {item.icon}<span>{item.label}</span>
           </button>
         ))}
-        <button className="primary" onClick={demoAction}>Demo-Aktion mit Werkzeug</button>
+        <button className="primary" onClick={loadExampleModel}>{getPrimaryActionLabel()}</button>
+        <p className="tool-instruction">{getToolInstructions(tool)}</p>
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button>
         <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
         <label className="file-button">
