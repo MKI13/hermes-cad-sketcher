@@ -167,14 +167,14 @@ Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss m
 
 #### Nächste priorisierte Aufgaben
 
-3. **Live-Vorschau beim Zeichnen** — Status: begonnen
+3. **Live-Vorschau beim Zeichnen** — Status: umgesetzt
    - Wenn der erste Punkt für Linie/Rechteck gesetzt ist, zeigt die Mausbewegung eine Vorschau-Linie oder Vorschau-Fläche.
    - Escape bricht den begonnenen Zeichenmodus ab und entfernt die Vorschau.
    - Tests: Tool-State `idle -> firstPoint -> preview -> committed/cancelled` ohne Browser-Abhängigkeit prüfen.
 
-4. **Werkzeug-State aus React lösen**
-   - Aktuell steckt Zeichenlogik teilweise in `ThreeViewport` und `App`.
-   - Ziel: `src/core/toolState.ts` für Select, Line, Rectangle, Box, Move, Rotate, Tape.
+4. **Werkzeug-State aus React lösen** — Status: begonnen
+   - `src/core/toolState.ts` enthält reine Zustandsübergänge für Line, Rectangle, Box und Tape.
+   - Ziel: Select, Move, Rotate und weitere Werkzeugaktionen ebenfalls als reine Funktionen testbar machen.
    - Test: Jede Werkzeugaktion muss als reine Funktion testbar sein.
 
 5. **Echtes Verschieben mit Maus**
@@ -183,7 +183,7 @@ Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss m
    - Startpunkt auf Raster anklicken, Zielpunkt anklicken, Objekt bewegt sich um Delta.
    - Test: Delta bleibt in Millimeter korrekt, auch bei negativen Koordinaten.
 
-6. **Maßband-Werkzeug produktiv machen**
+6. **Maßband-Werkzeug produktiv machen** — Status: umgesetzt
    - Zwei Punkte anklicken.
    - Distanz im Statusbar anzeigen.
    - Später Maß-Hilfslinie im Viewport anzeigen.

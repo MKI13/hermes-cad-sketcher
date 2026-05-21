@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Box, Component, Download, Move3D, Ruler, RotateCw, Square, Slash, Upload } from 'lucide-react';
-import { SketchModel, formatMillimeters, type ToolName } from './core/model';
+import { SketchModel, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
+import { formatTapeMeasurement } from './core/toolState';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { ThreeViewport } from './ui/ThreeViewport';
@@ -28,9 +29,9 @@ export default function App() {
   });
   const [tool, setTool] = useState<ToolName>('select');
   const [selectedId, setSelectedId] = useState<string | undefined>(model.allEntities()[0]?.id);
+  const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
-  const measure = useMemo(() => formatMillimeters(model.measure(vec(0, 0, 0), vec(2400, 0, 0))), [model]);
 
   function mutate(action: (m: SketchModel) => void) {
     const next = SketchModel.fromSnapshot(model.snapshot());
@@ -63,6 +64,10 @@ export default function App() {
 
   function createBoxFromViewport(origin: Vec3) {
     mutate((m) => setSelectedId(m.createBox(origin, 600, 600, 600).id));
+  }
+
+  function measureFromViewport(start: Vec3, end: Vec3) {
+    setLastMeasurement(formatTapeMeasurement(model, start, end));
   }
 
   function download(filename: string, content: string, mime = 'text/plain') {
@@ -99,11 +104,12 @@ export default function App() {
             onCreateLine={createLineFromViewport}
             onCreateRectangle={createRectangleFromViewport}
             onCreateBox={createBoxFromViewport}
+            onMeasure={measureFromViewport}
           />
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>
             <span>Rechts gedrückt ziehen: Ansicht drehen.</span>
-            <span>Linie/Rechteck: zwei Klicks auf das Raster.</span>
+            <span>Linie/Rechteck/Maßband: zwei Klicks auf das Raster.</span>
             <span>Körper: ein Klick auf das Raster.</span>
             <span>Aktuelle Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
@@ -112,7 +118,7 @@ export default function App() {
         <footer className="statusbar">
           <span>Werkzeug: {tool}</span>
           <span>Auswahl: {selected?.id ?? 'keine'}</span>
-          <span>Maßband-Beispiel: {measure}</span>
+          <span>Maßband: {lastMeasurement}</span>
           <span>Einheit: mm</span>
         </footer>
       </section>

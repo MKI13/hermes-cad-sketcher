@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { vec } from '../src/core/geometry';
-import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick } from '../src/core/toolState';
+import { SketchModel } from '../src/core/model';
+import { cancelToolState, createInitialToolState, formatTapeMeasurement, getDrawingPreview, handleGroundClick } from '../src/core/toolState';
 
 describe('pure CAD tool state', () => {
   it('starts in idle state without a pending point', () => {
@@ -72,5 +73,21 @@ describe('pure CAD tool state', () => {
     expect(getDrawingPreview(createInitialToolState(), 'line', vec(100, 0, 0))).toBeUndefined();
     expect(getDrawingPreview(cancelToolState(first.state), 'line', vec(100, 0, 0))).toBeUndefined();
     expect(getDrawingPreview(first.state, 'rectangle', vec(100, 0, 0))).toBeUndefined();
+  });
+
+  it('stores first tape point then commits a distance measurement command on second point', () => {
+    const first = handleGroundClick(createInitialToolState(), 'tape', vec(0, 0, 0));
+    expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 0), tool: 'tape' });
+    expect(first.command).toBeUndefined();
+
+    const second = handleGroundClick(first.state, 'tape', vec(300, 400, 0));
+    expect(second.state).toEqual({ mode: 'idle', pendingPoint: undefined });
+    expect(second.command).toEqual({ type: 'measureDistance', start: vec(0, 0, 0), end: vec(300, 400, 0) });
+  });
+
+  it('formats tape measurement through SketchModel.measure in millimeters', () => {
+    const model = new SketchModel();
+
+    expect(formatTapeMeasurement(model, vec(0, 0, 0), vec(300, 400, 0))).toBe('500 mm');
   });
 });

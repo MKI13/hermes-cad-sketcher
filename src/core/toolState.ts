@@ -1,16 +1,18 @@
 import { type Vec3 } from './geometry';
-import { type ToolName } from './model';
+import { formatMillimeters, type SketchModel, type ToolName } from './model';
 
 export type DrawableTool = Extract<ToolName, 'line' | 'rectangle' | 'box'>;
+export type TwoPointTool = Extract<ToolName, 'line' | 'rectangle' | 'tape'>;
 
 export type ToolState =
   | { mode: 'idle'; pendingPoint?: undefined }
-  | { mode: 'drawing'; tool: Extract<DrawableTool, 'line' | 'rectangle'>; pendingPoint: Vec3 };
+  | { mode: 'drawing'; tool: TwoPointTool; pendingPoint: Vec3 };
 
 export type ToolCommand =
   | { type: 'createLine'; start: Vec3; end: Vec3 }
   | { type: 'createRectangle'; first: Vec3; second: Vec3 }
-  | { type: 'createBox'; origin: Vec3 };
+  | { type: 'createBox'; origin: Vec3 }
+  | { type: 'measureDistance'; start: Vec3; end: Vec3 };
 
 export type ToolPreview =
   | { type: 'linePreview'; start: Vec3; end: Vec3 }
@@ -36,12 +38,16 @@ export function getDrawingPreview(state: ToolState, tool: ToolName, point: Vec3)
   return undefined;
 }
 
+export function formatTapeMeasurement(model: Pick<SketchModel, 'measure'>, start: Vec3, end: Vec3): string {
+  return formatMillimeters(model.measure(start, end));
+}
+
 export function handleGroundClick(state: ToolState, tool: ToolName, point: Vec3): ToolStep {
   if (tool === 'box') {
     return { state: createInitialToolState(), command: { type: 'createBox', origin: point } };
   }
 
-  if (tool !== 'line' && tool !== 'rectangle') {
+  if (tool !== 'line' && tool !== 'rectangle' && tool !== 'tape') {
     return { state: createInitialToolState() };
   }
 
@@ -52,7 +58,9 @@ export function handleGroundClick(state: ToolState, tool: ToolName, point: Vec3)
   const command: ToolCommand =
     tool === 'line'
       ? { type: 'createLine', start: state.pendingPoint, end: point }
-      : { type: 'createRectangle', first: state.pendingPoint, second: point };
+      : tool === 'rectangle'
+        ? { type: 'createRectangle', first: state.pendingPoint, second: point }
+        : { type: 'measureDistance', start: state.pendingPoint, end: point };
 
   return { state: createInitialToolState(), command };
 }
