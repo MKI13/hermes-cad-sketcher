@@ -193,6 +193,7 @@ export default function App() {
         <PushPullPanel
           disabled={!selectedId || selected?.type !== 'box'}
           selectedType={selected?.type}
+          selectedBox={selected?.type === 'box' ? selected : undefined}
           deltaHeight={pushPullDeltaHeight}
           onDeltaHeightChange={setPushPullDeltaHeight}
           onApply={applyPushPullDelta}

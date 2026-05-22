@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import type { Entity } from '../core/model';
+import type { BoxEntity, Entity } from '../core/model';
 
 export type PushPullParseResult =
   | { ok: true; deltaHeight: number }
@@ -8,6 +8,7 @@ export type PushPullParseResult =
 type PushPullPanelProps = {
   disabled: boolean;
   selectedType?: Entity['type'];
+  selectedBox?: Pick<BoxEntity, 'height'>;
   deltaHeight: string;
   onDeltaHeightChange: (deltaHeight: string) => void;
   onApply: () => void;
@@ -20,14 +21,24 @@ export function parsePushPullDelta(deltaHeight: string): PushPullParseResult {
   return { ok: true, deltaHeight: value };
 }
 
-export function PushPullPanel({ disabled, selectedType, deltaHeight, onDeltaHeightChange, onApply }: PushPullPanelProps) {
+export function validatePushPullHeight(selectedBox: Pick<BoxEntity, 'height'> | undefined, parsed: PushPullParseResult): PushPullParseResult {
+  if (!parsed.ok) return parsed;
+  if (!selectedBox) return { ok: false, error: 'Push/Pull braucht einen ausgewählten Körper.' };
+  if (selectedBox.height + parsed.deltaHeight <= 0) {
+    return { ok: false, error: 'Push/Pull darf die Höhe nicht auf null oder negativ setzen.' };
+  }
+  return parsed;
+}
+
+export function PushPullPanel({ disabled, selectedType, selectedBox, deltaHeight, onDeltaHeightChange, onApply }: PushPullPanelProps) {
   function updateDelta(event: ChangeEvent<HTMLInputElement>) {
     onDeltaHeightChange(event.target.value);
   }
 
   const parsed = parsePushPullDelta(deltaHeight);
   const needsBox = selectedType !== 'box';
-  const applyDisabled = disabled || needsBox || !parsed.ok;
+  const heightValidation = needsBox ? parsed : validatePushPullHeight(selectedBox, parsed);
+  const applyDisabled = disabled || needsBox || !heightValidation.ok;
 
   return (
     <section className="push-pull-panel" aria-label="Höhe ändern">
@@ -44,7 +55,7 @@ export function PushPullPanel({ disabled, selectedType, deltaHeight, onDeltaHeig
         />
         <span>mm</span>
       </label>
-      {!parsed.ok && <small>{parsed.error}</small>}
+      {!heightValidation.ok && <small>{heightValidation.error}</small>}
       <button type="button" disabled={applyDisabled} onClick={onApply}>Höhe ändern</button>
     </section>
   );
