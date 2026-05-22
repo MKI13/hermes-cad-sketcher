@@ -10,6 +10,53 @@ const previewPort = Number(process.env.SMOKE_PREVIEW_PORT ?? 4173);
 const previewUrl = `http://127.0.0.1:${previewPort}`;
 const chromiumExecutable = process.env.CHROMIUM_PATH ?? '/snap/bin/chromium';
 const visualEvidenceDir = process.env.SMOKE_VISUAL_DIR ?? path.join(process.cwd(), 'tmp', 'visual-smoke');
+const supportedDxfFixture = `0
+SECTION
+2
+ENTITIES
+0
+LINE
+8
+0
+10
+0
+20
+0
+30
+0
+11
+250
+21
+0
+31
+0
+0
+LWPOLYLINE
+90
+4
+70
+1
+10
+10
+20
+20
+10
+1010
+20
+20
+10
+1010
+20
+520
+10
+10
+20
+520
+0
+ENDSEC
+0
+EOF
+`;
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -315,6 +362,46 @@ async function runVisualChecks(cdp) {
   return { screenshots, checks };
 }
 
+async function runDxfLoadSmoke(cdp) {
+  await cdp.send('Page.navigate', { url: previewUrl });
+  await waitForApp(cdp);
+  const result = await evaluate(cdp, `(async () => {
+    const failures = [];
+    const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const text = () => document.body.innerText;
+    const input = Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
+      node.closest('label')?.textContent?.includes('DXF laden')
+    );
+    if (!input) {
+      failures.push('Missing DXF laden file input');
+      return { ok: false, failures };
+    }
+    const fixture = ${JSON.stringify(supportedDxfFixture)};
+    const file = new File([fixture], 'synthetic-supported.dxf', { type: 'application/dxf' });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const waitForDxfImportStatus = async () => {
+      const deadline = performance.now() + 5000;
+      let lastText = text();
+      while (performance.now() < deadline) {
+        await afterFrame();
+        lastText = text();
+        if (lastText.includes('DXF geladen: 2 importiert, 0 übersprungen') && lastText.includes('Aktuelle Elemente: 2')) return lastText;
+      }
+      return lastText;
+    };
+    const settledText = await waitForDxfImportStatus();
+    if (!settledText.includes('DXF geladen: 2 importiert, 0 übersprungen')) failures.push('DXF import status did not report 2 imported / 0 skipped');
+    if (!settledText.includes('Aktuelle Elemente: 2')) failures.push('DXF import did not show expected entity count');
+    if (!settledText.includes('Auswahl: edge_')) failures.push('DXF import did not select the first imported line');
+    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 2') };
+  })()`);
+  if (!result?.ok) throw new Error(`DXF load smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
+  return result;
+}
+
 async function main() {
   const preview = startProcess('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(previewPort), '--strictPort']);
   const chromiumDataDir = await mkdtemp(path.join(tmpdir(), 'hermes-cad-smoke-chrome-'));
@@ -382,6 +469,7 @@ async function main() {
     if (!result?.ok) throw new Error(`Browser smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
 
     const visualEvidence = await runVisualChecks(protocol);
+    const dxfLoad = await runDxfLoadSmoke(protocol);
 
     const badEvents = protocol.events.filter((event) => {
       if (event.method === 'Runtime.exceptionThrown') return !readyState.webglFallback || !isExpectedWebGLContextException(event);
@@ -400,12 +488,14 @@ async function main() {
       ok: true,
       url: previewUrl,
       rendering: result.webglFallback ? 'webgl-fallback' : 'webgl-canvas',
+      dxfLoad,
       visualEvidence,
       checks: [
         'app loaded',
         'no unexpected console/runtime errors',
         'core controls visible',
         'tool button interaction updates statusbar',
+        'dxf load workflow imports supported synthetic fixture',
         'desktop visual geometry has no horizontal overflow',
         'mobile visual geometry has no horizontal overflow',
         'desktop and mobile screenshots captured'

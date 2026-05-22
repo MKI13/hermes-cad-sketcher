@@ -13,6 +13,13 @@ describe('browser smoke visual contract', () => {
     expect(source).toContain('layoutGeometry');
     expect(source).toContain('horizontalOverflow');
     expect(source).toContain('visualEvidence');
+    expect(source).toContain('runDxfLoadSmoke');
+    expect(source).toContain('DataTransfer');
+    expect(source).toContain('synthetic-supported.dxf');
+    expect(source).toContain('DXF geladen: 2 importiert, 0 übersprungen');
+    expect(source).toContain('waitForDxfImportStatus');
+    expect(source).toContain('Aktuelle Elemente: 2');
+    expect(source).toContain('dxf load workflow imports supported synthetic fixture');
     expect(source).toContain('aboveTheFold');
     expect(source).toContain('documentVerticalOverflow');
     expect(source).toContain('isExpectedRenderingWarning');
