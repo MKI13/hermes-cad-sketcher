@@ -20,7 +20,10 @@ describe('App controls', () => {
     expect(markup).toContain('Delta Z in Millimeter');
     expect(markup).toContain('Auswahl drehen');
     expect(markup).toContain('Drehwinkel in Grad');
+    expect(markup).toContain('Höhe ändern');
+    expect(markup).toContain('Höhenänderung in Millimeter');
     expect(markup).not.toContain('Demo-Aktion mit Werkzeug');
     expect(markup).not.toContain('präzise Winkel-Eingabe folgt');
+    expect(markup).not.toContain('nächsten Ausbauschritt');
   });
 });

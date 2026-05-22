@@ -10,6 +10,7 @@ import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
 import { RotatePanel, parseRotateAngle } from './ui/RotatePanel';
+import { PushPullPanel, parsePushPullDelta } from './ui/PushPullPanel';
 import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { shouldDeleteSelectionFromKey } from './ui/selectionControls';
 import { ThreeViewport } from './ui/ThreeViewport';
@@ -41,6 +42,7 @@ export default function App() {
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
   const [moveDelta, setMoveDelta] = useState<MoveDeltaInput>({ x: '100', y: '0', z: '0' });
   const [rotateAngleDegrees, setRotateAngleDegrees] = useState('90');
+  const [pushPullDeltaHeight, setPushPullDeltaHeight] = useState('100');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
 
@@ -103,6 +105,16 @@ export default function App() {
     if (!parsed.ok) return;
     mutate((m) => {
       m.rotateEntityZ(selectedId, parsed.radians);
+      setSelectedId(selectedId);
+    });
+  }
+
+  function applyPushPullDelta() {
+    if (!selectedId || selected?.type !== 'box') return;
+    const parsed = parsePushPullDelta(pushPullDeltaHeight);
+    if (!parsed.ok) return;
+    mutate((m) => {
+      m.pushPullBoxFace(selectedId, parsed.deltaHeight);
       setSelectedId(selectedId);
     });
   }
@@ -178,6 +190,13 @@ export default function App() {
         </button>
         <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
         <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />
+        <PushPullPanel
+          disabled={!selectedId || selected?.type !== 'box'}
+          selectedType={selected?.type}
+          deltaHeight={pushPullDeltaHeight}
+          onDeltaHeightChange={setPushPullDeltaHeight}
+          onApply={applyPushPullDelta}
+        />
         {tool === 'box' && <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />}
         <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
         <label className="file-button">
