@@ -52,4 +52,32 @@ describe('SketchModel geometry tools', () => {
     expect(component.entityIds).toEqual([a.id, b.id]);
     expect(model.getEntity(a.id)?.componentId).toBe(component.id);
   });
+
+  it('duplicates a component with new entity ids and a stable millimeter offset', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const edge = model.createLine(vec(0, 0, 0), vec(50, 0, 0));
+    const original = model.createComponent('Schrankseite', [box.id, edge.id]);
+
+    const duplicate = model.duplicateComponent(original.id, 'Schrankseite Kopie', vec(1000, -200, 0));
+
+    expect(duplicate.id).not.toBe(original.id);
+    expect(duplicate.name).toBe('Schrankseite Kopie');
+    expect(duplicate.entityIds).toHaveLength(2);
+    expect(duplicate.entityIds).not.toContain(box.id);
+    expect(duplicate.entityIds).not.toContain(edge.id);
+    expect(model.getEntity(box.id)?.componentId).toBe(original.id);
+
+    const copiedBox = model.getEntity(duplicate.entityIds[0]);
+    const copiedEdge = model.getEntity(duplicate.entityIds[1]);
+    expect(copiedBox?.componentId).toBe(duplicate.id);
+    expect(copiedEdge?.componentId).toBe(duplicate.id);
+    expect(copiedBox?.type).toBe('box');
+    if (copiedBox?.type === 'box') expect(copiedBox.origin).toEqual(vec(1000, -200, 0));
+    expect(copiedEdge?.type).toBe('edge');
+    if (copiedEdge?.type === 'edge') {
+      expect(copiedEdge.start).toEqual(vec(1000, -200, 0));
+      expect(copiedEdge.end).toEqual(vec(1050, -200, 0));
+    }
+  });
 });

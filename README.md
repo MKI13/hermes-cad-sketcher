@@ -1,6 +1,6 @@
 # Hermes CAD Sketcher
 
-**Wichtig für Hermes Agenten, andere KI-Agenten und Contributor:** Lies zuerst [`AGENTS.md`](AGENTS.md). Dort stehen die verbindlichen Regeln für neue Erweiterungen, Funktionen und Werkzeuge: stabile Branch-/Versionsstrategie, keine ungeprüften Commits, immer `npm run check`, keine unautorisierten Änderungen am Hauptprojekt, Aufgabenliste pflegen und erledigte Erweiterungen dokumentieren.
+**Wichtig für Hermes Agenten, andere KI-Agenten und Contributor:** Lies zuerst [`AGENTS.md`](AGENTS.md). `AGENTS.md` ist die verbindliche Quelle für Agentenarbeit. Dort stehen die Regeln für Erweiterungen, Branches, Tests, Commits, Dokumentation und Repository-Sicherheit.
 
 **Hermes CAD Sketcher** ist ein neues Linux-CAD-Projekt für Marios und EF-Sinn: ein leichtes, SketchUp-ähnliches Programm für Ubuntu, mit dem man Körper schnell zeichnen, verschieben, drehen, messen, gruppieren und später in wichtige CAD-Formate importieren/exportieren kann.
 
@@ -16,6 +16,7 @@ Hermes CAD Sketcher soll sich für Marios ungefähr so anfühlen:
 - Flächen ziehen/drücken, ähnlich Push/Pull
 - Elemente verschieben
 - Komponenten/Gruppen erstellen
+- Komponenten duplizieren
 - Elemente drehen
 - Maßband verwenden
 - Ansicht drehen/orbiten, auch mit rechter Maustaste
@@ -37,6 +38,7 @@ Vorhanden im Code:
 - Drehen um Z-Achse
 - Push/Pull-Grundfunktion für Körperhöhe
 - Komponenten/Gruppen
+- Komponenten duplizieren mit neuen Element-IDs und Millimeter-Versatz
 - Maßband-Funktion
 - DXF-Export-Grundlage
 - einfacher DXF-LINE-Import
@@ -87,12 +89,22 @@ SketchUp-Plugins laufen gegen die SketchUp Ruby API. Diese API existiert innerha
 
 ## Lokale Entwicklung
 
+Empfohlene Node-Version: Node.js 20 oder neuer. Wenn `nvm` genutzt wird:
+
 ```bash
-npm install
+nvm use
+```
+
+Reproduzierbare Installation für Hermes Agenten und CI:
+
+```bash
+npm ci
 npm run dev
 ```
 
-Lokale Prüfung:
+Normale lokale Entwicklung kann alternativ `npm install` verwenden, wenn Abhängigkeiten bewusst aktualisiert werden sollen.
+
+Lokale Pflichtprüfung vor Commit oder Pull Request:
 
 ```bash
 npm run check
@@ -123,14 +135,13 @@ Wenn der Check fehlschlägt:
 
 ### Branch-Regeln
 
+`AGENTS.md` ist für Branch-Entscheidungen verbindlich. Kurzfassung:
+
 - Kein direkter Push auf `main`.
-- Neue Arbeit immer auf einem eigenen Branch.
-- Branch-Namen:
-  - `feat/...` für neue Funktionen
-  - `fix/...` für Fehlerbehebungen
-  - `docs/...` für Dokumentation
-  - `test/...` für Tests
-  - `refactor/...` für Umbau ohne neue Funktion
+- `main` bleibt stabil und geprüft.
+- Normale neue Erweiterungen landen zuerst auf einem aktiven Versionsbranch, zum Beispiel `dev/v0.2`.
+- Kurzlebige `feat/...`, `fix/...`, `docs/...`, `test/...` oder `refactor/...` Branches nur nutzen, wenn die Arbeit klar abgegrenzt ist oder parallel/external als PR vorbereitet wird.
+- Ohne ausdrückliche Autorisierung keine Branches im offiziellen Remote erstellen und nicht pushen.
 
 ### Commit-Regeln
 
@@ -152,7 +163,7 @@ Jeder Pull Request muss enthalten:
 
 ### Agenten-Aufgabenliste
 
-Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss mit Tests beginnen und vor Commit `npm run check` bestehen.
+Diese README-Liste ist ein Überblick. Die verbindliche Arbeitsliste für Agenten ist `AGENTS.md`. Wenn eine Erweiterung 100% umgesetzt und geprüft ist, muss der Agent sie selbst aus der geplanten Liste in `AGENTS.md` entfernen und unter den erledigten Funktionen eintragen. Jede Aufgabe muss mit Tests beginnen und vor Commit `npm run check` bestehen.
 
 #### Bereits angefangen
 
@@ -198,8 +209,7 @@ Gute nächste Aufgaben für Hermes Agenten oder GitHub User. Jede Aufgabe muss m
    - Box-Flächen in Höhe/Tiefe/Breite ziehen.
    - Test: Maße bleiben korrekt und negative/Null-Extrusion wird blockiert.
 
-8. **Komponenten verbessern**
-   - Komponenten duplizieren.
+8. **Komponenten als Instanzen verbessern**
    - Verschachtelte Komponenten vorbereiten.
    - Komponente als Instanz mit eigener Transformation modellieren.
    - Test: IDs und Transformationen bleiben stabil.

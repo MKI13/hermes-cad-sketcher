@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "SketchUp-like lightweight CAD sketcher for Linux: draw lines/rectangles/boxes, move faces, components, orbit view, measure, import/export.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",

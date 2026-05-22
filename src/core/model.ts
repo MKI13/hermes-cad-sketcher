@@ -130,6 +130,25 @@ export class SketchModel {
     return component;
   }
 
+  duplicateComponent(id: ComponentId, name: string, offset: Vec3 = vec(0, 0, 0)): Component {
+    const source = this.requireComponent(id);
+    const copiedIds: EntityId[] = [];
+    for (const entityId of source.entityIds) {
+      const entity = this.requireEntity(entityId);
+      let copy: Entity;
+      if (entity.type === 'edge') {
+        copy = { ...entity, id: nextId('edge'), start: add(entity.start, offset), end: add(entity.end, offset), componentId: undefined };
+      } else if (entity.type === 'face') {
+        copy = { ...entity, id: nextId('face'), vertices: entity.vertices.map((vertex) => add(vertex, offset)), componentId: undefined };
+      } else {
+        copy = { ...entity, id: nextId('box'), origin: add(entity.origin, offset), componentId: undefined };
+      }
+      copiedIds.push(copy.id);
+      this.entities.set(copy.id, copy);
+    }
+    return this.createComponent(name, copiedIds);
+  }
+
   measure(a: Vec3, b: Vec3): number {
     return distance(a, b);
   }
@@ -145,6 +164,12 @@ export class SketchModel {
     const entity = this.entities.get(id);
     if (!entity) throw new Error(`Element nicht gefunden: ${id}`);
     return entity;
+  }
+
+  private requireComponent(id: ComponentId): Component {
+    const component = this.components.get(id);
+    if (!component) throw new Error(`Komponente nicht gefunden: ${id}`);
+    return component;
   }
 
   private requireBox(id: EntityId): BoxEntity {

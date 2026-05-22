@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Component, Download, FolderOpen, Move3D, Ruler, RotateCw, Save, Square, Slash, Upload } from 'lucide-react';
+import { Box, Component, Copy, Download, FolderOpen, Move3D, Ruler, RotateCw, Save, Square, Slash, Upload } from 'lucide-react';
 import { SketchModel, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
@@ -79,6 +79,14 @@ export default function App() {
     });
   }
 
+  function duplicateSelectedComponent() {
+    if (!selected?.componentId) return;
+    mutate((m) => {
+      const duplicate = m.duplicateComponent(selected.componentId!, 'Kopie der Komponente', vec(800, 0, 0));
+      setSelectedId(duplicate.entityIds[0]);
+    });
+  }
+
   function download(filename: string, content: string, mime = 'text/plain') {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -117,6 +125,7 @@ export default function App() {
           </button>
         ))}
         <button className="primary" onClick={demoAction}>Demo-Aktion mit Werkzeug</button>
+        <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button>
         <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
         <label className="file-button">
           <FolderOpen size={18}/> Projekt laden
