@@ -196,7 +196,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Komponenten/Gruppen** — Elemente können gruppiert werden.
 - **Komponenten duplizieren** — bestehende Komponenten können mit neuen Element-IDs und Millimeter-Versatz kopiert werden.
 - **Maßband-Grundfunktion** — Distanzen können berechnet und angezeigt werden.
-- **DXF-Export-Grundlage und einfacher DXF-LINE-Import** — erster Austausch mit DXF-Linien.
+- **DXF-Export-Grundlage, einfacher DXF-LINE-Import und begrenzter LWPOLYLINE-Rechteckimport** — erster Austausch mit DXF-Linien und geschlossenen, achsenparallelen Vierpunkt-Rechteck-Polylinien ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor.
 - **ASCII-STL-Export für Boxkörper** — einfache STL-Ausgabe für Boxgeometrie.
 - **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.

@@ -64,7 +64,7 @@ Vorhanden im Code:
 - Komponenten/Gruppen und Komponenten-Duplizierung mit Millimeter-Versatz
 - Maßband-Workflow mit Millimeteranzeige
 - `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
-- DXF-Export-Grundlage in der UI und einfacher DXF-LINE-Import im Kernmodell
+- DXF-Export-Grundlage in der UI, einfacher DXF-LINE-Import im Kernmodell und begrenzter DXF-LWPOLYLINE-Rechteckimport im Kernmodell
 - ASCII-STL-Export für Boxkörper
 - lokale Vitest-Tests plus Production-Build über `npm run check`
 - GitHub Actions CI für Pull Requests und zentrale Branches
@@ -120,12 +120,12 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 ### Aktuell unterstützt
 
 - `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten.
-- `.dxf`: einfacher Export in der UI und einfacher LINE-Import im Kernmodell.
+- `.dxf`: einfacher Export in der UI, einfacher LINE-Import im Kernmodell und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor.
 - `.stl`: ASCII-STL-Export für Boxkörper.
 
 ### Geplant
 
-- Erweiterter DXF-Import, z. B. LWPOLYLINE, Layer und Einheitenprüfung.
+- Erweiterter DXF-Import über den aktuellen LINE- und begrenzten LWPOLYLINE-Rechteckimport hinaus, z. B. Layer, Einheitenkonvertierung und weitere Entitäten.
 - ASCII-STL-Import als Referenzmesh.
 - `.obj`, `.glb`, `.ifc`, `.step` nur nach realistischer technischer Prüfung.
 
@@ -153,7 +153,7 @@ Noch nicht fertig oder nur teilweise vorhanden:
 - freie Flächenbearbeitung wie in einem vollständigen CAD-System
 - beliebig rotierte oder freie Flächenextrusion; aktuell ist nur axis-aligned Rechteck-zu-Box-Extrusion implementiert
 - Push/Pull aus beliebigen Rechtecken oder Flächen in Breite/Tiefe/Höhe
-- vollständiger DXF-Import
+- vollständiger DXF-Import; aktuell nur einfacher LINE-Import und begrenzte geschlossene, achsenparallele Vierpunkt-LWPOLYLINE-Rechtecke im Kernmodell
 - STL-Import
 - DWG-Import/Export
 - SKP-Import/Export
