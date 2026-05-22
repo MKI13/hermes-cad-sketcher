@@ -36,6 +36,7 @@ button { font: inherit; }
 .three-canvas { width: 100%; height: 100%; display: block; cursor: grab; }
 .three-canvas:active { cursor: grabbing; }
 .viewport-help { position: absolute; left: 16px; bottom: 16px; z-index: 2; background: rgba(15, 23, 42, 0.78); color: #e2e8f0; border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 999px; padding: 8px 12px; font-size: 13px; pointer-events: none; }
+.viewport-error { position: absolute; left: 24px; top: 24px; z-index: 3; display: flex; flex-direction: column; gap: 6px; max-width: 360px; background: rgba(127, 29, 29, 0.9); color: #fee2e2; border: 1px solid rgba(252, 165, 165, 0.6); border-radius: 14px; padding: 14px 16px; box-shadow: 0 18px 45px #0f172a33; }
 .model-card { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); border: 1px solid #cbd5e1; box-shadow: 0 20px 60px #0f172a33; border-radius: 18px; padding: 26px; display: flex; flex-direction: column; gap: 12px; min-width: 340px; pointer-events: none; }
 .model-card.compact { top: 24px; right: 24px; left: auto; transform: none; min-width: 260px; padding: 16px; }
 .model-card strong { font-size: 24px; }

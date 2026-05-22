@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
 import { type SketchModel, type ToolName } from '../core/model';
@@ -28,6 +28,11 @@ type ThreeViewportProps = {
 
 export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [viewportError, setViewportError] = useState<string | undefined>(() =>
+    typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
+      ? 'WebGL konnte in diesem Browser nicht gestartet werden.'
+      : undefined
+  );
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
@@ -52,7 +57,16 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const host = hostRef.current;
     if (!host) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = (() => {
+      try {
+        return new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      } catch {
+        setViewportError('WebGL konnte in diesem Browser nicht gestartet werden.');
+        return undefined;
+      }
+    })();
+    if (!renderer) return;
+    setViewportError(undefined);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0xe2e8f0);
     renderer.domElement.className = 'three-canvas';
@@ -252,6 +266,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
+      {viewportError && <div className="viewport-error"><strong>3D-Viewport nicht verfügbar</strong><span>{viewportError}</span></div>}
       <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
     </div>
   );
