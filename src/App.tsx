@@ -180,13 +180,23 @@ export default function App() {
       setProjectStatus(validation.error);
       return;
     }
-    mutate((m) => {
-      const box = m.extrudeFaceToBox(selectedId, validation.height);
-      setSelectedId(box.id);
-      setSelectedDimensions(boxDimensionsToInput(box));
-    });
-    setFaceExtrusionStatus('Fläche zu Körper extrudiert');
-    setProjectStatus('Fläche zu Körper extrudiert');
+    try {
+      let extruded = false;
+      mutate((m) => {
+        const box = m.extrudeFaceToBox(selectedId, validation.height);
+        setSelectedId(box.id);
+        setSelectedDimensions(boxDimensionsToInput(box));
+        extruded = true;
+      });
+      if (extruded) {
+        setFaceExtrusionStatus('Fläche zu Körper extrudiert');
+        setProjectStatus('Fläche zu Körper extrudiert');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Fläche konnte nicht extrudiert werden.';
+      setFaceExtrusionStatus(message);
+      setProjectStatus(message);
+    }
   }
 
   function duplicateSelectedComponent() {

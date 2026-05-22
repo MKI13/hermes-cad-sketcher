@@ -47,6 +47,26 @@ describe('SketchModel geometry tools', () => {
     expect(skewedModel.getEntity(face.id)).toEqual(skewed);
   });
 
+  it('rejects degenerate rectangle faces before extrusion can replace the face', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(0, 0, 0), 1000, 500);
+    const degenerate = { ...face, vertices: [vec(0, 0, 0), vec(0, 500, 0), vec(0, 500, 0), vec(0, 0, 0)] };
+    const degenerateModel = SketchModel.fromSnapshot({ ...model.snapshot(), entities: [degenerate] });
+
+    expect(() => degenerateModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
+    expect(degenerateModel.getEntity(face.id)).toEqual(degenerate);
+  });
+
+  it('rejects self-intersecting rectangle-corner face order before extrusion can replace the face', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(0, 0, 0), 1000, 500);
+    const bowTie = { ...face, vertices: [vec(0, 0, 0), vec(1000, 500, 0), vec(1000, 0, 0), vec(0, 500, 0)] };
+    const bowTieModel = SketchModel.fromSnapshot({ ...model.snapshot(), entities: [bowTie] });
+
+    expect(() => bowTieModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
+    expect(bowTieModel.getEntity(face.id)).toEqual(bowTie);
+  });
+
   it('rejects face extrusion heights that are zero or negative', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1000, 500);

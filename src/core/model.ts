@@ -16,13 +16,22 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
   const z = vertices[0].z;
   if (vertices.some((vertex) => Math.abs(vertex.z - z) > 1e-6)) return false;
   const box = bbox(vertices);
-  const corners = new Set(vertices.map((vertex) => `${vertex.x.toFixed(6)},${vertex.y.toFixed(6)}`));
-  return [
+  if (!isPositiveFinite(box.size.x) || !isPositiveFinite(box.size.y)) return false;
+  const expectedCorners = [
     vec(box.min.x, box.min.y, z),
     vec(box.max.x, box.min.y, z),
     vec(box.max.x, box.max.y, z),
     vec(box.min.x, box.max.y, z)
-  ].every((corner) => corners.has(`${corner.x.toFixed(6)},${corner.y.toFixed(6)}`));
+  ];
+  const corners = new Set(vertices.map((vertex) => `${vertex.x.toFixed(6)},${vertex.y.toFixed(6)}`));
+  if (corners.size !== 4) return false;
+  if (!expectedCorners.every((corner) => corners.has(`${corner.x.toFixed(6)},${corner.y.toFixed(6)}`))) return false;
+
+  const signedArea = vertices.reduce((area, vertex, index) => {
+    const next = vertices[(index + 1) % vertices.length];
+    return area + vertex.x * next.y - next.x * vertex.y;
+  }, 0) / 2;
+  return Math.abs(Math.abs(signedArea) - box.size.x * box.size.y) <= 1e-6;
 }
 
 export type EntityId = string;
