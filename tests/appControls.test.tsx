@@ -26,4 +26,13 @@ describe('App controls', () => {
     expect(markup).not.toContain('präzise Winkel-Eingabe folgt');
     expect(markup).not.toContain('nächsten Ausbauschritt');
   });
+
+  it('renders a selected entity inspector with measured values', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Inspektor');
+    expect(markup).toContain('Bounding Box Größe');
+    expect(markup).toContain('Breite');
+    expect(markup).toContain('Höhe');
+  });
 });

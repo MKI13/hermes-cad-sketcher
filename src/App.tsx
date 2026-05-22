@@ -7,6 +7,8 @@ import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
+import { inspectEntity } from './core/inspection';
+import { InspectorPanel } from './ui/InspectorPanel';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
 import { RotatePanel, parseRotateAngle } from './ui/RotatePanel';
@@ -45,6 +47,7 @@ export default function App() {
   const [pushPullDeltaHeight, setPushPullDeltaHeight] = useState('100');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
+  const selectedInspection = selected ? inspectEntity(selected) : undefined;
 
   function mutate(action: (m: SketchModel) => void) {
     const next = SketchModel.fromSnapshot(model.snapshot());
@@ -198,6 +201,7 @@ export default function App() {
           onDeltaHeightChange={setPushPullDeltaHeight}
           onApply={applyPushPullDelta}
         />
+        <InspectorPanel inspection={selectedInspection} />
         {tool === 'box' && <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />}
         <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
         <label className="file-button">

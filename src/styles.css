@@ -16,11 +16,15 @@ button { font: inherit; }
 .file-button { border: 1px solid #334155; background: #1e293b; color: #e2e8f0; border-radius: 10px; padding: 11px 12px; display: flex; gap: 10px; align-items: center; cursor: pointer; }
 .file-button input { display: none; }
 .tool-instruction { margin: 2px 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.4; }
-.box-dimensions, .move-panel, .rotate-panel, .push-pull-panel { border: 1px solid #334155; border-radius: 12px; padding: 12px; background: #111827; display: flex; flex-direction: column; gap: 8px; }
-.box-dimensions strong, .move-panel strong, .rotate-panel strong, .push-pull-panel strong { color: #f8fafc; }
-.box-dimensions p, .move-panel p, .rotate-panel p, .push-pull-panel p { margin: 0; color: #94a3b8; font-size: 13px; line-height: 1.35; }
+.box-dimensions, .move-panel, .rotate-panel, .push-pull-panel, .inspector-panel { border: 1px solid #334155; border-radius: 12px; padding: 12px; background: #111827; display: flex; flex-direction: column; gap: 8px; }
+.box-dimensions strong, .move-panel strong, .rotate-panel strong, .push-pull-panel strong, .inspector-panel strong { color: #f8fafc; }
+.box-dimensions p, .move-panel p, .rotate-panel p, .push-pull-panel p, .inspector-panel p { margin: 0; color: #94a3b8; font-size: 13px; line-height: 1.35; }
 .box-dimensions label, .move-panel label, .rotate-panel label, .push-pull-panel label { display: grid; grid-template-columns: 1fr 88px auto; gap: 8px; align-items: center; color: #cbd5e1; font-size: 13px; }
 .box-dimensions input, .move-panel input, .rotate-panel input, .push-pull-panel input { min-width: 0; border: 1px solid #475569; border-radius: 8px; background: #020617; color: #f8fafc; padding: 7px 8px; font: inherit; }
+.inspector-panel dl { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.inspector-panel div { display: grid; grid-template-columns: 1fr 1.2fr; gap: 8px; font-size: 13px; color: #cbd5e1; }
+.inspector-panel dt { color: #94a3b8; }
+.inspector-panel dd { margin: 0; color: #f8fafc; text-align: right; }
 .move-panel small, .rotate-panel small, .push-pull-panel small { color: #fca5a5; font-size: 12px; }
 .move-panel button, .rotate-panel button, .push-pull-panel button { justify-content: center; }
 .workspace { display: grid; grid-template-rows: 1fr auto; min-width: 0; }
