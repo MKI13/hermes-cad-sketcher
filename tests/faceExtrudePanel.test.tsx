@@ -72,12 +72,17 @@ describe('FaceExtrudePanel', () => {
   it('disables degenerate and self-intersecting axis-aligned corner faces before model mutation', () => {
     const degenerateFace = { id: 'face_degenerate', type: 'face' as const, vertices: [vec(0, 0, 0), vec(0, 50, 0), vec(0, 50, 0), vec(0, 0, 0)] };
     const bowTieFace = { id: 'face_bow_tie', type: 'face' as const, vertices: [vec(0, 0, 0), vec(100, 50, 0), vec(100, 0, 0), vec(0, 50, 0)] };
+    const tinyBowTieFace = { id: 'face_tiny_bow_tie', type: 'face' as const, vertices: [vec(0, 0, 0), vec(0.001, 0.001, 0), vec(0.001, 0, 0), vec(0, 0.001, 0)] };
 
     expect(validateExtrudableFace(degenerateFace, { ok: true, height: 300 })).toEqual({
       ok: false,
       error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
     });
     expect(validateExtrudableFace(bowTieFace, { ok: true, height: 300 })).toEqual({
+      ok: false,
+      error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
+    });
+    expect(validateExtrudableFace(tinyBowTieFace, { ok: true, height: 300 })).toEqual({
       ok: false,
       error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
     });

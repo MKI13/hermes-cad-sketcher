@@ -27,11 +27,10 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
   if (corners.size !== 4) return false;
   if (!expectedCorners.every((corner) => corners.has(`${corner.x.toFixed(6)},${corner.y.toFixed(6)}`))) return false;
 
-  const signedArea = vertices.reduce((area, vertex, index) => {
+  return vertices.every((vertex, index) => {
     const next = vertices[(index + 1) % vertices.length];
-    return area + vertex.x * next.y - next.x * vertex.y;
-  }, 0) / 2;
-  return Math.abs(Math.abs(signedArea) - box.size.x * box.size.y) <= 1e-6;
+    return (Math.abs(vertex.x - next.x) <= 1e-6 && Math.abs(vertex.y - next.y) > 1e-6) || (Math.abs(vertex.y - next.y) <= 1e-6 && Math.abs(vertex.x - next.x) > 1e-6);
+  });
 }
 
 export type EntityId = string;

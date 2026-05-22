@@ -61,10 +61,14 @@ describe('SketchModel geometry tools', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(0, 0, 0), 1000, 500);
     const bowTie = { ...face, vertices: [vec(0, 0, 0), vec(1000, 500, 0), vec(1000, 0, 0), vec(0, 500, 0)] };
+    const tinyBowTie = { ...face, vertices: [vec(0, 0, 0), vec(0.001, 0.001, 0), vec(0.001, 0, 0), vec(0, 0.001, 0)] };
     const bowTieModel = SketchModel.fromSnapshot({ ...model.snapshot(), entities: [bowTie] });
+    const tinyBowTieModel = SketchModel.fromSnapshot({ ...model.snapshot(), entities: [tinyBowTie] });
 
     expect(() => bowTieModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
     expect(bowTieModel.getEntity(face.id)).toEqual(bowTie);
+    expect(() => tinyBowTieModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
+    expect(tinyBowTieModel.getEntity(face.id)).toEqual(tinyBowTie);
   });
 
   it('rejects face extrusion heights that are zero or negative', () => {
