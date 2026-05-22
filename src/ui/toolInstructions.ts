@@ -7,7 +7,7 @@ const toolInstructions: Record<ToolName, string> = {
   box: 'Körper: ein Klick auf das Raster erstellt einen 600 × 600 × 600 mm Körper.',
   move: 'Verschieben: Objekt auswählen, Delta in Millimeter eingeben oder Start und Ziel im Viewport anklicken.',
   pushPull: 'Seite ziehen: wähle einen Körper und nutze die vorhandene Höhenänderung als nächsten Ausbauschritt.',
-  rotate: 'Drehen: wähle ein Element; präzise Winkel-Eingabe folgt.',
+  rotate: 'Drehen: Objekt auswählen und Winkel in Grad eingeben; gedreht wird um die eigene Z-Achse.',
   tape: 'Maßband: Maße bleiben in Millimeter sichtbar und nachvollziehbar.'
 };
 

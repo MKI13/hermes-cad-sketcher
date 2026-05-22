@@ -113,7 +113,12 @@ export class SketchModel {
     let rotated: Entity;
     if (entity.type === 'edge') rotated = { ...entity, start: rotateAroundZ(entity.start, angleRadians, origin), end: rotateAroundZ(entity.end, angleRadians, origin) };
     else if (entity.type === 'face') rotated = { ...entity, vertices: entity.vertices.map((v) => rotateAroundZ(v, angleRadians, origin)) };
-    else rotated = { ...entity, origin: rotateAroundZ(entity.origin, angleRadians, origin), rotationZ: entity.rotationZ + angleRadians };
+    else {
+      const rotatedOrigin = rotateAroundZ(entity.origin, angleRadians, origin);
+      const centerOffset = rotateAroundZ(vec(entity.width / 2, entity.depth / 2, 0), angleRadians, vec(0, 0, 0));
+      const nextCenter = add(rotatedOrigin, centerOffset);
+      rotated = { ...entity, origin: add(nextCenter, vec(-entity.width / 2, -entity.depth / 2, 0)), rotationZ: entity.rotationZ + angleRadians };
+    }
     this.entities.set(id, rotated);
     return rotated;
   }

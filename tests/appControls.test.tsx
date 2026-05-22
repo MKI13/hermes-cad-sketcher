@@ -11,13 +11,16 @@ describe('App controls', () => {
     expect(markup).toContain('Ausgewähltes Element löschen');
   });
 
-  it('renders precise millimeter move controls instead of a vague move demo action', () => {
+  it('renders precise transform controls instead of vague future-work actions', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Auswahl verschieben');
     expect(markup).toContain('Delta X in Millimeter');
     expect(markup).toContain('Delta Y in Millimeter');
     expect(markup).toContain('Delta Z in Millimeter');
+    expect(markup).toContain('Auswahl drehen');
+    expect(markup).toContain('Drehwinkel in Grad');
     expect(markup).not.toContain('Demo-Aktion mit Werkzeug');
+    expect(markup).not.toContain('präzise Winkel-Eingabe folgt');
   });
 });

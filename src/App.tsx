@@ -9,6 +9,7 @@ import { exportAsciiStl } from './core/stl';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
+import { RotatePanel, parseRotateAngle } from './ui/RotatePanel';
 import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { shouldDeleteSelectionFromKey } from './ui/selectionControls';
 import { ThreeViewport } from './ui/ThreeViewport';
@@ -39,6 +40,7 @@ export default function App() {
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
   const [moveDelta, setMoveDelta] = useState<MoveDeltaInput>({ x: '100', y: '0', z: '0' });
+  const [rotateAngleDegrees, setRotateAngleDegrees] = useState('90');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
 
@@ -93,6 +95,16 @@ export default function App() {
     const parsed = parseMoveDelta(moveDelta);
     if (!parsed.ok) return;
     moveFromViewport(selectedId, parsed.delta);
+  }
+
+  function applyRotateAngle() {
+    if (!selectedId) return;
+    const parsed = parseRotateAngle(rotateAngleDegrees);
+    if (!parsed.ok) return;
+    mutate((m) => {
+      m.rotateEntityZ(selectedId, parsed.radians);
+      setSelectedId(selectedId);
+    });
   }
 
   function duplicateSelectedComponent() {
@@ -165,6 +177,7 @@ export default function App() {
           <Trash2 size={18}/> Auswahl löschen
         </button>
         <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
+        <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />
         {tool === 'box' && <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />}
         <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
         <label className="file-button">
