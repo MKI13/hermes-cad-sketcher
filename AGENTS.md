@@ -147,38 +147,34 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
    - Weitere Entitäten erst nach fail-closed Tests ergänzen.
    - Testdateien unter `tests/fixtures/` ergänzen.
 
-4. **STL-Import ergänzen**
-   - ASCII-STL lesen.
-   - Mesh als Referenzkörper anzeigen.
-   - Bekannte STL-Testdatei mit erwarteter Dreieckszahl prüfen.
 
-5. **Bundle-Größe reduzieren**
+4. **Bundle-Größe reduzieren**
    - Three.js-Viewport dynamisch laden oder Vite-Code-Splitting nutzen.
    - Build-Warnungen dokumentieren oder reduzieren.
 
-6. **DWG-Bridge planen**
+5. **DWG-Bridge planen**
    - Realistischen Workflow über LibreDWG, ODA File Converter oder andere Bridge dokumentieren.
    - Keine native DWG-Unterstützung behaupten, solange sie nicht wirklich existiert.
 
-7. **SKP-Bridge planen**
+6. **SKP-Bridge planen**
    - Offizielle SketchUp C API und Lizenzlage prüfen.
    - Linux-Build realistisch bewerten.
    - Adapter-Interface ohne SketchUp-Abhängigkeit testbar halten.
 
-8. **Weitere Werkzeuglogik aus React lösen**
+7. **Weitere Werkzeuglogik aus React lösen**
    - Select, Move, Rotate und weitere Werkzeugaktionen als reine Funktionen testbar machen.
    - React soll möglichst nur Darstellung und Event-Anbindung übernehmen.
 
-10. **Dateiformate erweitern**
+8. **Dateiformate erweitern**
     - `.obj`, `.glb`, `.ifc` oder `.step` nur nach realistischer technischer Prüfung ergänzen.
     - Import/Export nie als fertig markieren, wenn nur ein Teilformat unterstützt wird.
 
-11. **Hermes-Agenten-Konsole planen**
+9. **Hermes-Agenten-Konsole planen**
     - Interne Bedienkonsole für Hermes Agenten entwerfen.
     - Sichere Befehle für Modellaktionen definieren.
     - Keine direkte Ausführung ungeprüfter Systembefehle erlauben.
 
-12. **Eigenes Erweiterungsformat planen**
+10. **Eigenes Erweiterungsformat planen**
     - Format wie `.hcad-ext` oder `.hcad-extension.json` prüfen.
     - Manifest, Berechtigungen, Versionen und Kompatibilitätsprüfung definieren.
     - Testbarer Loader ohne SketchUp-Ruby-Abhängigkeit.
@@ -198,6 +194,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **DXF-Export-Grundlage und begrenzter DXF-Dateiimport** — erster Austausch mit DXF-Linien und geschlossenen, achsenparallelen Vierpunkt-Rechteck-Polylinien ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor; UI-Import zeigt importierte und übersprungene Entitäten im Status.
 - **Fail-closed DXF-Einheitenprüfung** — `$INSUNITS=4` wird als Millimeter akzeptiert, fehlende Einheiten werden sichtbar als Millimeter-Annahme gemeldet und bekannte andere Einheiten werden vor Geometrieimport abgelehnt.
 - **ASCII-STL-Export für Boxkörper** — einfache STL-Ausgabe für Boxgeometrie.
+- **ASCII-STL-Referenzmesh-Import** — synthetische ASCII-STL-Dateien können als nicht editierbare Referenzmeshes mit Dreieckszahl geladen, inspiziert, gerendert und in `.hcad.json` Projekten erhalten werden; Binary-STL und Solid-Healing bleiben bewusst ausgeschlossen.
 - **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.
 - **Interaktiver Three.js-Viewport mit Picking und Auswahlmarkierung** — Szene aus dem Kernmodell rendern, Objekte anklicken und ausgewählte Elemente sichtbar hervorheben.

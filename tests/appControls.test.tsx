@@ -72,6 +72,15 @@ describe('App controls', () => {
     expect(markup).not.toContain('vollständiger DXF-Import');
   });
 
+  it('renders an honest ASCII STL reference import control without editable solid claims', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('STL-Referenz laden');
+    expect(markup).toContain('Importiert ASCII-STL nur als nicht editierbares Referenzmesh.');
+    expect(markup).toContain('STL-Import: ASCII-STL wird nur als Referenzmesh geladen, nicht als editierbarer Körper oder validiertes Fertigungsmesh.');
+    expect(markup).not.toContain('editierbarer STL-Körper');
+  });
+
   it('documents production CI in the repository workflow', async () => {
     const workflow = await import('node:fs/promises').then((fs) => fs.readFile('.github/workflows/check.yml', 'utf8'));
 

@@ -65,7 +65,7 @@ Vorhanden im Code:
 - Maßband-Workflow mit Millimeteranzeige
 - `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
 - DXF-Export-Grundlage in der UI, DXF-Dateiimport in der UI mit Importbericht, fail-closed Einheitenprüfung, einfacher DXF-LINE-Import und begrenzter DXF-LWPOLYLINE-Rechteckimport
-- ASCII-STL-Export für Boxkörper
+- ASCII-STL-Export für Boxkörper und ASCII-STL-Referenzmesh-Import ohne editierbare Solid-Konvertierung
 - lokale Vitest-Tests plus Production-Build über `npm run check`
 - GitHub Actions CI für Pull Requests und zentrale Branches
 
@@ -122,12 +122,12 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 
 - `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten.
 - `.dxf`: einfacher Export in der UI, einfacher UI-Import mit Statusbericht, fail-closed `$INSUNITS`-Prüfung, `LINE` und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor.
-- `.stl`: ASCII-STL-Export für Boxkörper.
+- `.stl`: ASCII-STL-Export für Boxkörper und ASCII-STL-Import als nicht editierbares Referenzmesh mit Dreieckszahl; kein Binary-STL, kein Solid-Healing und keine Konvertierung in editierbare Körper.
 
 ### Geplant
 
 - Erweiterter DXF-Import über den aktuellen LINE- und begrenzten LWPOLYLINE-Rechteckimport hinaus, z. B. Layer, bewusst designte Einheitenkonvertierung und weitere Entitäten.
-- ASCII-STL-Import als Referenzmesh.
+- Binary-STL-Import und weitere Referenzmesh-Metadaten nur nach fail-closed Tests.
 - `.obj`, `.glb`, `.ifc`, `.step` nur nach realistischer technischer Prüfung.
 
 ### Nur über externe Bridge realistisch
@@ -155,7 +155,8 @@ Noch nicht fertig oder nur teilweise vorhanden:
 - beliebig rotierte oder freie Flächenextrusion; aktuell ist nur axis-aligned Rechteck-zu-Box-Extrusion implementiert
 - Push/Pull aus beliebigen Rechtecken oder Flächen in Breite/Tiefe/Höhe
 - vollständiger DXF-Import; aktuell nur einfacher LINE-Import und begrenzte geschlossene, achsenparallele Vierpunkt-LWPOLYLINE-Rechtecke
-- STL-Import
+- editierbarer STL-Import; aktuell kann ASCII-STL nur als nicht editierbares Referenzmesh geladen werden
+- Binary-STL-Import
 - DWG-Import/Export
 - SKP-Import/Export
 - produktionsreife Datei-Kompatibilität mit externen CAD-Systemen

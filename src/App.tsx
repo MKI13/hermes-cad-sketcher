@@ -5,7 +5,7 @@ import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf, importDxfWithReport } from './core/dxf';
-import { exportAsciiStl } from './core/stl';
+import { exportAsciiStl, importAsciiStl } from './core/stl';
 import { createHistory, pushHistory, redoHistory, undoHistory, type ModelHistory } from './core/history';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
@@ -267,6 +267,21 @@ export default function App() {
     }
   }
 
+  async function openStlFile(file: File) {
+    try {
+      const text = await file.text();
+      const mesh = importAsciiStl(text, file.name);
+      const next = SketchModel.fromSnapshot(model.snapshot());
+      const entity = next.addReferenceMesh(mesh.name, mesh.triangles);
+      setModel(next);
+      setHistory((current) => pushHistory(current, next.snapshot()));
+      setSelectedId(entity.id);
+      setProjectStatus(`STL-Referenzmesh geladen: ${mesh.triangleCount} Dreiecke; nicht als editierbarer Körper importiert. (${file.name})`);
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'STL konnte nicht als ASCII-Referenzmesh geladen werden.');
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="toolbar">
@@ -349,6 +364,19 @@ export default function App() {
         </label>
         <p className="format-note">Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.</p>
         <p className="format-note">DXF-Einheiten: $INSUNITS=4 wird als Millimeter importiert; fehlende Einheiten werden sichtbar als Millimeter angenommen, andere Einheiten werden abgelehnt.</p>
+        <label className="file-button" title="Importiert ASCII-STL nur als nicht editierbares Referenzmesh.">
+          <FolderOpen size={18}/> STL-Referenz laden
+          <input
+            type="file"
+            accept=".stl,model/stl,text/plain"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) void openStlFile(file);
+              event.currentTarget.value = '';
+            }}
+          />
+        </label>
+        <p className="format-note">STL-Import: ASCII-STL wird nur als Referenzmesh geladen, nicht als editierbarer Körper oder validiertes Fertigungsmesh.</p>
         <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
         <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
       </aside>

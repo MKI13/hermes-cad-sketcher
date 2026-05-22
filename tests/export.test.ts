@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { vec } from '../src/core/geometry';
 import { exportDxf, importDxf, importDxfWithReport, supportedCadFormats } from '../src/core/dxf';
 import { SketchModel } from '../src/core/model';
-import { exportAsciiStl } from '../src/core/stl';
+import { exportAsciiStl, importAsciiStl } from '../src/core/stl';
 
 describe('CAD import/export foundation', () => {
   it('exports DXF with millimeter INSUNITS and line entities', () => {
@@ -194,6 +194,91 @@ describe('CAD import/export foundation', () => {
     const stl = exportAsciiStl(model);
     expect(stl).toContain('solid hermes-cad-sketcher');
     expect(stl.match(/facet normal/g)?.length).toBe(12);
+  });
+
+  it('adds imported ASCII STL to the model as a separate reference mesh entity', () => {
+    const model = new SketchModel();
+    const mesh = importAsciiStl(`solid reference_part
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 100 0 0
+      vertex 0 50 0
+    endloop
+  endfacet
+endsolid reference_part
+`, 'synthetic-reference.stl');
+
+    const entity = model.addReferenceMesh(mesh.name, mesh.triangles);
+
+    expect(model.allEntities()).toEqual([entity]);
+    expect(entity).toMatchObject({
+      type: 'referenceMesh',
+      name: 'synthetic-reference.stl',
+      triangleCount: 1
+    });
+  });
+
+  it('imports ASCII STL as a millimeter reference mesh with known triangle count', () => {
+    const stl = `solid reference_part
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 100 0 0
+      vertex 0 50 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 100 0 0
+      vertex 100 50 0
+      vertex 0 50 0
+    endloop
+  endfacet
+endsolid reference_part
+`;
+
+    const mesh = importAsciiStl(stl, 'synthetic-reference.stl');
+
+    expect(mesh.type).toBe('referenceMesh');
+    expect(mesh.name).toBe('synthetic-reference.stl');
+    expect(mesh.triangles).toHaveLength(2);
+    expect(mesh.triangles[0].vertices).toEqual([
+      vec(0, 0, 0),
+      vec(100, 0, 0),
+      vec(0, 50, 0)
+    ]);
+    expect(mesh.triangleCount).toBe(2);
+  });
+
+  it('rejects binary or malformed STL instead of inventing reference geometry', () => {
+    const malformedInputs = [
+      'solid empty\nendsolid empty\n',
+      'solid bad\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nendloop\nendfacet\nendsolid bad\n',
+      'solid bad\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex NaN 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid bad\n',
+      'vertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\n',
+      '\0\0binary-stl-placeholder'
+    ];
+
+    for (const stl of malformedInputs) {
+      expect(() => importAsciiStl(stl, 'bad.stl')).toThrow(/ASCII STL/);
+    }
+  });
+
+  it('rejects solid-looking malformed STL instead of grouping stray vertices', () => {
+    const malformedInputs = [
+      'solid stray\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendsolid stray\n',
+      'solid missingEndsolid\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\n',
+      'solid missingFacet\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid missingFacet\n',
+      'solid extraVertex\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nvertex 1 1 0\nendloop\nendfacet\nendsolid extraVertex\n',
+      'solid binary-looking\n\0\0\0\0',
+      'solid missingNormal\nfacet normal\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid missingNormal\n',
+      'solid badNormal\nfacet normal 0 NaN 1\nouter loop\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendloop\nendfacet\nendsolid badNormal\n'
+    ];
+
+    for (const stl of malformedInputs) {
+      expect(() => importAsciiStl(stl, 'malformed.stl')).toThrow(/ASCII STL/);
+    }
   });
 
   it('documents that DWG and SKP require external bridge layers, not fake support', () => {

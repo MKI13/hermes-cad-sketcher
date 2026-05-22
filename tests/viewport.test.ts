@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
+import { importAsciiStl } from '../src/core/stl';
 import {
   createOrbitCameraState,
   orbitCameraDrag,
@@ -50,6 +51,35 @@ describe('interactive Three.js viewport foundation', () => {
     expect(group).toBeInstanceOf(THREE.Group);
     expect(group.children).toHaveLength(2);
     expect(group.children.map((child) => child.userData.entityId)).toEqual([box.id, line.id]);
+  });
+
+  it('renders STL reference meshes as transparent wireframe mesh geometry', () => {
+    const model = new SketchModel();
+    const mesh = importAsciiStl(`solid ref
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 100 0 0
+vertex 0 50 0
+endloop
+endfacet
+endsolid ref
+`, 'synthetic-reference.stl');
+    const entity = model.addReferenceMesh(mesh.name, mesh.triangles);
+
+    const group = createModelGroup(model);
+    const object = group.children[0];
+
+    expect(object.userData.entityId).toBe(entity.id);
+    expect(object.userData.entityType).toBe('referenceMesh');
+    expect(object).toBeInstanceOf(THREE.Mesh);
+    expect((object as THREE.Mesh).geometry.getAttribute('position').count).toBe(3);
+    const material = (object as THREE.Mesh).material;
+    expect(Array.isArray(material)).toBe(false);
+    if (!Array.isArray(material)) {
+      expect(material.transparent).toBe(true);
+      expect((material as THREE.MeshStandardMaterial).wireframe).toBe(true);
+    }
   });
 
   it('marks only the selected entity object for viewport highlighting', () => {

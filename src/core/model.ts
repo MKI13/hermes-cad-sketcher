@@ -39,6 +39,15 @@ export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushP
 
 export type EdgeEntity = { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
 export type FaceEntity = { id: EntityId; type: 'face'; vertices: Vec3[]; componentId?: ComponentId };
+export type ReferenceMeshEntity = {
+  id: EntityId;
+  type: 'referenceMesh';
+  name: string;
+  triangles: Array<{ vertices: [Vec3, Vec3, Vec3] }>;
+  triangleCount: number;
+  rotationZ?: never;
+  componentId?: ComponentId;
+};
 export type BoxEntity = {
   id: EntityId;
   type: 'box';
@@ -50,7 +59,7 @@ export type BoxEntity = {
   componentId?: ComponentId;
 };
 export type BoxDimensions = Pick<BoxEntity, 'width' | 'depth' | 'height'>;
-export type Entity = EdgeEntity | FaceEntity | BoxEntity;
+export type Entity = EdgeEntity | FaceEntity | ReferenceMeshEntity | BoxEntity;
 
 export type Component = {
   id: ComponentId;
@@ -150,6 +159,13 @@ export class SketchModel {
     return entity;
   }
 
+  addReferenceMesh(name: string, triangles: ReferenceMeshEntity['triangles']): ReferenceMeshEntity {
+    if (triangles.length === 0) throw new Error('Ein Referenzmesh braucht mindestens ein Dreieck.');
+    const entity: ReferenceMeshEntity = { id: nextId('mesh'), type: 'referenceMesh', name, triangles: structuredClone(triangles), triangleCount: triangles.length };
+    this.entities.set(entity.id, entity);
+    return entity;
+  }
+
   resizeBox(id: EntityId, dimensions: Partial<BoxDimensions>): BoxEntity {
     const entity = this.requireBox(id);
     const next = {
@@ -177,22 +193,19 @@ export class SketchModel {
     let moved: Entity;
     if (entity.type === 'edge') moved = { ...entity, start: add(entity.start, delta), end: add(entity.end, delta) };
     else if (entity.type === 'face') moved = { ...entity, vertices: entity.vertices.map((v) => add(v, delta)) };
+    else if (entity.type === 'referenceMesh') moved = { ...entity, triangles: entity.triangles.map((triangle) => ({ vertices: translateVertices(triangle.vertices, delta) })) };
     else moved = { ...entity, origin: add(entity.origin, delta) };
     this.entities.set(id, moved);
     return moved;
   }
 
-  rotateEntityZ(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
+  private rotateEntity(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
     const entity = this.requireEntity(id);
-    let rotated: Entity;
-    if (entity.type === 'edge') rotated = { ...entity, start: rotateAroundZ(entity.start, angleRadians, origin), end: rotateAroundZ(entity.end, angleRadians, origin) };
-    else if (entity.type === 'face') rotated = { ...entity, vertices: entity.vertices.map((v) => rotateAroundZ(v, angleRadians, origin)) };
-    else {
-      const rotatedOrigin = rotateAroundZ(entity.origin, angleRadians, origin);
-      const centerOffset = rotateAroundZ(vec(entity.width / 2, entity.depth / 2, 0), angleRadians, vec(0, 0, 0));
-      const nextCenter = add(rotatedOrigin, centerOffset);
-      rotated = { ...entity, origin: add(nextCenter, vec(-entity.width / 2, -entity.depth / 2, 0)), rotationZ: entity.rotationZ + angleRadians };
-    }
+    return rotateEntitySnapshot(entity, angleRadians, origin);
+  }
+
+  rotateEntityZ(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
+    const rotated = this.rotateEntity(id, angleRadians, origin);
     this.entities.set(id, rotated);
     return rotated;
   }
@@ -230,8 +243,13 @@ export class SketchModel {
         copy = { ...entity, id: nextId('edge'), start: add(entity.start, offset), end: add(entity.end, offset), componentId: undefined };
       } else if (entity.type === 'face') {
         copy = { ...entity, id: nextId('face'), vertices: entity.vertices.map((vertex) => add(vertex, offset)), componentId: undefined };
-      } else {
+      } else if (entity.type === 'referenceMesh') {
+        copy = { ...entity, id: nextId('mesh'), triangles: entity.triangles.map((triangle) => ({ vertices: translateVertices(triangle.vertices, offset) })), componentId: undefined };
+      } else if (entity.type === 'box') {
         copy = { ...entity, id: nextId('box'), origin: add(entity.origin, offset), componentId: undefined };
+      } else {
+        const exhaustive: never = entity;
+        throw new Error(`Elementtyp kann nicht dupliziert werden: ${String(exhaustive)}`);
       }
       copiedIds.push(copy.id);
       this.entities.set(copy.id, copy);
@@ -269,9 +287,32 @@ export class SketchModel {
   }
 }
 
+function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Vec3, Vec3] {
+  return [add(vertices[0], delta), add(vertices[1], delta), add(vertices[2], delta)];
+}
+
+function rotateEntitySnapshot(entity: Entity, angleRadians: number, origin: Vec3): Entity {
+  if (entity.type === 'edge') return { ...entity, start: rotateAroundZ(entity.start, angleRadians, origin), end: rotateAroundZ(entity.end, angleRadians, origin) };
+  if (entity.type === 'face') return { ...entity, vertices: entity.vertices.map((v) => rotateAroundZ(v, angleRadians, origin)) };
+  if (entity.type === 'referenceMesh') return { ...entity, triangles: entity.triangles.map((triangle) => ({ vertices: rotateVertices(triangle.vertices, angleRadians, origin) })) };
+  const rotatedOrigin = rotateAroundZ(entity.origin, angleRadians, origin);
+  const centerOffset = rotateAroundZ(vec(entity.width / 2, entity.depth / 2, 0), angleRadians, vec(0, 0, 0));
+  const nextCenter = add(rotatedOrigin, centerOffset);
+  return { ...entity, origin: add(nextCenter, vec(-entity.width / 2, -entity.depth / 2, 0)), rotationZ: entity.rotationZ + angleRadians };
+}
+
+function rotateVertices(vertices: [Vec3, Vec3, Vec3], angleRadians: number, origin: Vec3): [Vec3, Vec3, Vec3] {
+  return [
+    rotateAroundZ(vertices[0], angleRadians, origin),
+    rotateAroundZ(vertices[1], angleRadians, origin),
+    rotateAroundZ(vertices[2], angleRadians, origin)
+  ];
+}
+
 export function entityPoints(entity: Entity): Vec3[] {
   if (entity.type === 'edge') return [entity.start, entity.end];
   if (entity.type === 'face') return entity.vertices;
+  if (entity.type === 'referenceMesh') return entity.triangles.flatMap((triangle) => triangle.vertices);
   const { origin, width, depth, height } = entity;
   return [
     origin,

@@ -413,6 +413,65 @@ async function runDxfLoadSmoke(cdp) {
   return result;
 }
 
+async function runStlReferenceLoadSmoke(cdp) {
+  await cdp.send('Page.navigate', { url: previewUrl });
+  await waitForApp(cdp);
+  const result = await evaluate(cdp, `(async () => {
+    const failures = [];
+    const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const text = () => document.body.innerText;
+    const input = Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
+      node.closest('label')?.textContent?.includes('STL-Referenz laden')
+    );
+    if (!input) {
+      failures.push('Missing STL-Referenz laden file input');
+      return { ok: false, failures };
+    }
+    const fixture = ${JSON.stringify(`solid reference_part
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 100 0 0
+vertex 0 50 0
+endloop
+endfacet
+facet normal 0 0 1
+outer loop
+vertex 100 0 0
+vertex 100 50 0
+vertex 0 50 0
+endloop
+endfacet
+endsolid reference_part
+`)};
+    const file = new File([fixture], 'synthetic-reference.stl', { type: 'model/stl' });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const waitForStlImportStatus = async () => {
+      const deadline = performance.now() + 5000;
+      let lastText = text();
+      while (performance.now() < deadline) {
+        await afterFrame();
+        lastText = text();
+        if (lastText.includes('STL-Referenzmesh geladen: 2 Dreiecke') && lastText.includes('Aktuelle Elemente: 3')) return lastText;
+      }
+      return lastText;
+    };
+    const settledText = await waitForStlImportStatus();
+    if (!settledText.includes('STL-Referenzmesh geladen: 2 Dreiecke')) failures.push('STL reference import status did not report 2 triangles');
+    if (!settledText.includes('nicht als editierbarer Körper importiert')) failures.push('STL reference import did not state non-editable body boundary');
+    if (!settledText.includes('Aktuelle Elemente: 3')) failures.push('STL reference import did not append an entity to the model');
+    if (!settledText.includes('Auswahl: mesh_')) failures.push('STL reference import did not select the mesh entity');
+    if (!settledText.includes('STL-Referenzmesh')) failures.push('Inspector did not show STL reference mesh title');
+    if (!settledText.includes('Dreiecke') || !settledText.includes('2')) failures.push('Inspector did not show triangle count');
+    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 3') };
+  })()`);
+  if (!result?.ok) throw new Error(`STL reference load smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
+  return result;
+}
+
 async function main() {
   const preview = startProcess('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(previewPort), '--strictPort']);
   const chromiumDataDir = await mkdtemp(path.join(tmpdir(), 'hermes-cad-smoke-chrome-'));
@@ -463,7 +522,7 @@ async function main() {
         element.click();
       };
       const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      ['Hermes CAD Sketcher', 'Auswahl', 'Linie', 'Quadrat/Rechteck', 'Körper', 'Rückgängig', 'Wiederholen', 'Auswahl löschen', 'Projekt speichern', 'DXF laden', 'DXF exportieren', 'STL exportieren'].forEach((label) => {
+      ['Hermes CAD Sketcher', 'Auswahl', 'Linie', 'Quadrat/Rechteck', 'Körper', 'Rückgängig', 'Wiederholen', 'Auswahl löschen', 'Projekt speichern', 'DXF laden', 'STL-Referenz laden', 'DXF exportieren', 'STL exportieren'].forEach((label) => {
         if (!text().includes(label)) failures.push('Missing visible label: ' + label);
       });
       const before = text();
@@ -481,6 +540,7 @@ async function main() {
 
     const visualEvidence = await runVisualChecks(protocol);
     const dxfLoad = await runDxfLoadSmoke(protocol);
+    const stlReferenceLoad = await runStlReferenceLoadSmoke(protocol);
 
     const badEvents = protocol.events.filter((event) => {
       if (event.method === 'Runtime.exceptionThrown') return !readyState.webglFallback || !isExpectedWebGLContextException(event);
@@ -500,6 +560,7 @@ async function main() {
       url: previewUrl,
       rendering: result.webglFallback ? 'webgl-fallback' : 'webgl-canvas',
       dxfLoad,
+      stlReferenceLoad,
       visualEvidence,
       checks: [
         'app loaded',
@@ -507,6 +568,7 @@ async function main() {
         'core controls visible',
         'tool button interaction updates statusbar',
         'dxf load workflow imports supported synthetic fixture',
+        'stl reference load workflow imports supported synthetic ASCII fixture as non-editable mesh',
         'desktop visual geometry has no horizontal overflow',
         'mobile visual geometry has no horizontal overflow',
         'desktop and mobile screenshots captured'

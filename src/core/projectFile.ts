@@ -69,6 +69,10 @@ function isEntityPayload(value: unknown): value is SketchModelSnapshot['entities
     return Array.isArray(value.vertices) && value.vertices.length >= 3 && value.vertices.every(isVec3);
   }
 
+  if (value.type === 'referenceMesh') {
+    return typeof value.name === 'string' && Array.isArray(value.triangles) && value.triangles.length > 0 && value.triangles.every(isReferenceMeshTriangle) && value.triangleCount === value.triangles.length;
+  }
+
   if (value.type === 'box') {
     return isVec3(value.origin) && isPositiveNumber(value.width) && isPositiveNumber(value.depth) && isPositiveNumber(value.height) && isFiniteNumber(value.rotationZ);
   }
@@ -85,6 +89,10 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
     value.entityIds.length > 0 &&
     value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId))
   );
+}
+
+function isReferenceMeshTriangle(value: unknown): value is { vertices: [{ x: number; y: number; z: number }, { x: number; y: number; z: number }, { x: number; y: number; z: number }] } {
+  return isRecord(value) && Array.isArray(value.vertices) && value.vertices.length === 3 && value.vertices.every(isVec3);
 }
 
 function isVec3(value: unknown): value is { x: number; y: number; z: number } {

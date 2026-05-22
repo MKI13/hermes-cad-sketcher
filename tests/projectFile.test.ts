@@ -30,6 +30,17 @@ describe('Hermes CAD project files', () => {
     expect(roundTrip.snapshot()).toEqual(model.snapshot());
   });
 
+  it('preserves STL reference mesh entities through project round trips', () => {
+    const model = new SketchModel();
+    model.addReferenceMesh('synthetic-reference.stl', [
+      { vertices: [vec(0, 0, 0), vec(100, 0, 0), vec(0, 50, 0)] }
+    ]);
+
+    const roundTrip = importProjectFile(exportProjectFile(model));
+
+    expect(roundTrip.snapshot()).toEqual(model.snapshot());
+  });
+
   it('rejects invalid JSON and wrong project formats with clear errors', () => {
     expect(() => importProjectFile('not-json')).toThrow('Projektdatei ist kein gültiges JSON.');
     expect(() => importProjectFile(JSON.stringify({ format: 'other-cad', version: 1 }))).toThrow('Nicht unterstütztes Projektformat.');

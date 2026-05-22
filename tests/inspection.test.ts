@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SketchModel } from '../src/core/model';
 import { inspectEntity } from '../src/core/inspection';
+import { importAsciiStl } from '../src/core/stl';
 import { vec } from '../src/core/geometry';
 
 describe('entity inspection', () => {
@@ -52,5 +53,29 @@ describe('entity inspection', () => {
     expect(inspection.boundingBox.size.y).toBeCloseTo(2400, 6);
     expect(inspection.boundingBox.size.z).toBe(720);
     expect(inspection.metrics).toContainEqual({ label: 'Bounding Box Größe', value: '900 / 2400 / 720 mm' });
+  });
+
+  it('reports STL reference meshes as non-editable reference geometry', () => {
+    const model = new SketchModel();
+    const mesh = importAsciiStl(`solid ref
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 100 0 0
+vertex 0 50 0
+endloop
+endfacet
+endsolid ref
+`, 'synthetic-reference.stl');
+    const entity = model.addReferenceMesh(mesh.name, mesh.triangles);
+
+    const inspection = inspectEntity(entity);
+
+    expect(inspection.type).toBe('referenceMesh');
+    expect(inspection.title).toBe('STL-Referenzmesh');
+    expect(inspection.metrics).toContainEqual({ label: 'Name', value: 'synthetic-reference.stl' });
+    expect(inspection.metrics).toContainEqual({ label: 'Dreiecke', value: '1' });
+    expect(inspection.metrics).toContainEqual({ label: 'Bearbeitung', value: 'Referenz, kein editierbarer Körper' });
+    expect(inspection.boundingBox.size).toEqual(vec(100, 50, 0));
   });
 });

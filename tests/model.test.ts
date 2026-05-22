@@ -173,6 +173,27 @@ describe('SketchModel geometry tools', () => {
     }
   });
 
+  it('duplicates reference mesh components with the same stable millimeter offset', () => {
+    const model = new SketchModel();
+    const mesh = model.addReferenceMesh('synthetic-reference.stl', [
+      { vertices: [vec(0, 0, 0), vec(100, 0, 0), vec(0, 50, 0)] }
+    ]);
+    const original = model.createComponent('Referenzteil', [mesh.id]);
+
+    const duplicate = model.duplicateComponent(original.id, 'Referenzteil Kopie', vec(1000, -200, 25));
+    const copiedMesh = model.getEntity(duplicate.entityIds[0]);
+
+    expect(copiedMesh?.type).toBe('referenceMesh');
+    if (copiedMesh?.type === 'referenceMesh') {
+      expect(copiedMesh.triangles[0].vertices).toEqual([
+        vec(1000, -200, 25),
+        vec(1100, -200, 25),
+        vec(1000, -150, 25)
+      ]);
+      expect(copiedMesh.componentId).toBe(duplicate.id);
+    }
+  });
+
   it('deletes a selected entity from the model', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 100, 100, 100);

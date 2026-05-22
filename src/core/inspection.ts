@@ -50,6 +50,21 @@ export function inspectEntity(entity: Entity): EntityInspection {
     };
   }
 
+  if (entity.type === 'referenceMesh') {
+    return {
+      id: entity.id,
+      type: entity.type,
+      title: 'STL-Referenzmesh',
+      metrics: [
+        { label: 'Name', value: entity.name },
+        { label: 'Dreiecke', value: String(entity.triangleCount) },
+        { label: 'Bearbeitung', value: 'Referenz, kein editierbarer Körper' },
+        ...baseMetrics
+      ],
+      boundingBox
+    };
+  }
+
   return {
     id: entity.id,
     type: entity.type,
