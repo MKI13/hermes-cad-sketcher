@@ -57,6 +57,7 @@ Vorhanden im Code:
 - präzises Drehen um die Z-Achse in Grad
 - präzises Push/Pull für Boxhöhe per ΔH in mm
 - Löschen der Auswahl per Button oder Tastatur
+- Undo/Redo-Verlauf für Modelländerungen über Rückgängig/Wiederholen
 - Box-Dimensionspanel für neue Boxen
 - Komponenten/Gruppen und Komponenten-Duplizierung mit Millimeter-Versatz
 - Maßband-Workflow mit Millimeteranzeige
@@ -89,6 +90,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - Präzises Verschieben: ΔX/ΔY/ΔZ in mm eingeben und anwenden.
 - Präzises Drehen: Winkel in Grad eingeben und anwenden.
 - Push/Pull: Box auswählen, ΔH in mm eingeben und anwenden.
+- Rückgängig/Wiederholen: Modelländerungen mit den Schaltflächen `Rückgängig` und `Wiederholen` reversibel machen.
 - Auswahl löschen: Button `Auswahl löschen` oder Delete/Backspace.
 
 ### Messen

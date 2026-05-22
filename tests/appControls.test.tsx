@@ -35,4 +35,13 @@ describe('App controls', () => {
     expect(markup).toContain('Breite');
     expect(markup).toContain('Höhe');
   });
+
+  it('renders undo and redo controls for reversible CAD edits', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Rückgängig');
+    expect(markup).toContain('Wiederholen');
+    expect(markup).toContain('Letzte Modelländerung rückgängig machen');
+    expect(markup).toContain('Rückgängig gemachte Modelländerung wiederholen');
+  });
 });

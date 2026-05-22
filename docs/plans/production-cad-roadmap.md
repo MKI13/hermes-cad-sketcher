@@ -135,7 +135,7 @@ Default assumption until answered: browser-first, local-first, single-user, mill
 **Objective:** Complete the minimum CAD modeling loop professionally.
 
 **Feature order:**
-1. Undo/redo command stack.
+1. Undo/redo command stack. Basic snapshot-backed undo/redo is implemented; next hardening step is command metadata and deeper command isolation.
 2. Dimension editing for selected entities, not only new boxes.
 3. Pan/zoom/orbit polish and keyboard/mouse affordances.
 4. Rectangle/face extrusion into boxes/solids.

@@ -17,6 +17,9 @@ button { font: inherit; }
 .file-button input { display: none; }
 .tool-instruction { margin: 2px 0 8px; color: #cbd5e1; font-size: 13px; line-height: 1.4; }
 .box-dimensions, .move-panel, .rotate-panel, .push-pull-panel, .inspector-panel { border: 1px solid #334155; border-radius: 12px; padding: 12px; background: #111827; display: flex; flex-direction: column; gap: 8px; }
+.history-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.history-controls button { justify-content: center; }
+.history-controls button:disabled { opacity: 0.55; cursor: not-allowed; }
 .box-dimensions strong, .move-panel strong, .rotate-panel strong, .push-pull-panel strong, .inspector-panel strong { color: #f8fafc; }
 .box-dimensions p, .move-panel p, .rotate-panel p, .push-pull-panel p, .inspector-panel p { margin: 0; color: #94a3b8; font-size: 13px; line-height: 1.35; }
 .box-dimensions label, .move-panel label, .rotate-panel label, .push-pull-panel label { display: grid; grid-template-columns: 1fr 88px auto; gap: 8px; align-items: center; color: #cbd5e1; font-size: 13px; }

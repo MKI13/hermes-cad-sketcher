@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Component, Copy, Download, FolderOpen, Move3D, Ruler, RotateCw, Save, Square, Slash, Trash2, Upload } from 'lucide-react';
+import { Box, Component, Copy, Download, FolderOpen, Move3D, Redo2, Ruler, RotateCw, Save, Square, Slash, Trash2, Undo2, Upload } from 'lucide-react';
 import { SketchModel, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
+import { createHistory, pushHistory, redoHistory, undoHistory, type ModelHistory } from './core/history';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
@@ -30,13 +31,15 @@ const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
 ];
 
 export default function App() {
-  const [model, setModel] = useState(() => {
+  const [initialModel] = useState(() => {
     const m = new SketchModel();
     const box = m.createBox(vec(0, 0, 0), 2400, 900, 720);
     const line = m.createLine(vec(0, -300, 0), vec(2400, -300, 0));
     m.createComponent('Beispiel-Komponente Tischkörper', [box.id, line.id]);
     return m;
   });
+  const [model, setModel] = useState(initialModel);
+  const [history, setHistory] = useState<ModelHistory>(() => createHistory(initialModel.snapshot()));
   const [tool, setTool] = useState<ToolName>('select');
   const [selectedId, setSelectedId] = useState<string | undefined>(model.allEntities()[0]?.id);
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
@@ -53,6 +56,28 @@ export default function App() {
     const next = SketchModel.fromSnapshot(model.snapshot());
     action(next);
     setModel(next);
+    setHistory((current) => pushHistory(current, next.snapshot()));
+  }
+
+  function restoreSnapshot(nextHistory: ModelHistory, fallbackSelectedId?: string) {
+    const nextModel = SketchModel.fromSnapshot(nextHistory.current);
+    setModel(nextModel);
+    setHistory(nextHistory);
+    setSelectedId((current) => {
+      if (current && nextModel.getEntity(current)) return current;
+      if (fallbackSelectedId && nextModel.getEntity(fallbackSelectedId)) return fallbackSelectedId;
+      return nextModel.allEntities()[0]?.id;
+    });
+  }
+
+  function undoModelChange() {
+    const result = undoHistory(history);
+    restoreSnapshot(result.history, selectedId);
+  }
+
+  function redoModelChange() {
+    const result = redoHistory(history);
+    restoreSnapshot(result.history, selectedId);
   }
 
   function loadExampleModel() {
@@ -61,6 +86,7 @@ export default function App() {
     const line = m.createLine(vec(0, -300, 0), vec(2400, -300, 0));
     m.createComponent('Beispiel-Komponente Tischkörper', [box.id, line.id]);
     setModel(m);
+    setHistory(createHistory(m.snapshot()));
     setSelectedId(box.id);
     setLastMeasurement('noch keine Messung');
     setProjectStatus('Beispiel geladen');
@@ -168,6 +194,7 @@ export default function App() {
       const text = await file.text();
       const next = importProjectFile(text);
       setModel(next);
+      setHistory(createHistory(next.snapshot()));
       setSelectedId(next.allEntities()[0]?.id);
       setProjectStatus(`Projekt geladen: ${file.name}`);
     } catch (error) {
@@ -186,6 +213,14 @@ export default function App() {
           </button>
         ))}
         <button className="primary" onClick={loadExampleModel}>{getPrimaryActionLabel()}</button>
+        <div className="history-controls" aria-label="Verlauf">
+          <button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}>
+            <Undo2 size={18}/> Rückgängig
+          </button>
+          <button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}>
+            <Redo2 size={18}/> Wiederholen
+          </button>
+        </div>
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button>
         <button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}>
@@ -244,7 +279,8 @@ export default function App() {
         </div>
         <footer className="statusbar">
           <span>Werkzeug: {tool}</span>
-          <span>Auswahl: {selected?.id ?? 'keine'}</span>
+          <span>Auswahl: {selectedId ?? 'keine'}</span>
+          <span>Verlauf: {history.past.length} rückgängig / {history.future.length} wiederholbar</span>
           <span>Maßband: {lastMeasurement}</span>
           <span>Projekt: {projectStatus}</span>
           <span>Einheit: mm</span>
