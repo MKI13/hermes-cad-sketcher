@@ -12,7 +12,7 @@ import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
 import { SelectedDimensionsPanel, boxDimensionsToInput, parseSelectedBoxDimensions, type DimensionInput } from './ui/SelectedDimensionsPanel';
-import { FaceExtrudePanel, parseExtrudeHeight } from './ui/FaceExtrudePanel';
+import { FaceExtrudePanel, parseExtrudeHeight, validateExtrudableFace } from './ui/FaceExtrudePanel';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
 import { RotatePanel, parseRotateAngle } from './ui/RotatePanel';
 import { PushPullPanel, parsePushPullDelta } from './ui/PushPullPanel';
@@ -55,6 +55,7 @@ export default function App() {
   const [rotateAngleDegrees, setRotateAngleDegrees] = useState('90');
   const [pushPullDeltaHeight, setPushPullDeltaHeight] = useState('100');
   const [extrudeHeight, setExtrudeHeight] = useState('720');
+  const [faceExtrusionStatus, setFaceExtrusionStatus] = useState('');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
   const selectedInspection = selected ? inspectEntity(selected) : undefined;
@@ -173,13 +174,19 @@ export default function App() {
 
   function applyFaceExtrusion() {
     if (!selectedId || selected?.type !== 'face') return;
-    const parsed = parseExtrudeHeight(extrudeHeight);
-    if (!parsed.ok) return;
+    const validation = validateExtrudableFace(selected, parseExtrudeHeight(extrudeHeight));
+    if (!validation.ok) {
+      setFaceExtrusionStatus(validation.error);
+      setProjectStatus(validation.error);
+      return;
+    }
     mutate((m) => {
-      const box = m.extrudeFaceToBox(selectedId, parsed.height);
+      const box = m.extrudeFaceToBox(selectedId, validation.height);
       setSelectedId(box.id);
       setSelectedDimensions(boxDimensionsToInput(box));
     });
+    setFaceExtrusionStatus('Fläche zu Körper extrudiert');
+    setProjectStatus('Fläche zu Körper extrudiert');
   }
 
   function duplicateSelectedComponent() {
@@ -282,8 +289,12 @@ export default function App() {
           selectedType={selected?.type}
           selectedFace={selected?.type === 'face' ? selected : undefined}
           height={extrudeHeight}
-          onHeightChange={setExtrudeHeight}
+          onHeightChange={(height) => {
+            setExtrudeHeight(height);
+            setFaceExtrusionStatus('');
+          }}
           onApply={applyFaceExtrusion}
+          statusMessage={faceExtrusionStatus}
         />
         <InspectorPanel inspection={selectedInspection} />
         {tool === 'box' && <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />}

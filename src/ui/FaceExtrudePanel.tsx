@@ -13,6 +13,7 @@ type FaceExtrudePanelProps = {
   height: string;
   onHeightChange: (height: string) => void;
   onApply: () => void;
+  statusMessage?: string;
 };
 
 export function parseExtrudeHeight(height: string): ExtrudeHeightParseResult {
@@ -31,7 +32,7 @@ export function validateExtrudableFace(selectedFace: Extract<Entity, { type: 'fa
   return parsed;
 }
 
-export function FaceExtrudePanel({ disabled, selectedType, selectedFace, height, onHeightChange, onApply }: FaceExtrudePanelProps) {
+export function FaceExtrudePanel({ disabled, selectedType, selectedFace, height, onHeightChange, onApply, statusMessage }: FaceExtrudePanelProps) {
   const needsFace = selectedType !== 'face';
   const parsed = parseExtrudeHeight(height);
   const validation = needsFace ? parsed : validateExtrudableFace(selectedFace, parsed);
@@ -51,6 +52,7 @@ export function FaceExtrudePanel({ disabled, selectedType, selectedFace, height,
         <span>mm</span>
       </label>
       {!validation.ok && !needsFace && <small>{validation.error}</small>}
+      {statusMessage && <small>{statusMessage}</small>}
       <button type="button" disabled={applyDisabled} onClick={onApply}>Fläche extrudieren</button>
     </section>
   );
