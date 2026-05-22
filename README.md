@@ -56,6 +56,8 @@ Vorhanden im Code:
 - präzises Verschieben per ΔX/ΔY/ΔZ in mm
 - präzises Drehen um die Z-Achse in Grad
 - präzises Push/Pull für Boxhöhe per ΔH in mm
+- direkte Bearbeitung der Maße ausgewählter Boxkörper
+- Extrusion ausgewählter axis-aligned Rechteckflächen zu Boxkörpern
 - Löschen der Auswahl per Button oder Tastatur
 - Undo/Redo-Verlauf für Modelländerungen über Rückgängig/Wiederholen
 - Box-Dimensionspanel für neue Boxen
@@ -65,6 +67,7 @@ Vorhanden im Code:
 - DXF-Export-Grundlage in der UI und einfacher DXF-LINE-Import im Kernmodell
 - ASCII-STL-Export für Boxkörper
 - lokale Vitest-Tests plus Production-Build über `npm run check`
+- GitHub Actions CI für Pull Requests und zentrale Branches
 
 Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 
@@ -90,6 +93,8 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - Präzises Verschieben: ΔX/ΔY/ΔZ in mm eingeben und anwenden.
 - Präzises Drehen: Winkel in Grad eingeben und anwenden.
 - Push/Pull: Box auswählen, ΔH in mm eingeben und anwenden.
+- Auswahlmaße bearbeiten: Box auswählen, Breite/Tiefe/Höhe direkt in mm setzen.
+- Fläche extrudieren: axis-aligned Rechteck/Fläche auswählen, positive Höhe eingeben und zu einem Boxkörper extrudieren.
 - Rückgängig/Wiederholen: Modelländerungen mit den Schaltflächen `Rückgängig` und `Wiederholen` reversibel machen.
 - Auswahl löschen: Button `Auswahl löschen` oder Delete/Backspace.
 
@@ -146,6 +151,7 @@ Hermes CAD Sketcher kann später ein eigenes Erweiterungsformat bekommen, aber e
 Noch nicht fertig oder nur teilweise vorhanden:
 
 - freie Flächenbearbeitung wie in einem vollständigen CAD-System
+- beliebig rotierte oder freie Flächenextrusion; aktuell ist nur axis-aligned Rechteck-zu-Box-Extrusion implementiert
 - Push/Pull aus beliebigen Rechtecken oder Flächen in Breite/Tiefe/Höhe
 - vollständiger DXF-Import
 - STL-Import

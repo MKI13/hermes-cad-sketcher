@@ -166,11 +166,7 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
    - Linux-Build realistisch bewerten.
    - Adapter-Interface ohne SketchUp-Abhängigkeit testbar halten.
 
-8. **GitHub Actions CI aktivieren**
-   - CI soll `npm ci` und `npm run check` ausführen.
-   - Nur mit GitHub-Token/Workflow-Rechten ändern.
-
-9. **Weitere Werkzeuglogik aus React lösen**
+8. **Weitere Werkzeuglogik aus React lösen**
    - Select, Move, Rotate und weitere Werkzeugaktionen als reine Funktionen testbar machen.
    - React soll möglichst nur Darstellung und Event-Anbindung übernehmen.
 
@@ -205,6 +201,8 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.
 - **Interaktiver Three.js-Viewport mit Picking und Auswahlmarkierung** — Szene aus dem Kernmodell rendern, Objekte anklicken und ausgewählte Elemente sichtbar hervorheben.
+- **Axis-aligned Rechteck-Extrusion** — ausgewählte rechteckige, achsenparallele Flächen können mit positiver Millimeterhöhe zu Boxkörpern extrudiert werden.
+- **GitHub Actions CI** — Pull Requests und wichtige Branches führen `npm ci` und `npm run check` automatisch aus.
 - **Undo/Redo-Verlauf** — Modelländerungen werden als Snapshots historisiert; Rückgängig/Wiederholen ist über eigene UI-Schaltflächen möglich.
 - **Selected-Entity-Inspector** — ausgewählte Linien, Flächen und Körper zeigen Maße, Bounding Box und relevante Werte in Millimeter.
 - **Maus-Zeichnen mit Live-Vorschau** — Linien und Rechtecke über zwei Rasterklicks zeichnen; Boxkörper über einen Rasterklick mit einstellbaren Standardmaßen erzeugen.

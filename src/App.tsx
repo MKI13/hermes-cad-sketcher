@@ -11,6 +11,8 @@ import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
+import { SelectedDimensionsPanel, boxDimensionsToInput, parseSelectedBoxDimensions, type DimensionInput } from './ui/SelectedDimensionsPanel';
+import { FaceExtrudePanel, parseExtrudeHeight } from './ui/FaceExtrudePanel';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
 import { RotatePanel, parseRotateAngle } from './ui/RotatePanel';
 import { PushPullPanel, parsePushPullDelta } from './ui/PushPullPanel';
@@ -45,12 +47,21 @@ export default function App() {
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
+  const [selectedDimensions, setSelectedDimensions] = useState<DimensionInput>(() => {
+    const first = initialModel.allEntities()[0];
+    return first?.type === 'box' ? boxDimensionsToInput(first) : boxDimensionsToInput(DEFAULT_BOX_DIMENSIONS);
+  });
   const [moveDelta, setMoveDelta] = useState<MoveDeltaInput>({ x: '100', y: '0', z: '0' });
   const [rotateAngleDegrees, setRotateAngleDegrees] = useState('90');
   const [pushPullDeltaHeight, setPushPullDeltaHeight] = useState('100');
+  const [extrudeHeight, setExtrudeHeight] = useState('720');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
   const selectedInspection = selected ? inspectEntity(selected) : undefined;
+
+  useEffect(() => {
+    if (selected?.type === 'box') setSelectedDimensions(boxDimensionsToInput(selected));
+  }, [selected?.id, selected?.type, selected?.type === 'box' ? selected.width : undefined, selected?.type === 'box' ? selected.depth : undefined, selected?.type === 'box' ? selected.height : undefined]);
 
   function mutate(action: (m: SketchModel) => void) {
     const next = SketchModel.fromSnapshot(model.snapshot());
@@ -143,8 +154,31 @@ export default function App() {
     const parsed = parsePushPullDelta(pushPullDeltaHeight);
     if (!parsed.ok) return;
     mutate((m) => {
-      m.pushPullBoxFace(selectedId, parsed.deltaHeight);
+      const updated = m.pushPullBoxFace(selectedId, parsed.deltaHeight);
       setSelectedId(selectedId);
+      setSelectedDimensions(boxDimensionsToInput(updated));
+    });
+  }
+
+  function applySelectedDimensions() {
+    if (!selectedId || selected?.type !== 'box') return;
+    const parsed = parseSelectedBoxDimensions(selectedDimensions);
+    if (!parsed.ok) return;
+    mutate((m) => {
+      const updated = m.resizeBox(selectedId, parsed.dimensions);
+      setSelectedId(selectedId);
+      setSelectedDimensions(boxDimensionsToInput(updated));
+    });
+  }
+
+  function applyFaceExtrusion() {
+    if (!selectedId || selected?.type !== 'face') return;
+    const parsed = parseExtrudeHeight(extrudeHeight);
+    if (!parsed.ok) return;
+    mutate((m) => {
+      const box = m.extrudeFaceToBox(selectedId, parsed.height);
+      setSelectedId(box.id);
+      setSelectedDimensions(boxDimensionsToInput(box));
     });
   }
 
@@ -235,6 +269,21 @@ export default function App() {
           deltaHeight={pushPullDeltaHeight}
           onDeltaHeightChange={setPushPullDeltaHeight}
           onApply={applyPushPullDelta}
+        />
+        <SelectedDimensionsPanel
+          disabled={!selectedId || selected?.type !== 'box'}
+          selectedType={selected?.type}
+          dimensions={selectedDimensions}
+          onDimensionsChange={setSelectedDimensions}
+          onApply={applySelectedDimensions}
+        />
+        <FaceExtrudePanel
+          disabled={!selectedId || selected?.type !== 'face'}
+          selectedType={selected?.type}
+          selectedFace={selected?.type === 'face' ? selected : undefined}
+          height={extrudeHeight}
+          onHeightChange={setExtrudeHeight}
+          onApply={applyFaceExtrusion}
         />
         <InspectorPanel inspection={selectedInspection} />
         {tool === 'box' && <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />}

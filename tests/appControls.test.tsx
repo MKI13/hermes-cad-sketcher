@@ -44,4 +44,29 @@ describe('App controls', () => {
     expect(markup).toContain('Letzte Modelländerung rückgängig machen');
     expect(markup).toContain('Rückgängig gemachte Modelländerung wiederholen');
   });
+
+  it('renders selected box dimension editing controls', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Auswahlmaße bearbeiten');
+    expect(markup).toContain('Breite der Auswahl in Millimeter');
+    expect(markup).toContain('Tiefe der Auswahl in Millimeter');
+    expect(markup).toContain('Höhe der Auswahl in Millimeter');
+    expect(markup).toContain('Maße übernehmen');
+  });
+
+  it('renders face extrusion controls for rectangle-to-body workflows', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Fläche extrudieren');
+    expect(markup).toContain('Extrusionshöhe in Millimeter');
+  });
+
+  it('documents production CI in the repository workflow', async () => {
+    const workflow = await import('node:fs/promises').then((fs) => fs.readFile('.github/workflows/check.yml', 'utf8'));
+
+    expect(workflow).toContain('npm ci');
+    expect(workflow).toContain('npm run check');
+    expect(workflow).toContain('pull_request:');
+  });
 });

@@ -16,11 +16,79 @@ describe('SketchModel geometry tools', () => {
     expect(face.vertices).toEqual([vec(10, 20, 0), vec(1010, 20, 0), vec(1010, 520, 0), vec(10, 520, 0)]);
   });
 
+  it('extrudes an axis-aligned rectangle face into a box and removes the source face', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
+
+    const box = model.extrudeFaceToBox(face.id, 300);
+
+    expect(box).toMatchObject({ type: 'box', origin: vec(10, 20, 0), width: 1000, depth: 500, height: 300 });
+    expect(model.getEntity(face.id)).toBeUndefined();
+    expect(model.getEntity(box.id)).toEqual(box);
+  });
+
+  it('rejects rotated rectangle face extrusion instead of silently creating an axis-aligned bbox body', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(0, 0, 0), 1000, 500);
+    model.rotateEntityZ(face.id, Math.PI / 4, model.entityCenter(face.id));
+
+    expect(() => model.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
+    expect(model.getEntity(face.id)?.type).toBe('face');
+  });
+
+  it('rejects skewed or non-rectangular face extrusion instead of mutating the model', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
+    const snapshot = model.snapshot();
+    const skewed = { ...face, vertices: [vec(10, 20, 0), vec(1010, 20, 0), vec(900, 520, 0), vec(10, 520, 0)] };
+    const skewedModel = SketchModel.fromSnapshot({ ...snapshot, entities: [skewed] });
+
+    expect(() => skewedModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
+    expect(skewedModel.getEntity(face.id)).toEqual(skewed);
+  });
+
+  it('rejects face extrusion heights that are zero or negative', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
+
+    expect(() => model.extrudeFaceToBox(face.id, 0)).toThrow('positive Höhe');
+    expect(() => model.extrudeFaceToBox(face.id, -1)).toThrow('positive Höhe');
+  });
+
   it('creates boxes and push-pulls the height like a simple SketchUp body', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
     const updated = model.pushPullBoxFace(box.id, 150);
     expect(updated.height).toBe(350);
+  });
+
+  it('edits selected box dimensions while keeping positive millimeter values', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    const updated = model.resizeBox(box.id, { width: 800, depth: 450, height: 250 });
+
+    expect(updated).toMatchObject({ id: box.id, width: 800, depth: 450, height: 250 });
+  });
+
+  it('rejects box dimension edits that would make any size zero or negative', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    expect(() => model.resizeBox(box.id, { width: 0 })).toThrow('positive Breite, Tiefe und Höhe');
+    expect(() => model.resizeBox(box.id, { depth: -1 })).toThrow('positive Breite, Tiefe und Höhe');
+    expect(() => model.resizeBox(box.id, { height: 0 })).toThrow('positive Breite, Tiefe und Höhe');
+  });
+
+  it('rejects non-finite box dimensions in both create and resize paths', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    expect(() => model.createBox(vec(0, 0, 0), Number.POSITIVE_INFINITY, 400, 200)).toThrow('positive Breite, Tiefe und Höhe');
+    expect(() => model.createBox(vec(0, 0, 0), 600, Number.NaN, 200)).toThrow('positive Breite, Tiefe und Höhe');
+    expect(() => model.resizeBox(box.id, { width: Number.POSITIVE_INFINITY })).toThrow('positive Breite, Tiefe und Höhe');
+    expect(() => model.resizeBox(box.id, { depth: Number.NaN })).toThrow('positive Breite, Tiefe und Höhe');
+    expect(() => model.pushPullBoxFace(box.id, Number.POSITIVE_INFINITY)).toThrow('positive Höhe');
   });
 
   it('moves selected entities by a delta vector', () => {
