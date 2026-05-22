@@ -1,5 +1,38 @@
 import { add, bbox, distance, rotateAroundZ, sub, type Vec3, vec } from './geometry';
 
+export function isPositiveFinite(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+function assertPositiveBoxDimensions(width: number, depth: number, height: number): void {
+  if (!isPositiveFinite(width) || !isPositiveFinite(depth) || !isPositiveFinite(height)) {
+    throw new Error('Ein Körper braucht positive Breite, Tiefe und Höhe.');
+  }
+}
+
+export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
+  if (vertices.length !== 4) return false;
+  if (vertices.some((vertex) => !Number.isFinite(vertex.x) || !Number.isFinite(vertex.y) || !Number.isFinite(vertex.z))) return false;
+  const z = vertices[0].z;
+  if (vertices.some((vertex) => Math.abs(vertex.z - z) > 1e-6)) return false;
+  const box = bbox(vertices);
+  if (!isPositiveFinite(box.size.x) || !isPositiveFinite(box.size.y)) return false;
+  const expectedCorners = [
+    vec(box.min.x, box.min.y, z),
+    vec(box.max.x, box.min.y, z),
+    vec(box.max.x, box.max.y, z),
+    vec(box.min.x, box.max.y, z)
+  ];
+  const corners = new Set(vertices.map((vertex) => `${vertex.x.toFixed(6)},${vertex.y.toFixed(6)}`));
+  if (corners.size !== 4) return false;
+  if (!expectedCorners.every((corner) => corners.has(`${corner.x.toFixed(6)},${corner.y.toFixed(6)}`))) return false;
+
+  return vertices.every((vertex, index) => {
+    const next = vertices[(index + 1) % vertices.length];
+    return (Math.abs(vertex.x - next.x) <= 1e-6 && Math.abs(vertex.y - next.y) > 1e-6) || (Math.abs(vertex.y - next.y) <= 1e-6 && Math.abs(vertex.x - next.x) > 1e-6);
+  });
+}
+
 export type EntityId = string;
 export type ComponentId = string;
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
@@ -16,6 +49,7 @@ export type BoxEntity = {
   rotationZ: number;
   componentId?: ComponentId;
 };
+export type BoxDimensions = Pick<BoxEntity, 'width' | 'depth' | 'height'>;
 export type Entity = EdgeEntity | FaceEntity | BoxEntity;
 
 export type Component = {
@@ -82,17 +116,57 @@ export class SketchModel {
     return entity;
   }
 
+  extrudeFaceToBox(id: EntityId, height: number): BoxEntity {
+    if (!isPositiveFinite(height)) throw new Error('Extrusion braucht eine positive Höhe.');
+    const entity = this.requireEntity(id);
+    if (entity.type !== 'face') throw new Error('Extrusion braucht eine ausgewählte Fläche.');
+    if (!isAxisAlignedRectangleFace(entity.vertices)) throw new Error('Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.');
+    const box = bbox(entity.vertices);
+    if (box.size.x <= 0 || box.size.y <= 0) throw new Error('Extrusion braucht eine rechteckige Fläche mit positiver Breite und Tiefe.');
+    const extruded: BoxEntity = {
+      id: nextId('box'),
+      type: 'box',
+      origin: box.min,
+      width: box.size.x,
+      depth: box.size.y,
+      height,
+      rotationZ: 0,
+      componentId: entity.componentId
+    };
+    this.entities.delete(id);
+    this.entities.set(extruded.id, extruded);
+    for (const component of [...this.components.values()]) {
+      if (component.entityIds.includes(id)) {
+        this.components.set(component.id, { ...component, entityIds: component.entityIds.map((entityId) => (entityId === id ? extruded.id : entityId)) });
+      }
+    }
+    return extruded;
+  }
+
   createBox(origin: Vec3, width: number, depth: number, height: number): BoxEntity {
-    if (width <= 0 || depth <= 0 || height <= 0) throw new Error('Ein Körper braucht positive Breite, Tiefe und Höhe.');
+    assertPositiveBoxDimensions(width, depth, height);
     const entity: BoxEntity = { id: nextId('box'), type: 'box', origin, width, depth, height, rotationZ: 0 };
     this.entities.set(entity.id, entity);
     return entity;
   }
 
+  resizeBox(id: EntityId, dimensions: Partial<BoxDimensions>): BoxEntity {
+    const entity = this.requireBox(id);
+    const next = {
+      width: dimensions.width ?? entity.width,
+      depth: dimensions.depth ?? entity.depth,
+      height: dimensions.height ?? entity.height
+    };
+    assertPositiveBoxDimensions(next.width, next.depth, next.height);
+    const updated = { ...entity, ...next };
+    this.entities.set(id, updated);
+    return updated;
+  }
+
   pushPullBoxFace(id: EntityId, deltaHeight: number): BoxEntity {
     const entity = this.requireBox(id);
     const nextHeight = entity.height + deltaHeight;
-    if (nextHeight <= 0) throw new Error('Push/Pull darf die Höhe nicht auf null oder negativ setzen.');
+    if (!isPositiveFinite(nextHeight)) throw new Error('Push/Pull braucht eine positive Höhe.');
     const updated = { ...entity, height: nextHeight };
     this.entities.set(id, updated);
     return updated;
@@ -113,9 +187,25 @@ export class SketchModel {
     let rotated: Entity;
     if (entity.type === 'edge') rotated = { ...entity, start: rotateAroundZ(entity.start, angleRadians, origin), end: rotateAroundZ(entity.end, angleRadians, origin) };
     else if (entity.type === 'face') rotated = { ...entity, vertices: entity.vertices.map((v) => rotateAroundZ(v, angleRadians, origin)) };
-    else rotated = { ...entity, origin: rotateAroundZ(entity.origin, angleRadians, origin), rotationZ: entity.rotationZ + angleRadians };
+    else {
+      const rotatedOrigin = rotateAroundZ(entity.origin, angleRadians, origin);
+      const centerOffset = rotateAroundZ(vec(entity.width / 2, entity.depth / 2, 0), angleRadians, vec(0, 0, 0));
+      const nextCenter = add(rotatedOrigin, centerOffset);
+      rotated = { ...entity, origin: add(nextCenter, vec(-entity.width / 2, -entity.depth / 2, 0)), rotationZ: entity.rotationZ + angleRadians };
+    }
     this.entities.set(id, rotated);
     return rotated;
+  }
+
+  deleteEntity(id: EntityId): boolean {
+    if (!this.entities.has(id)) return false;
+    this.entities.delete(id);
+    for (const component of [...this.components.values()]) {
+      const entityIds = component.entityIds.filter((entityId) => entityId !== id);
+      if (entityIds.length === 0) this.components.delete(component.id);
+      else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
+    }
+    return true;
   }
 
   createComponent(name: string, entityIds: EntityId[]): Component {

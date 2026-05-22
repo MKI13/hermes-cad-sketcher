@@ -4,6 +4,7 @@ coverage/
 .vite/
 .DS_Store
 *.log
+tmp/
 .env
 .env.*
 *.tsbuildinfo

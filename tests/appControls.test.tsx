@@ -1,0 +1,73 @@
+import React from 'react';
+import { describe, expect, it } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import App from '../src/App';
+
+describe('App controls', () => {
+  it('renders a delete button for the selected entity workflow', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Auswahl löschen');
+    expect(markup).toContain('Ausgewähltes Element löschen');
+  });
+
+  it('renders precise transform controls instead of vague future-work actions', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Auswahl verschieben');
+    expect(markup).toContain('Delta X in Millimeter');
+    expect(markup).toContain('Delta Y in Millimeter');
+    expect(markup).toContain('Delta Z in Millimeter');
+    expect(markup).toContain('Auswahl drehen');
+    expect(markup).toContain('Drehwinkel in Grad');
+    expect(markup).toContain('Höhe ändern');
+    expect(markup).toContain('Höhenänderung in Millimeter');
+    expect(markup).not.toContain('Demo-Aktion mit Werkzeug');
+    expect(markup).not.toContain('präzise Winkel-Eingabe folgt');
+    expect(markup).not.toContain('nächsten Ausbauschritt');
+  });
+
+  it('renders a selected entity inspector with measured values', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Inspektor');
+    expect(markup).toContain('Bounding Box Größe');
+    expect(markup).toContain('Breite');
+    expect(markup).toContain('Höhe');
+  });
+
+  it('renders undo and redo controls for reversible CAD edits', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Rückgängig');
+    expect(markup).toContain('Wiederholen');
+    expect(markup).toContain('Letzte Modelländerung rückgängig machen');
+    expect(markup).toContain('Rückgängig gemachte Modelländerung wiederholen');
+  });
+
+  it('renders selected box dimension editing controls', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Auswahlmaße bearbeiten');
+    expect(markup).toContain('Breite der Auswahl in Millimeter');
+    expect(markup).toContain('Tiefe der Auswahl in Millimeter');
+    expect(markup).toContain('Höhe der Auswahl in Millimeter');
+    expect(markup).toContain('Maße übernehmen');
+  });
+
+  it('renders face extrusion controls for rectangle-to-body workflows', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Fläche extrudieren');
+    expect(markup).toContain('Extrusionshöhe in Millimeter');
+    expect(markup).toContain('Projekt: Projekt nicht gespeichert');
+  });
+
+  it('documents production CI in the repository workflow', async () => {
+    const workflow = await import('node:fs/promises').then((fs) => fs.readFile('.github/workflows/check.yml', 'utf8'));
+
+    expect(workflow).toContain('npm ci');
+    expect(workflow).toContain('npm run check');
+    expect(workflow).toContain('pull_request:');
+  });
+});
