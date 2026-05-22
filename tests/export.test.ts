@@ -22,6 +22,50 @@ describe('CAD import/export foundation', () => {
     expect(model.measure(vec(0, 0, 0), vec(250, 0, 0))).toBe(250);
   });
 
+  it('imports DXF geometry when HEADER declares millimeters with INSUNITS 4', () => {
+    const dxf = '0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const report = importDxfWithReport(dxf);
+
+    expect(report.model.allEntities()).toHaveLength(1);
+    expect(report.unitStatus).toEqual({ kind: 'millimeters', insunits: 4, message: 'DXF units: millimeters ($INSUNITS=4).' });
+  });
+
+  it('imports DXF geometry with missing INSUNITS only with an explicit millimeter assumption warning', () => {
+    const dxf = '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const report = importDxfWithReport(dxf);
+
+    expect(report.model.allEntities()).toHaveLength(1);
+    expect(report.unitStatus).toEqual({ kind: 'missing', message: 'DXF has no $INSUNITS header; assuming millimeters.' });
+  });
+
+  it('rejects non-millimeter DXF documents before importing geometry', () => {
+    const dxf = '0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n1\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const report = importDxfWithReport(dxf);
+
+    expect(report.importedEntities).toBe(0);
+    expect(report.model.allEntities()).toEqual([]);
+    expect(report.unitStatus).toEqual({ kind: 'unsupported', insunits: 1, message: 'Unsupported DXF units: $INSUNITS=1. Only millimeters ($INSUNITS=4) are imported.' });
+    expect(report.skippedEntities).toEqual([
+      { entityType: 'DXF', reason: 'Unsupported DXF units: $INSUNITS=1. Only millimeters ($INSUNITS=4) are imported.' }
+    ]);
+  });
+
+  it('reads INSUNITS only from the DXF HEADER section', () => {
+    const dxf = '0\nSECTION\n2\nENTITIES\n0\nTEXT\n9\n$INSUNITS\n70\n1\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const report = importDxfWithReport(dxf);
+
+    expect(report.importedEntities).toBe(1);
+    expect(report.model.allEntities()).toHaveLength(1);
+    expect(report.skippedEntities).toEqual([
+      { entityType: 'TEXT', reason: 'DXF entity type is not supported by the current MVP importer.' }
+    ]);
+    expect(report.unitStatus).toEqual({ kind: 'missing', message: 'DXF has no $INSUNITS header; assuming millimeters.' });
+  });
+
   it('imports a closed DXF LWPOLYLINE rectangle fixture as a millimeter face', async () => {
     const dxf = await readFile('tests/fixtures/simple-rectangle-lwpolyline.dxf', 'utf8');
 

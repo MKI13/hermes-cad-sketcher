@@ -261,7 +261,7 @@ export default function App() {
       setHistory(createHistory(report.model.snapshot()));
       setSelectedId(report.model.allEntities()[0]?.id);
       const skipped = report.skippedEntities.length;
-      setProjectStatus(`DXF geladen: ${report.importedEntities} importiert, ${skipped} übersprungen (${file.name})`);
+      setProjectStatus(`DXF geladen: ${report.importedEntities} importiert, ${skipped} übersprungen; ${report.unitStatus.message} (${file.name})`);
     } catch (error) {
       setProjectStatus(error instanceof Error ? error.message : 'DXF konnte nicht geladen werden.');
     }
@@ -348,6 +348,7 @@ export default function App() {
           />
         </label>
         <p className="format-note">Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.</p>
+        <p className="format-note">DXF-Einheiten: $INSUNITS=4 wird als Millimeter importiert; fehlende Einheiten werden sichtbar als Millimeter angenommen, andere Einheiten werden abgelehnt.</p>
         <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
         <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
       </aside>

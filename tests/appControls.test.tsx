@@ -68,6 +68,7 @@ describe('App controls', () => {
 
     expect(markup).toContain('DXF laden');
     expect(markup).toContain('Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.');
+    expect(markup).toContain('DXF-Einheiten: $INSUNITS=4 wird als Millimeter importiert; fehlende Einheiten werden sichtbar als Millimeter angenommen, andere Einheiten werden abgelehnt.');
     expect(markup).not.toContain('vollständiger DXF-Import');
   });
 

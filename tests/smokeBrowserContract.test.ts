@@ -16,7 +16,9 @@ describe('browser smoke visual contract', () => {
     expect(source).toContain('runDxfLoadSmoke');
     expect(source).toContain('DataTransfer');
     expect(source).toContain('synthetic-supported.dxf');
+    expect(source).toContain('$INSUNITS');
     expect(source).toContain('DXF geladen: 2 importiert, 0 übersprungen');
+    expect(source).toContain('DXF units: millimeters ($INSUNITS=4).');
     expect(source).toContain('waitForDxfImportStatus');
     expect(source).toContain('Aktuelle Elemente: 2');
     expect(source).toContain('dxf load workflow imports supported synthetic fixture');

@@ -23,7 +23,11 @@ export function exportDxf(model: SketchModel): string {
 }
 
 export type DxfSkippedEntity = { entityType: string; reason: string };
-export type DxfImportReport = { model: SketchModel; importedEntities: number; skippedEntities: DxfSkippedEntity[] };
+export type DxfUnitStatus =
+  | { kind: 'millimeters'; insunits: 4; message: string }
+  | { kind: 'missing'; message: string }
+  | { kind: 'unsupported'; insunits: number; message: string };
+export type DxfImportReport = { model: SketchModel; importedEntities: number; skippedEntities: DxfSkippedEntity[]; unitStatus: DxfUnitStatus };
 
 const unsupportedDxfEntityReason = 'DXF entity type is not supported by the current MVP importer.';
 const unsupportedLwPolylineReason = 'Only closed, four-point, axis-aligned LWPOLYLINE rectangles without malformed coordinates, bulge, width, thickness, or non-default extrusion are supported.';
@@ -38,6 +42,10 @@ export function importDxfWithReport(text: string): DxfImportReport {
   let importedEntities = 0;
   const skippedEntities: DxfSkippedEntity[] = [];
   const tokens = text.split(/\r?\n/).map((s) => s.trim());
+  const unitStatus = readDxfUnitStatus(tokens);
+  if (unitStatus.kind === 'unsupported') {
+    return { model, importedEntities, skippedEntities: [{ entityType: 'DXF', reason: unitStatus.message }], unitStatus };
+  }
   let inEntitiesSection = false;
   for (let i = 0; i < tokens.length - 1; i += 2) {
     const code = tokens[i];
@@ -78,13 +86,38 @@ export function importDxfWithReport(text: string): DxfImportReport {
       skippedEntities.push({ entityType: value, reason: unsupportedDxfEntityReason });
     }
   }
-  return { model, importedEntities, skippedEntities };
+  return { model, importedEntities, skippedEntities, unitStatus };
 }
 
 const supportedOrStructuralDxfTokens = new Set(['SECTION', 'ENDSEC', 'EOF', 'HEADER', 'ENTITIES', 'LINE', 'LWPOLYLINE']);
 
 function isUnsupportedEntityToken(value: string): boolean {
   return value.length > 0 && !supportedOrStructuralDxfTokens.has(value);
+}
+
+function readDxfUnitStatus(tokens: string[]): DxfUnitStatus {
+  let inHeaderSection = false;
+  for (let i = 0; i < tokens.length - 1; i += 2) {
+    const code = tokens[i];
+    const value = tokens[i + 1];
+    const nextCode = tokens[i + 2];
+    const nextValue = tokens[i + 3];
+    if (code === '0' && value === 'SECTION') {
+      inHeaderSection = nextCode === '2' && nextValue === 'HEADER';
+      continue;
+    }
+    if (code === '0' && value === 'ENDSEC') {
+      inHeaderSection = false;
+      continue;
+    }
+    if (inHeaderSection && code === '9' && value === '$INSUNITS') {
+      const rawInsunits = tokens[i + 3];
+      const insunits = Number(rawInsunits);
+      if (insunits === 4) return { kind: 'millimeters', insunits: 4, message: 'DXF units: millimeters ($INSUNITS=4).' };
+      return { kind: 'unsupported', insunits, message: `Unsupported DXF units: $INSUNITS=${rawInsunits}. Only millimeters ($INSUNITS=4) are imported.` };
+    }
+  }
+  return { kind: 'missing', message: 'DXF has no $INSUNITS header; assuming millimeters.' };
 }
 
 function isFiniteLine(start: Vec3, end: Vec3): boolean {

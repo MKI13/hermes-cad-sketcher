@@ -13,6 +13,16 @@ const visualEvidenceDir = process.env.SMOKE_VISUAL_DIR ?? path.join(process.cwd(
 const supportedDxfFixture = `0
 SECTION
 2
+HEADER
+9
+$INSUNITS
+70
+4
+0
+ENDSEC
+0
+SECTION
+2
 ENTITIES
 0
 LINE
@@ -394,6 +404,7 @@ async function runDxfLoadSmoke(cdp) {
     };
     const settledText = await waitForDxfImportStatus();
     if (!settledText.includes('DXF geladen: 2 importiert, 0 übersprungen')) failures.push('DXF import status did not report 2 imported / 0 skipped');
+    if (!settledText.includes('DXF units: millimeters ($INSUNITS=4).')) failures.push('DXF import status did not report millimeter INSUNITS handling');
     if (!settledText.includes('Aktuelle Elemente: 2')) failures.push('DXF import did not show expected entity count');
     if (!settledText.includes('Auswahl: edge_')) failures.push('DXF import did not select the first imported line');
     return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 2') };
