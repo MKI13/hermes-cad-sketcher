@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
@@ -9,6 +9,7 @@ import net from 'node:net';
 const previewPort = Number(process.env.SMOKE_PREVIEW_PORT ?? 4173);
 const previewUrl = `http://127.0.0.1:${previewPort}`;
 const chromiumExecutable = process.env.CHROMIUM_PATH ?? '/snap/bin/chromium';
+const visualEvidenceDir = process.env.SMOKE_VISUAL_DIR ?? path.join(process.cwd(), 'tmp', 'visual-smoke');
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -200,6 +201,120 @@ function isExpectedWebGLContextException(event) {
     (description.includes('Error creating WebGL context.') || message === 'Error creating WebGL context.');
 }
 
+function isExpectedRenderingWarning(event) {
+  if (event.method !== 'Log.entryAdded') return false;
+  const entry = event.params?.entry;
+  return entry?.source === 'rendering' &&
+    entry?.level === 'warning' &&
+    typeof entry?.text === 'string' &&
+    entry.text.includes('GPU stall due to ReadPixels');
+}
+
+async function setViewport(cdp, viewport) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: viewport.width,
+    height: viewport.height,
+    deviceScaleFactor: viewport.deviceScaleFactor,
+    mobile: viewport.mobile
+  });
+  await cdp.send('Emulation.setVisibleSize', { width: viewport.width, height: viewport.height });
+}
+
+async function captureScreenshot(cdp, name) {
+  await mkdir(visualEvidenceDir, { recursive: true });
+  const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true });
+  const filePath = path.join(visualEvidenceDir, `${name}.png`);
+  await writeFile(filePath, Buffer.from(screenshot.data, 'base64'));
+  return filePath;
+}
+
+function visualCheckScript(viewportName) {
+  return `(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const viewportWidth = document.documentElement.clientWidth;
+    const text = document.body.innerText;
+    const visible = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    };
+    const overflowElements = Array.from(document.querySelectorAll('body *')).map((element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        tag: element.tagName,
+        className: String(element.className),
+        text: (element.textContent || '').trim().slice(0, 80),
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        width: Math.round(rect.width),
+        position: style.position,
+        overflowX: style.overflowX
+      };
+    }).filter((item) => item.width > 0 && item.position !== 'fixed' && (item.left < -2 || item.right > viewportWidth + 2)).slice(0, 20);
+    const toolbar = document.querySelector('.toolbar')?.getBoundingClientRect();
+    const workspace = document.querySelector('.workspace')?.getBoundingClientRect();
+    const statusbar = document.querySelector('.statusbar')?.getBoundingClientRect();
+    const viewport = document.querySelector('.three-viewport')?.getBoundingClientRect();
+    const viewportTop = viewport?.top ?? Number.POSITIVE_INFINITY;
+    const viewportBottom = viewport?.bottom ?? Number.NEGATIVE_INFINITY;
+    const aboveTheFold = viewport ? viewportTop < window.innerHeight && viewportBottom > 0 : false;
+    const documentVerticalOverflow = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const failures = [];
+    if (!visible('.toolbar')) failures.push('toolbar not visible');
+    if (!visible('.workspace')) failures.push('workspace not visible');
+    if (!visible('.statusbar')) failures.push('statusbar not visible');
+    if (!visible('.three-viewport')) failures.push('viewport not visible');
+    if (!text.includes('Einheit: mm')) failures.push('unit status missing');
+    if (!text.includes('Projekt: Projekt nicht gespeichert')) failures.push('project status missing');
+    if (!text.includes('3D-Arbeitsfläche')) failures.push('3D workspace cue missing');
+    if (document.documentElement.scrollWidth > viewportWidth + 2) failures.push('document has horizontal overflow');
+    if (overflowElements.length > 0) failures.push('elements overflow viewport horizontally');
+    return {
+      viewportName: ${JSON.stringify(viewportName)},
+      ok: failures.length === 0,
+      failures,
+      layoutGeometry: {
+        horizontalOverflow: Math.max(0, document.documentElement.scrollWidth - viewportWidth),
+        viewportWidth,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+        toolbar: toolbar ? { width: Math.round(toolbar.width), height: Math.round(toolbar.height) } : null,
+        workspace: workspace ? { width: Math.round(workspace.width), height: Math.round(workspace.height) } : null,
+        statusbar: statusbar ? { width: Math.round(statusbar.width), height: Math.round(statusbar.height) } : null,
+        viewport: viewport ? { width: Math.round(viewport.width), height: Math.round(viewport.height), top: Math.round(viewport.top), bottom: Math.round(viewport.bottom), aboveTheFold } : null,
+        documentVerticalOverflow,
+        overflowElements
+      }
+    };
+  })()`;
+}
+
+async function runVisualChecks(cdp) {
+  const viewports = [
+    { name: 'desktop', width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false },
+    { name: 'mobile', width: 390, height: 1200, deviceScaleFactor: 1, mobile: true }
+  ];
+  const screenshots = [];
+  const checks = [];
+  for (const viewport of viewports) {
+    await setViewport(cdp, viewport);
+    await cdp.send('Page.navigate', { url: previewUrl });
+    await waitForApp(cdp);
+    const check = await evaluate(cdp, visualCheckScript(viewport.name));
+    const screenshotPath = await captureScreenshot(cdp, viewport.name);
+    screenshots.push({ viewport: viewport.name, path: screenshotPath });
+    checks.push(check);
+  }
+  const failures = checks.flatMap((check) => check.ok ? [] : check.failures.map((failure) => `${check.viewportName}: ${failure}`));
+  if (failures.length > 0) {
+    throw new Error(`Visual smoke failed: ${JSON.stringify({ failures, checks, screenshots })}`);
+  }
+  return { screenshots, checks };
+}
+
 async function main() {
   const preview = startProcess('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(previewPort), '--strictPort']);
   const chromiumDataDir = await mkdtemp(path.join(tmpdir(), 'hermes-cad-smoke-chrome-'));
@@ -212,10 +327,11 @@ async function main() {
     const debugPort = await getFreePort();
     chromium = startProcess(chromiumExecutable, [
       '--headless=new',
+      `--remote-debugging-address=127.0.0.1`,
       `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${chromiumDataDir}`,
-      '--disable-gpu',
-      '--disable-software-rasterizer',
+      '--enable-unsafe-swiftshader',
+      '--use-angle=swiftshader-webgl',
       '--disable-background-networking',
       '--disable-component-update',
       '--disable-domain-reliability',
@@ -233,6 +349,7 @@ async function main() {
     await protocol.send('Network.enable');
     await protocol.send('Page.enable');
     await protocol.send('DOM.enable');
+    await setViewport(protocol, { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await protocol.send('Page.navigate', { url: previewUrl });
 
     const readyState = await waitForApp(protocol);
@@ -264,9 +381,12 @@ async function main() {
     })()`);
     if (!result?.ok) throw new Error(`Browser smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
 
+    const visualEvidence = await runVisualChecks(protocol);
+
     const badEvents = protocol.events.filter((event) => {
       if (event.method === 'Runtime.exceptionThrown') return !readyState.webglFallback || !isExpectedWebGLContextException(event);
       if (event.method === 'Log.entryAdded') {
+        if (isExpectedRenderingWarning(event)) return false;
         const entry = event.params?.entry;
         if (entry?.url?.endsWith('/favicon.ico')) return false;
         return ['error', 'warning'].includes(entry?.level);
@@ -280,7 +400,16 @@ async function main() {
       ok: true,
       url: previewUrl,
       rendering: result.webglFallback ? 'webgl-fallback' : 'webgl-canvas',
-      checks: ['app loaded', 'no unexpected console/runtime errors', 'core controls visible', 'tool button interaction updates statusbar']
+      visualEvidence,
+      checks: [
+        'app loaded',
+        'no unexpected console/runtime errors',
+        'core controls visible',
+        'tool button interaction updates statusbar',
+        'desktop visual geometry has no horizontal overflow',
+        'mobile visual geometry has no horizontal overflow',
+        'desktop and mobile screenshots captured'
+      ]
     }, null, 2));
   } finally {
     if (protocol?.socket) {

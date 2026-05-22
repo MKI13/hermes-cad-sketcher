@@ -267,7 +267,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
       {viewportError && <div className="viewport-error"><strong>3D-Viewport nicht verfügbar</strong><span>{viewportError}</span></div>}
-      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
+      <div className="viewport-help">3D-Arbeitsfläche: Rechts ziehen dreht die Ansicht. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
     </div>
   );
 }
