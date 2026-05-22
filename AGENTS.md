@@ -131,9 +131,11 @@ Eine Erweiterung gilt erst als fertig, wenn alle Punkte erfüllt sind:
 
 Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn eine Erweiterung fertig ist, verschiebe sie in die erledigte Liste.
 
-1. **Push/Pull für Flächen verbessern**
-   - Rechtecke und Flächen kontrolliert extrudieren.
-   - Negative oder Null-Extrusion sauber blockieren.
+1. **Push/Pull für Flächen erweitern**
+   - Aktuell gibt es ein präzises Push/Pull-Panel für die Höhe ausgewählter Boxkörper.
+   - Nächster Schritt: Rechtecke und beliebige Flächen kontrolliert zu Körpern extrudieren.
+   - Später: Box-Flächen in Breite/Tiefe/Höhe gezielt ziehen.
+   - Negative oder Null-Endmaße sauber blockieren.
    - Maße müssen in Millimeter stabil bleiben.
 
 2. **Komponenten als Instanzen verbessern**
@@ -202,7 +204,14 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **ASCII-STL-Export für Boxkörper** — einfache STL-Ausgabe für Boxgeometrie.
 - **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.
-- **Interaktiver Three.js-Viewport, Maus-Zeichnen, Live-Vorschau, Move und Tape-Workflow** — begonnen bzw. teilweise umgesetzt auf dem vorhandenen Feature-Stand; vor dem Verschieben nach `main` immer aktuellen Code und Tests prüfen.
+- **Interaktiver Three.js-Viewport mit Picking und Auswahlmarkierung** — Szene aus dem Kernmodell rendern, Objekte anklicken und ausgewählte Elemente sichtbar hervorheben.
+- **Maus-Zeichnen mit Live-Vorschau** — Linien und Rechtecke über zwei Rasterklicks zeichnen; Boxkörper über einen Rasterklick mit einstellbaren Standardmaßen erzeugen.
+- **Move- und Tape-Workflow im Viewport** — ausgewählte Elemente per Start-/Zielpunkt in Millimeter verschieben und Distanzen über zwei Klicks messen.
+- **Auswahl löschen** — ausgewählte Elemente per Button oder Delete/Backspace entfernen; Komponentenreferenzen werden bereinigt.
+- **Box-Dimensionspanel** — Standardmaße für neue Boxkörper in Millimeter setzen und ungültige Maße blockieren.
+- **Präzises Verschieben** — ausgewählte Elemente per ΔX/ΔY/ΔZ in Millimeter transformieren.
+- **Präzises Drehen** — ausgewählte Elemente per Grad-Eingabe um die Z-Achse drehen; Boxen bleiben dabei um ihren sichtbaren Mittelpunkt stabil.
+- **Präzises Push/Pull für Boxhöhe** — ausgewählte Boxkörper per ΔH in Millimeter höher oder niedriger machen; ungültige oder auf Null führende Werte werden blockiert.
 
 ## Sicherheits- und Realismusregeln
 
