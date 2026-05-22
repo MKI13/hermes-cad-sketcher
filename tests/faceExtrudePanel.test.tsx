@@ -27,12 +27,14 @@ describe('FaceExtrudePanel', () => {
         height="300"
         onHeightChange={() => undefined}
         onApply={() => undefined}
+        statusMessage="Fläche zu Körper extrudiert"
       />
     );
 
     expect(markup).toContain('Fläche extrudieren');
     expect(markup).toContain('Extrusionshöhe in Millimeter');
     expect(markup).toContain('mm');
+    expect(markup).toContain('Fläche zu Körper extrudiert');
   });
 
   it('disables applying invalid extrusion heights and shows an inline error', () => {

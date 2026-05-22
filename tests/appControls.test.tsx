@@ -60,6 +60,7 @@ describe('App controls', () => {
 
     expect(markup).toContain('Fläche extrudieren');
     expect(markup).toContain('Extrusionshöhe in Millimeter');
+    expect(markup).toContain('Projekt: Projekt nicht gespeichert');
   });
 
   it('documents production CI in the repository workflow', async () => {
