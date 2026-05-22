@@ -8,6 +8,7 @@ import { exportDxf } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
+import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
 import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { shouldDeleteSelectionFromKey } from './ui/selectionControls';
 import { ThreeViewport } from './ui/ThreeViewport';
@@ -37,6 +38,7 @@ export default function App() {
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
+  const [moveDelta, setMoveDelta] = useState<MoveDeltaInput>({ x: '100', y: '0', z: '0' });
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
 
@@ -84,6 +86,13 @@ export default function App() {
       m.moveEntity(entityId, delta);
       setSelectedId(entityId);
     });
+  }
+
+  function applyMoveDelta() {
+    if (!selectedId) return;
+    const parsed = parseMoveDelta(moveDelta);
+    if (!parsed.ok) return;
+    moveFromViewport(selectedId, parsed.delta);
   }
 
   function duplicateSelectedComponent() {
@@ -155,6 +164,7 @@ export default function App() {
         <button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}>
           <Trash2 size={18}/> Auswahl löschen
         </button>
+        <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
         {tool === 'box' && <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />}
         <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
         <label className="file-button">

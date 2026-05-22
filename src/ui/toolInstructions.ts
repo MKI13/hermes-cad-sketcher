@@ -5,7 +5,7 @@ const toolInstructions: Record<ToolName, string> = {
   line: 'Linie: zwei Klicks auf das Millimeter-Raster setzen Start- und Endpunkt.',
   rectangle: 'Rechteck: zwei Klicks auf das Millimeter-Raster setzen die Diagonale.',
   box: 'Körper: ein Klick auf das Raster erstellt einen 600 × 600 × 600 mm Körper.',
-  move: 'Verschieben: aktuell über Beispiel laden/Transformationsschritte; präzise Eingabe folgt.',
+  move: 'Verschieben: Objekt auswählen, Delta in Millimeter eingeben oder Start und Ziel im Viewport anklicken.',
   pushPull: 'Seite ziehen: wähle einen Körper und nutze die vorhandene Höhenänderung als nächsten Ausbauschritt.',
   rotate: 'Drehen: wähle ein Element; präzise Winkel-Eingabe folgt.',
   tape: 'Maßband: Maße bleiben in Millimeter sichtbar und nachvollziehbar.'
