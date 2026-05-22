@@ -22,25 +22,74 @@ export function exportDxf(model: SketchModel): string {
   return out.join('\n') + '\n';
 }
 
+export type DxfSkippedEntity = { entityType: string; reason: string };
+export type DxfImportReport = { model: SketchModel; importedEntities: number; skippedEntities: DxfSkippedEntity[] };
+
+const unsupportedDxfEntityReason = 'DXF entity type is not supported by the current MVP importer.';
+const unsupportedLwPolylineReason = 'Only closed, four-point, axis-aligned LWPOLYLINE rectangles without malformed coordinates, bulge, width, thickness, or non-default extrusion are supported.';
+const unsupportedLineReason = 'DXF LINE has missing, non-finite, or zero-length coordinates.';
+
 export function importDxf(text: string): SketchModel {
+  return importDxfWithReport(text).model;
+}
+
+export function importDxfWithReport(text: string): DxfImportReport {
   const model = new SketchModel();
+  let importedEntities = 0;
+  const skippedEntities: DxfSkippedEntity[] = [];
   const tokens = text.split(/\r?\n/).map((s) => s.trim());
+  let inEntitiesSection = false;
   for (let i = 0; i < tokens.length - 1; i += 2) {
     const code = tokens[i];
     const value = tokens[i + 1];
+    const nextCode = tokens[i + 2];
+    const nextValue = tokens[i + 3];
+    if (code === '0' && value === 'SECTION') {
+      inEntitiesSection = nextCode === '2' && nextValue === 'ENTITIES';
+      continue;
+    }
+    if (code === '0' && value === 'ENDSEC') {
+      inEntitiesSection = false;
+      continue;
+    }
+    if (!inEntitiesSection) continue;
     if (code === '0' && value === 'LINE') {
       const fields = readEntityFields(tokens, i + 2);
-      model.createLine(vec(num(fields, '10'), num(fields, '20'), num(fields, '30')), vec(num(fields, '11'), num(fields, '21'), num(fields, '31')));
+      const start = linePoint(fields, '10', '20', '30');
+      const end = linePoint(fields, '11', '21', '31');
+      if (start && end && isFiniteLine(start, end)) {
+        model.createLine(start, end);
+        importedEntities += 1;
+      } else {
+        skippedEntities.push({ entityType: 'LINE', reason: unsupportedLineReason });
+      }
     }
     if (code === '0' && value === 'LWPOLYLINE') {
       const polyline = readLwPolyline(tokens, i + 2);
-      if (polyline.closed && !polyline.hasBulge && !polyline.hasUnsupportedExtrusion && !polyline.hasUnsupportedWidthOrThickness && polyline.points.length === 4 && isAxisAlignedRectangle(polyline.points)) {
+      if (polyline.closed && !polyline.hasMalformedCoordinates && !polyline.hasBulge && !polyline.hasUnsupportedExtrusion && !polyline.hasUnsupportedWidthOrThickness && polyline.points.length === 4 && isAxisAlignedRectangle(polyline.points)) {
         const bounds = rectangleBounds(polyline.points);
         model.createRectangle(bounds.origin, bounds.width, bounds.depth);
+        importedEntities += 1;
+      } else {
+        skippedEntities.push({ entityType: 'LWPOLYLINE', reason: unsupportedLwPolylineReason });
       }
     }
+    if (code === '0' && isUnsupportedEntityToken(value)) {
+      skippedEntities.push({ entityType: value, reason: unsupportedDxfEntityReason });
+    }
   }
-  return model;
+  return { model, importedEntities, skippedEntities };
+}
+
+const supportedOrStructuralDxfTokens = new Set(['SECTION', 'ENDSEC', 'EOF', 'HEADER', 'ENTITIES', 'LINE', 'LWPOLYLINE']);
+
+function isUnsupportedEntityToken(value: string): boolean {
+  return value.length > 0 && !supportedOrStructuralDxfTokens.has(value);
+}
+
+function isFiniteLine(start: Vec3, end: Vec3): boolean {
+  return [start.x, start.y, start.z, end.x, end.y, end.z].every(Number.isFinite) &&
+    (Math.abs(start.x - end.x) > 1e-9 || Math.abs(start.y - end.y) > 1e-9 || Math.abs(start.z - end.z) > 1e-9);
 }
 
 function readEntityFields(tokens: string[], start: number): Map<string, string> {
@@ -52,12 +101,13 @@ function readEntityFields(tokens: string[], start: number): Map<string, string> 
   return fields;
 }
 
-type LwPolyline = { closed: boolean; points: Vec3[]; hasBulge: boolean; hasUnsupportedExtrusion: boolean; hasUnsupportedWidthOrThickness: boolean };
+type LwPolyline = { closed: boolean; points: Vec3[]; hasMalformedCoordinates: boolean; hasBulge: boolean; hasUnsupportedExtrusion: boolean; hasUnsupportedWidthOrThickness: boolean };
 
 function readLwPolyline(tokens: string[], start: number): LwPolyline {
   let closed = false;
   let hasBulge = false;
   let hasUnsupportedWidthOrThickness = false;
+  let declaredVertexCount: number | undefined;
   let extrusion = vec(0, 0, 1);
   const xs: number[] = [];
   const ys: number[] = [];
@@ -67,6 +117,7 @@ function readLwPolyline(tokens: string[], start: number): LwPolyline {
     const value = tokens[i + 1];
     if (code === '0') break;
     if (code === '70') closed = (Number(value) & 1) === 1;
+    if (code === '90') declaredVertexCount = Number(value);
     if (code === '10') xs.push(Number(value));
     if (code === '20') ys.push(Number(value));
     if (code === '38') elevations.push(Number(value));
@@ -76,10 +127,12 @@ function readLwPolyline(tokens: string[], start: number): LwPolyline {
     if (code === '220') extrusion = { ...extrusion, y: Number(value) };
     if (code === '230') extrusion = { ...extrusion, z: Number(value) };
   }
-  const z = elevations.find(Number.isFinite) ?? 0;
-  const points = xs.map((x, index) => vec(x, ys[index] ?? 0, z)).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
+  const z = elevations.length === 0 ? 0 : elevations[0];
+  const hasMalformedCoordinates = declaredVertexCount !== 4 || xs.length !== 4 || ys.length !== 4 || !Number.isFinite(z) ||
+    xs.some((x) => !Number.isFinite(x)) || ys.some((y) => !Number.isFinite(y));
+  const points = hasMalformedCoordinates ? [] : xs.map((x, index) => vec(x, ys[index], z));
   const hasUnsupportedExtrusion = !almostEqual(extrusion.x, 0) || !almostEqual(extrusion.y, 0) || !almostEqual(extrusion.z, 1);
-  return { closed, points, hasBulge, hasUnsupportedExtrusion, hasUnsupportedWidthOrThickness };
+  return { closed, points, hasMalformedCoordinates, hasBulge, hasUnsupportedExtrusion, hasUnsupportedWidthOrThickness };
 }
 
 function isAxisAlignedRectangle(points: Vec3[]): boolean {
@@ -112,8 +165,10 @@ function rectangleBounds(points: Vec3[]): { origin: Vec3; width: number; depth: 
   return { origin: vec(minX, minY, z), width: maxX - minX, depth: maxY - minY };
 }
 
-function num(fields: Map<string, string>, code: string): number {
-  return Number(fields.get(code) ?? 0);
+function linePoint(fields: Map<string, string>, xCode: string, yCode: string, zCode: string): Vec3 | undefined {
+  if (!fields.has(xCode) || !fields.has(yCode)) return undefined;
+  const point = vec(Number(fields.get(xCode)), Number(fields.get(yCode)), Number(fields.get(zCode) ?? 0));
+  return [point.x, point.y, point.z].every(Number.isFinite) ? point : undefined;
 }
 
 function line(out: string[], start: Vec3, end: Vec3): void {

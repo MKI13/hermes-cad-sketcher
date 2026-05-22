@@ -64,7 +64,7 @@ Vorhanden im Code:
 - Komponenten/Gruppen und Komponenten-Duplizierung mit Millimeter-Versatz
 - Maßband-Workflow mit Millimeteranzeige
 - `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
-- DXF-Export-Grundlage in der UI, einfacher DXF-LINE-Import im Kernmodell und begrenzter DXF-LWPOLYLINE-Rechteckimport im Kernmodell
+- DXF-Export-Grundlage in der UI, DXF-Dateiimport in der UI mit Importbericht, einfacher DXF-LINE-Import und begrenzter DXF-LWPOLYLINE-Rechteckimport
 - ASCII-STL-Export für Boxkörper
 - lokale Vitest-Tests plus Production-Build über `npm run check`
 - GitHub Actions CI für Pull Requests und zentrale Branches
@@ -109,6 +109,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - `Projekt speichern` lädt eine lokale `.hcad.json` Datei herunter.
 - `Projekt laden` importiert eine vorher gespeicherte `.hcad.json` Datei.
 - Das Projektformat prüft Formatversion, Einheit, Elemente und Komponentenreferenzen.
+- `DXF laden` importiert nur die dokumentierte MVP-Teilmenge: `LINE` und geschlossene, vierpunktige, achsenparallele `LWPOLYLINE`-Rechtecke ohne Bulge, Breite, Dicke oder Sonder-Extrusionsvektor. Andere DXF-Entitäten werden übersprungen und im Status als übersprungen gezählt.
 
 ### Export
 
@@ -120,7 +121,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 ### Aktuell unterstützt
 
 - `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten.
-- `.dxf`: einfacher Export in der UI, einfacher LINE-Import im Kernmodell und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor.
+- `.dxf`: einfacher Export in der UI, einfacher UI-Import mit Statusbericht für `LINE` und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor.
 - `.stl`: ASCII-STL-Export für Boxkörper.
 
 ### Geplant
@@ -153,7 +154,7 @@ Noch nicht fertig oder nur teilweise vorhanden:
 - freie Flächenbearbeitung wie in einem vollständigen CAD-System
 - beliebig rotierte oder freie Flächenextrusion; aktuell ist nur axis-aligned Rechteck-zu-Box-Extrusion implementiert
 - Push/Pull aus beliebigen Rechtecken oder Flächen in Breite/Tiefe/Höhe
-- vollständiger DXF-Import; aktuell nur einfacher LINE-Import und begrenzte geschlossene, achsenparallele Vierpunkt-LWPOLYLINE-Rechtecke im Kernmodell
+- vollständiger DXF-Import; aktuell nur einfacher LINE-Import und begrenzte geschlossene, achsenparallele Vierpunkt-LWPOLYLINE-Rechtecke
 - STL-Import
 - DWG-Import/Export
 - SKP-Import/Export

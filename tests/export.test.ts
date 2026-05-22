@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { vec } from '../src/core/geometry';
-import { exportDxf, importDxf, supportedCadFormats } from '../src/core/dxf';
+import { exportDxf, importDxf, importDxfWithReport, supportedCadFormats } from '../src/core/dxf';
 import { SketchModel } from '../src/core/model';
 import { exportAsciiStl } from '../src/core/stl';
 
@@ -94,6 +94,54 @@ describe('CAD import/export foundation', () => {
 
       expect(model.allEntities(), `group ${group}`).toEqual([]);
     }
+  });
+
+  it('does not import malformed DXF LINE entities with non-finite or missing required coordinates', () => {
+    const malformedLines = [
+      '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\nNaN\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n',
+      '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n31\n0\n0\nENDSEC\n0\nEOF\n',
+      '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n0\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n'
+    ];
+
+    for (const dxf of malformedLines) {
+      const report = importDxfWithReport(dxf);
+
+      expect(report.model.allEntities()).toEqual([]);
+      expect(report.importedEntities).toBe(0);
+      expect(report.skippedEntities).toEqual([
+        { entityType: 'LINE', reason: 'DXF LINE has missing, non-finite, or zero-length coordinates.' }
+      ]);
+    }
+  });
+
+  it('does not repair malformed DXF LWPOLYLINE rectangles into geometry', () => {
+    const malformedPolylines = [
+      '0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n90\n4\n70\n1\n10\n0\n20\n0\n10\n100\n20\n0\n10\n100\n20\n50\n10\n0\n0\nENDSEC\n0\nEOF\n',
+      '0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n90\n5\n70\n1\n10\n0\n20\n0\n10\n100\n20\n0\n10\n100\n20\n50\n10\n0\n20\n50\n0\nENDSEC\n0\nEOF\n',
+      '0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n90\n4\n70\n1\n10\n0\n20\n0\n10\nNaN\n20\n0\n10\n100\n20\n50\n10\n0\n20\n50\n0\nENDSEC\n0\nEOF\n'
+    ];
+
+    for (const dxf of malformedPolylines) {
+      const report = importDxfWithReport(dxf);
+
+      expect(report.model.allEntities()).toEqual([]);
+      expect(report.importedEntities).toBe(0);
+      expect(report.skippedEntities).toEqual([
+        { entityType: 'LWPOLYLINE', reason: 'Only closed, four-point, axis-aligned LWPOLYLINE rectangles without malformed coordinates, bulge, width, thickness, or non-default extrusion are supported.' }
+      ]);
+    }
+  });
+
+  it('imports only entities from the DXF ENTITIES section and ignores block definitions', () => {
+    const dxf = '0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n2\nCHAIR\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n100\n21\n0\n31\n0\n0\nENDBLK\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nINSERT\n2\nCHAIR\n10\n500\n20\n0\n30\n0\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const report = importDxfWithReport(dxf);
+
+    expect(report.model.allEntities()).toHaveLength(1);
+    expect(report.importedEntities).toBe(1);
+    expect(report.skippedEntities).toEqual([
+      { entityType: 'INSERT', reason: 'DXF entity type is not supported by the current MVP importer.' }
+    ]);
   });
 
   it('exports STL triangles for box bodies', () => {

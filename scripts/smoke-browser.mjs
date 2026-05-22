@@ -365,7 +365,7 @@ async function main() {
         element.click();
       };
       const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      ['Hermes CAD Sketcher', 'Auswahl', 'Linie', 'Quadrat/Rechteck', 'Körper', 'Rückgängig', 'Wiederholen', 'Auswahl löschen', 'Projekt speichern', 'DXF exportieren', 'STL exportieren'].forEach((label) => {
+      ['Hermes CAD Sketcher', 'Auswahl', 'Linie', 'Quadrat/Rechteck', 'Körper', 'Rückgängig', 'Wiederholen', 'Auswahl löschen', 'Projekt speichern', 'DXF laden', 'DXF exportieren', 'STL exportieren'].forEach((label) => {
         if (!text().includes(label)) failures.push('Missing visible label: ' + label);
       });
       const before = text();

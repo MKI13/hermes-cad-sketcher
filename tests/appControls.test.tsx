@@ -63,6 +63,14 @@ describe('App controls', () => {
     expect(markup).toContain('Projekt: Projekt nicht gespeichert');
   });
 
+  it('renders an honest limited DXF import control instead of claiming full DXF support', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('DXF laden');
+    expect(markup).toContain('Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.');
+    expect(markup).not.toContain('vollständiger DXF-Import');
+  });
+
   it('documents production CI in the repository workflow', async () => {
     const workflow = await import('node:fs/promises').then((fs) => fs.readFile('.github/workflows/check.yml', 'utf8'));
 

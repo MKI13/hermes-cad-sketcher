@@ -4,7 +4,7 @@ import { SketchModel, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
-import { exportDxf } from './core/dxf';
+import { exportDxf, importDxfWithReport } from './core/dxf';
 import { exportAsciiStl } from './core/stl';
 import { createHistory, pushHistory, redoHistory, undoHistory, type ModelHistory } from './core/history';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
@@ -253,6 +253,20 @@ export default function App() {
     }
   }
 
+  async function openDxfFile(file: File) {
+    try {
+      const text = await file.text();
+      const report = importDxfWithReport(text);
+      setModel(report.model);
+      setHistory(createHistory(report.model.snapshot()));
+      setSelectedId(report.model.allEntities()[0]?.id);
+      const skipped = report.skippedEntities.length;
+      setProjectStatus(`DXF geladen: ${report.importedEntities} importiert, ${skipped} übersprungen (${file.name})`);
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'DXF konnte nicht geladen werden.');
+    }
+  }
+
   return (
     <main className="app-shell">
       <aside className="toolbar">
@@ -321,6 +335,19 @@ export default function App() {
             }}
           />
         </label>
+        <label className="file-button" title="Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.">
+          <FolderOpen size={18}/> DXF laden
+          <input
+            type="file"
+            accept=".dxf,application/dxf,text/plain"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (file) void openDxfFile(file);
+              event.currentTarget.value = '';
+            }}
+          />
+        </label>
+        <p className="format-note">Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.</p>
         <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
         <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
       </aside>
