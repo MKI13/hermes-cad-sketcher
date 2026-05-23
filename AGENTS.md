@@ -138,37 +138,49 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
    - Negative oder Null-Endmaße sauber blockieren.
    - Maße müssen in Millimeter stabil bleiben.
 
-2. **Komponenten als Instanzen verbessern**
+2. **Agent-erstellte Körper automatisch als Komponenten führen**
+   - Wenn Hermes/Agent/Console einen Körper erstellt, soll der Körper standardmäßig eine eigene Komponente bekommen.
+   - Wenn eine Baugruppe aus zwei oder mehr Körpern entsteht, müssen die Einzelkörper weiterhin trennbar, einzeln auswählbar und verschiebbar bleiben.
+   - Komponenten brauchen später saubere Stücklisten-/OpenCutList-Metadaten, z. B. Teilname, Material, Stärke, Länge/Breite/Tiefe und Zuschnitt-Orientierung.
+   - Keine reine Verschmelzung zu einem untrennbaren Mesh, wenn die Teile später getrennt bearbeitet oder zugeschnitten werden sollen.
+
+3. **Körper-Faces für Zieh-/Push-Pull-Werkzeuge ausbauen**
+   - Jeder Körper muss für die Bedienung klare Seiten/Faces bereitstellen: oben, unten, vorne, hinten, links, rechts.
+   - Faces sollen auswählbar und für Ziehen/Push/Pull nutzbar sein, damit Maße in Millimeter direkt verändert werden können.
+   - Boxkörper rendern bereits Seitenflächen; der nächste Schritt ist eine stabile Modell-/Command-Schicht für gezieltes Face-Ziehen in Breite, Tiefe und Höhe.
+   - Null- oder Negativmaße müssen weiterhin blockiert werden.
+
+4. **Komponenten als Instanzen verbessern**
    - Verschachtelte Komponenten vorbereiten.
    - Komponenten als Instanzen mit eigener Transformation modellieren.
 
-3. **DXF-Import erweitern**
+5. **DXF-Import erweitern**
    - Weitere Entitäten erst nach fail-closed Tests ergänzen.
    - Testdateien unter `tests/fixtures/` ergänzen.
 
 
-4. **Bundle-Größe reduzieren**
+6. **Bundle-Größe reduzieren**
    - Three.js-Viewport dynamisch laden oder Vite-Code-Splitting nutzen.
    - Build-Warnungen dokumentieren oder reduzieren.
 
-5. **DWG-Bridge planen**
+7. **DWG-Bridge planen**
    - Realistischen Workflow über LibreDWG, ODA File Converter oder andere Bridge dokumentieren.
    - Keine native DWG-Unterstützung behaupten, solange sie nicht wirklich existiert.
 
-6. **SKP-Bridge planen**
+8. **SKP-Bridge planen**
    - Offizielle SketchUp C API und Lizenzlage prüfen.
    - Linux-Build realistisch bewerten.
    - Adapter-Interface ohne SketchUp-Abhängigkeit testbar halten.
 
-7. **Weitere Werkzeuglogik aus React lösen**
+9. **Weitere Werkzeuglogik aus React lösen**
    - Select, Move, Rotate und weitere Werkzeugaktionen als reine Funktionen testbar machen.
    - React soll möglichst nur Darstellung und Event-Anbindung übernehmen.
 
-8. **Dateiformate erweitern**
+10. **Dateiformate erweitern**
     - `.obj`, `.glb`, `.ifc` oder `.step` nur nach realistischer technischer Prüfung ergänzen.
     - Import/Export nie als fertig markieren, wenn nur ein Teilformat unterstützt wird.
 
-9. **Eigenes Erweiterungsformat planen**
+11. **Eigenes Erweiterungsformat planen**
     - Format wie `.hcad-ext` oder `.hcad-extension.json` prüfen.
     - Manifest, Berechtigungen, Versionen und Kompatibilitätsprüfung definieren.
     - Testbarer Loader ohne SketchUp-Ruby-Abhängigkeit.
@@ -210,13 +222,14 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Selected-Entity-Inspector** — ausgewählte Linien, Flächen und Körper zeigen Maße, Bounding Box und relevante Werte in Millimeter.
 - **Maus-Zeichnen mit Live-Vorschau** — Linien und Rechtecke über zwei Rasterklicks zeichnen; Boxkörper über einen Rasterklick mit einstellbaren Standardmaßen erzeugen.
 - **Move- und Tape-Workflow im Viewport** — ausgewählte Elemente per Start-/Zielpunkt in Millimeter verschieben und Distanzen über zwei Klicks messen.
-- **Auswahl löschen** — ausgewählte Elemente per Button oder Delete/Backspace entfernen; Komponentenreferenzen werden bereinigt.
+- **Auswahl löschen** — ausgewählte Elemente per Button oder Delete/Backspace entfernen; Komponentenreferenzen werden bereinigt. Delete/Backspace darf nicht feuern, wenn der Nutzer in `input`, `textarea`, `select` oder contenteditable Text bearbeitet; die UI weist sichtbar auf diese destruktiven Shortcuts hin.
 - **Box-Dimensionspanel** — Standardmaße für neue Boxkörper in Millimeter setzen und ungültige Maße blockieren.
 - **Präzises Verschieben** — ausgewählte Elemente per ΔX/ΔY/ΔZ in Millimeter transformieren.
 - **Präzises Drehen** — ausgewählte Elemente per Grad-Eingabe um die Z-Achse drehen; Boxen bleiben dabei um ihren sichtbaren Mittelpunkt stabil.
 - **Präzises Push/Pull für Boxhöhe** — ausgewählte Boxkörper per ΔH in Millimeter höher oder niedriger machen; ungültige oder auf Null führende Werte werden blockiert.
 - **Ruby-Konsole / Hermes-CAD-Befehls-DSL** — sichere interne Bedienkonsole für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`; keine Systembefehle, keine SketchUp-Ruby-API und keine `.rb/.rbz` Plugin-Kompatibilität.
 - **Agent-Chat-Brücke** — Hermes oder ein anderer AI Agent kann direkte CAD-Befehle oder einfache Sätze wie „erstelle box …“ und „verschiebe auswahl …“ live gegen dieselbe geprüfte Befehlslogik ausführen.
+- **Auswahlbasierte Agent-Skripte** — Mehrzeilige Agent-Antworten wie `select box_1` gefolgt von einem nackten `delete` werden korrekt auf die aktuelle Auswahl angewendet. Mutierende Befehle ohne explizite Element-ID nutzen die aktuelle Auswahl, wenn eine vorhanden ist; ohne Auswahl bleibt der Befehl fail-closed. Dafür gibt es einen Regressionstest in `tests/cadCommandConsole.test.ts`.
 
 ## Sicherheits- und Realismusregeln
 
@@ -227,6 +240,9 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - Keine großen Binärdateien, generierten Ordner oder unnötigen Build-Artefakte committen.
 - Keine Zugangsdaten, Tokens oder privaten Dateien committen.
 - Keine Funktion als fertig dokumentieren, wenn sie nur teilweise funktioniert.
+- Agent-/Console-Befehle bleiben eine sichere Hermes-CAD-DSL, keine echte Ruby- oder JavaScript-Ausführung. Befehle dürfen nur über die erlaubte Modell-API laufen und müssen in Millimeter arbeiten.
+- Wenn ein Agent mutierende Befehle in mehreren Zeilen liefert, muss die aktuelle Auswahl zwischen den Zeilen erhalten bleiben, z. B. `select box_1` danach `delete`. Gleichzeitig dürfen Befehle ohne Auswahl nicht raten, sondern müssen fail-closed antworten.
+- Für Möbelbau/OpenCutList-nahe Arbeit keine untrennbaren Meshes erzeugen, wenn einzelne Bauteile später getrennt verschoben, gemessen, zugeschnitten oder gelistet werden müssen.
 
 ## Benutzeroberfläche und SketchUp-Ähnlichkeit
 

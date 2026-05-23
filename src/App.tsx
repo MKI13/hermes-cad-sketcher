@@ -830,7 +830,7 @@ export default function App() {
             Hermes Agent verbinden
           </button>
         </div>
-        <p className="shortcut-hint">Shortcuts: {shortcutSummary}</p>
+        <p className="shortcut-hint">Shortcuts: {shortcutSummary} · Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.</p>
         <p className="agent-policy-note">Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p>
         {activeMenuPanel}
         <p className="research-note">SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p>

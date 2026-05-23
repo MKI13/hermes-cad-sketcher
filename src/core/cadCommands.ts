@@ -241,7 +241,10 @@ function numberToken(token: string | undefined, label: string): number {
 }
 
 function resolveEntityId(token: string | undefined, selectedId?: EntityId): EntityId {
-  if (!token) throw new Error('Element-ID fehlt.');
+  if (!token) {
+    if (selectedId) return selectedId;
+    throw new Error('Element-ID fehlt.');
+  }
   const cleaned = unquote(token);
   if (selectedAliases.has(cleaned.toLowerCase())) {
     if (!selectedId) throw new Error('Keine Auswahl für selected/auswahl vorhanden.');

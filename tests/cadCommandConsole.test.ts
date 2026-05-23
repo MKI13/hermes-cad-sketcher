@@ -54,6 +54,20 @@ describe('Ruby-like CAD command console', () => {
     expect(result.nextModel.getEntity(result.selectedId!)).toMatchObject({ type: 'box', origin: vec(50, 0, 0), width: 1000, depth: 500, height: 300 });
   });
 
+  it('lets agent scripts delete the current selection without repeating the entity id', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    const result = runCadConsoleScript(model, `
+      select(${box.id})
+      delete
+    `);
+
+    expect(result.ok).toBe(true);
+    expect(result.nextModel.getEntity(box.id)).toBeUndefined();
+    expect(result.nextModel.allEntities()).toHaveLength(0);
+  });
+
   it('rejects unknown command names without changing the model', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 100, 100, 100);

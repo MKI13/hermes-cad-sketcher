@@ -49,6 +49,7 @@ describe('App controls', () => {
     expect(markup).toContain('aria-label="Werkzeug Linie, Tastenkürzel L"');
     expect(markup).toContain('title="Linie · Taste L · Icon ziehen zum Verschieben"');
     expect(markup).toContain('Shortcuts: V Auswahl · L Linie · R Rechteck · B Körper · M Verschieben · P Push/Pull · O Drehen · T Maßband');
+    expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
   it('documents left-click as the standard action for current tools', () => {
