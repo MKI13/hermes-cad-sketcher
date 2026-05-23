@@ -312,6 +312,35 @@ endsolid reference_part
     }
   });
 
+  it('rejects degenerate ASCII STL triangles instead of storing zero-area reference geometry', () => {
+    const degenerateStls = [
+      `solid duplicate_vertices
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 0 0 0
+      vertex 0 50 0
+    endloop
+  endfacet
+endsolid duplicate_vertices
+`,
+      `solid collinear_vertices
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 50 0 0
+      vertex 100 0 0
+    endloop
+  endfacet
+endsolid collinear_vertices
+`
+    ];
+
+    for (const stl of degenerateStls) {
+      expect(() => importAsciiStl(stl, 'degenerate.stl')).toThrow('ASCII STL enthält degenerierte Dreiecke.');
+    }
+  });
+
   it('rejects solid-looking malformed STL instead of grouping stray vertices', () => {
     const malformedInputs = [
       'solid stray\nvertex 0 0 0\nvertex 1 0 0\nvertex 0 1 0\nendsolid stray\n',

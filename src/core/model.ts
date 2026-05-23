@@ -298,7 +298,20 @@ function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Ve
 
 function isValidReferenceMeshTriangle(triangle: ReferenceMeshEntity['triangles'][number]): boolean {
   return Boolean(triangle) && Array.isArray(triangle.vertices) && triangle.vertices.length === 3 &&
-    [0, 1, 2].every((index) => Object.hasOwn(triangle.vertices, index) && isFiniteVec3(triangle.vertices[index]));
+    [0, 1, 2].every((index) => Object.hasOwn(triangle.vertices, index) && isFiniteVec3(triangle.vertices[index])) &&
+    triangleAreaMagnitude(triangle.vertices) > 1e-9;
+}
+
+function triangleAreaMagnitude(vertices: [Vec3, Vec3, Vec3]): number {
+  return distance(vec(0, 0, 0), crossProduct(sub(vertices[1], vertices[0]), sub(vertices[2], vertices[0]))) / 2;
+}
+
+function crossProduct(a: Vec3, b: Vec3): Vec3 {
+  return vec(
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x
+  );
 }
 
 function hasOwnArrayEntries<T>(values: T[]): boolean {

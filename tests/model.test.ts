@@ -182,6 +182,15 @@ describe('SketchModel geometry tools', () => {
     expect(model.allEntities()).toEqual([]);
   });
 
+  it('rejects degenerate reference mesh triangles before storing them in the model', () => {
+    const model = new SketchModel();
+
+    expect(() => model.addReferenceMesh('degenerate.stl', [
+      { vertices: [vec(0, 0, 0), vec(50, 0, 0), vec(100, 0, 0)] }
+    ])).toThrow('finiten Koordinaten');
+    expect(model.allEntities()).toEqual([]);
+  });
+
   it('rejects sparse reference mesh triangle arrays before storing them in the model', () => {
     const model = new SketchModel();
     const sparseTriangles = new Array(1) as Parameters<typeof model.addReferenceMesh>[1];
