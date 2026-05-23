@@ -35,10 +35,12 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 
 export type EntityId = string;
 export type ComponentId = string;
+
+type CadMetadata = { layer?: string };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
-export type EdgeEntity = { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
-export type FaceEntity = { id: EntityId; type: 'face'; vertices: Vec3[]; componentId?: ComponentId };
+export type EdgeEntity = CadMetadata & { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
+export type FaceEntity = CadMetadata & { id: EntityId; type: 'face'; vertices: Vec3[]; componentId?: ComponentId };
 export type ReferenceMeshEntity = {
   id: EntityId;
   type: 'referenceMesh';
@@ -110,17 +112,17 @@ export class SketchModel {
     return this.entities.get(id);
   }
 
-  createLine(start: Vec3, end: Vec3): EdgeEntity {
+  createLine(start: Vec3, end: Vec3, metadata: CadMetadata = {}): EdgeEntity {
     if (distance(start, end) <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
-    const entity: EdgeEntity = { id: nextId('edge'), type: 'edge', start, end };
+    const entity: EdgeEntity = { id: nextId('edge'), type: 'edge', start, end, ...metadata };
     this.entities.set(entity.id, entity);
     return entity;
   }
 
-  createRectangle(origin: Vec3, width: number, depth: number): FaceEntity {
+  createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}): FaceEntity {
     if (width <= 0 || depth <= 0) throw new Error('Ein Rechteck braucht positive Breite und Tiefe.');
     const vertices = [origin, add(origin, vec(width, 0, 0)), add(origin, vec(width, depth, 0)), add(origin, vec(0, depth, 0))];
-    const entity: FaceEntity = { id: nextId('face'), type: 'face', vertices };
+    const entity: FaceEntity = { id: nextId('face'), type: 'face', vertices, ...metadata };
     this.entities.set(entity.id, entity);
     return entity;
   }

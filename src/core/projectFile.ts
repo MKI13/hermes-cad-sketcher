@@ -60,6 +60,7 @@ export function importProjectFile(text: string): SketchModel {
 function isEntityPayload(value: unknown): value is SketchModelSnapshot['entities'][number] {
   if (!isRecord(value) || typeof value.id !== 'string') return false;
   if ('componentId' in value && value.componentId !== undefined && typeof value.componentId !== 'string') return false;
+  if (!hasValidLayerMetadata(value)) return false;
 
   if (value.type === 'edge') {
     return isVec3(value.start) && isVec3(value.end);
@@ -89,6 +90,16 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
     value.entityIds.length > 0 &&
     value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId))
   );
+}
+
+function hasValidLayerMetadata(value: Record<string, unknown>): boolean {
+  if (!('layer' in value) || value.layer === undefined) return true;
+  return typeof value.layer === 'string' && isSafeLayerName(value.layer);
+}
+
+function isSafeLayerName(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && /^[A-Za-z0-9_. -]+$/.test(trimmed);
 }
 
 function isReferenceMeshTriangle(value: unknown): value is { vertices: [{ x: number; y: number; z: number }, { x: number; y: number; z: number }, { x: number; y: number; z: number }] } {

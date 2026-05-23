@@ -15,11 +15,58 @@ describe('CAD import/export foundation', () => {
     expect(dxf).toContain('1000');
   });
 
+  it('exports imported layer metadata back to DXF entity layer fields', () => {
+    const model = new SketchModel();
+    model.createLine(vec(0, 0, 0), vec(1000, 0, 0), { layer: 'walls' });
+
+    const dxf = exportDxf(model);
+
+    expect(dxf).toContain('8\nwalls');
+  });
+
+  it('does not allow layer metadata to inject extra DXF group records during export', () => {
+    const model = new SketchModel();
+    model.createLine(vec(0, 0, 0), vec(1000, 0, 0), { layer: 'walls\n0\nEOF' });
+
+    const dxf = exportDxf(model);
+
+    expect(dxf).toContain('8\n0\n10\n0');
+    expect(dxf).not.toContain('walls\n0\nEOF');
+  });
+
+  it('drops unsafe DXF layer names during import instead of storing control records', () => {
+    const dxf = '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\nwalls\\n0\\nEOF\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const model = importDxf(dxf);
+    const [entity] = model.allEntities();
+
+    expect(entity).toMatchObject({ type: 'edge' });
+    expect('layer' in entity ? entity.layer : undefined).toBeUndefined();
+  });
+
   it('imports simple DXF LINE entities into the model', () => {
     const dxf = '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
     const model = importDxf(dxf);
     expect(model.allEntities()).toHaveLength(1);
     expect(model.measure(vec(0, 0, 0), vec(250, 0, 0))).toBe(250);
+  });
+
+  it('imports DXF LINE layer names as entity metadata', () => {
+    const dxf = '0\nSECTION\n2\nENTITIES\n0\nLINE\n8\nwalls\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const model = importDxf(dxf);
+    const [entity] = model.allEntities();
+
+    expect(entity).toMatchObject({ type: 'edge', layer: 'walls' });
+  });
+
+  it('imports DXF LWPOLYLINE layer names as face metadata', () => {
+    const dxf = '0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n8\nfloor-plan\n90\n4\n70\n1\n10\n0\n20\n0\n10\n100\n20\n0\n10\n100\n20\n50\n10\n0\n20\n50\n0\nENDSEC\n0\nEOF\n';
+
+    const model = importDxf(dxf);
+    const [entity] = model.allEntities();
+
+    expect(entity).toMatchObject({ type: 'face', layer: 'floor-plan' });
   });
 
   it('imports DXF geometry when HEADER declares millimeters with INSUNITS 4', () => {

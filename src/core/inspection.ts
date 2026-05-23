@@ -16,7 +16,9 @@ export type EntityInspection = Readonly<{
 
 export function inspectEntity(entity: Entity): EntityInspection {
   const boundingBox = inspectableBoundingBox(entity);
+  const layerMetrics = 'layer' in entity && entity.layer ? [{ label: 'Layer', value: entity.layer }] : [];
   const baseMetrics: InspectionMetric[] = [
+    ...layerMetrics,
     { label: 'Bounding Box Min', value: formatVector(boundingBox.min) },
     { label: 'Bounding Box Größe', value: formatVector(boundingBox.size) }
   ];

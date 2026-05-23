@@ -143,7 +143,6 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
    - Komponenten als Instanzen mit eigener Transformation modellieren.
 
 3. **DXF-Import erweitern**
-   - Layer auslesen.
    - Weitere Entitäten erst nach fail-closed Tests ergänzen.
    - Testdateien unter `tests/fixtures/` ergänzen.
 
@@ -192,6 +191,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Komponenten duplizieren** — bestehende Komponenten können mit neuen Element-IDs und Millimeter-Versatz kopiert werden.
 - **Maßband-Grundfunktion** — Distanzen können berechnet und angezeigt werden.
 - **DXF-Export-Grundlage und begrenzter DXF-Dateiimport** — erster Austausch mit DXF-Linien und geschlossenen, achsenparallelen Vierpunkt-Rechteck-Polylinien ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor; UI-Import zeigt importierte und übersprungene Entitäten im Status.
+- **DXF-Layer-Metadaten für MVP-Entitäten** — importierte `LINE`- und unterstützte `LWPOLYLINE`-Rechtecke behalten DXF-Layernamen im Modell, zeigen sie im Inspector und exportieren sie wieder als DXF-Layerfeld.
 - **Fail-closed DXF-Einheitenprüfung** — `$INSUNITS=4` wird als Millimeter akzeptiert, fehlende Einheiten werden sichtbar als Millimeter-Annahme gemeldet und bekannte andere Einheiten werden vor Geometrieimport abgelehnt.
 - **ASCII-STL-Export für Boxkörper** — einfache STL-Ausgabe für Boxgeometrie.
 - **ASCII-STL-Referenzmesh-Import** — synthetische ASCII-STL-Dateien können als nicht editierbare Referenzmeshes mit Dreieckszahl geladen, inspiziert, gerendert und in `.hcad.json` Projekten erhalten werden; Binary-STL und Solid-Healing bleiben bewusst ausgeschlossen.

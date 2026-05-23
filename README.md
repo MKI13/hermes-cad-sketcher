@@ -121,12 +121,12 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 ### Aktuell unterstützt
 
 - `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten.
-- `.dxf`: einfacher Export in der UI, einfacher UI-Import mit Statusbericht, fail-closed `$INSUNITS`-Prüfung, `LINE` und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor.
+- `.dxf`: einfacher Export in der UI, einfacher UI-Import mit Statusbericht, fail-closed `$INSUNITS`-Prüfung, `LINE` und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor; Layernamen dieser MVP-Entitäten bleiben als Metadaten erhalten und werden im Inspector sowie beim DXF-Export wieder ausgegeben.
 - `.stl`: ASCII-STL-Export für Boxkörper und ASCII-STL-Import als nicht editierbares Referenzmesh mit Dreieckszahl; kein Binary-STL, kein Solid-Healing und keine Konvertierung in editierbare Körper.
 
 ### Geplant
 
-- Erweiterter DXF-Import über den aktuellen LINE- und begrenzten LWPOLYLINE-Rechteckimport hinaus, z. B. Layer, bewusst designte Einheitenkonvertierung und weitere Entitäten.
+- Erweiterter DXF-Import über den aktuellen LINE- und begrenzten LWPOLYLINE-Rechteckimport hinaus, z. B. bewusst designte Einheitenkonvertierung und weitere Entitäten.
 - Binary-STL-Import und weitere Referenzmesh-Metadaten nur nach fail-closed Tests.
 - `.obj`, `.glb`, `.ifc`, `.step` nur nach realistischer technischer Prüfung.
 

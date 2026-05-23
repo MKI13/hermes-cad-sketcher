@@ -41,6 +41,41 @@ describe('Hermes CAD project files', () => {
     expect(roundTrip.snapshot()).toEqual(model.snapshot());
   });
 
+  it('rejects project files with non-string layer metadata before restoring the model', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    const malformedEdge = {
+      id: 'edge_1',
+      type: 'edge',
+      layer: 42,
+      start: vec(0, 0, 0),
+      end: vec(100, 0, 0)
+    };
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [malformedEdge] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
+  it('rejects project files with unsafe layer metadata before restoring the model', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    const malformedFace = {
+      id: 'face_1',
+      type: 'face',
+      layer: 'walls\\n0\\nEOF',
+      vertices: [vec(0, 0, 0), vec(100, 0, 0), vec(100, 50, 0), vec(0, 50, 0)]
+    };
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [malformedFace] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
   it('rejects invalid JSON and wrong project formats with clear errors', () => {
     expect(() => importProjectFile('not-json')).toThrow('Projektdatei ist kein gültiges JSON.');
     expect(() => importProjectFile(JSON.stringify({ format: 'other-cad', version: 1 }))).toThrow('Nicht unterstütztes Projektformat.');

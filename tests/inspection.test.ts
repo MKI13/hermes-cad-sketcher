@@ -22,6 +22,15 @@ describe('entity inspection', () => {
     expect(inspection.boundingBox.size).toEqual(vec(300, 400, 0));
   });
 
+  it('reports imported CAD layer metadata when available', () => {
+    const model = new SketchModel();
+    const line = model.createLine(vec(0, 0, 0), vec(300, 400, 0), { layer: 'walls' });
+
+    const inspection = inspectEntity(line);
+
+    expect(inspection.metrics).toContainEqual({ label: 'Layer', value: 'walls' });
+  });
+
   it('reports rectangle dimensions and bounding box in millimeters', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(100, 200, 0), 1200, 800);
