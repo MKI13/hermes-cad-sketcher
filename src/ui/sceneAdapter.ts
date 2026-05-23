@@ -13,6 +13,18 @@ export function entityToObject(entity: Entity): THREE.Object3D {
     mesh.rotation.x = -Math.PI / 2;
     return mesh;
   }
+  if (entity.type === 'referenceMesh') {
+    const positions: number[] = [];
+    for (const triangle of entity.triangles) {
+      for (const vertex of triangle.vertices) {
+        positions.push(vertex.x, vertex.z, vertex.y);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x94a3b8, side: THREE.DoubleSide, transparent: true, opacity: 0.42, wireframe: true }));
+  }
   const geometry = new THREE.BoxGeometry(entity.width, entity.height, entity.depth);
   const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.7, metalness: 0.05 });
   const mesh = new THREE.Mesh(geometry, material);

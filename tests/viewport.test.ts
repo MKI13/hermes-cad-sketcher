@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
+import { importAsciiStl } from '../src/core/stl';
 import {
   createOrbitCameraState,
   orbitCameraDrag,
   cameraPositionFromOrbit,
   createModelGroup,
+  disposeObjectTree,
+  getEntityIdFromObject,
+  isSelectedObject,
   snapToGrid,
   screenPointToGround
 } from '../src/ui/viewportController';
@@ -47,6 +51,78 @@ describe('interactive Three.js viewport foundation', () => {
     expect(group).toBeInstanceOf(THREE.Group);
     expect(group.children).toHaveLength(2);
     expect(group.children.map((child) => child.userData.entityId)).toEqual([box.id, line.id]);
+  });
+
+  it('renders STL reference meshes as transparent wireframe mesh geometry', () => {
+    const model = new SketchModel();
+    const mesh = importAsciiStl(`solid ref
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 100 0 0
+vertex 0 50 0
+endloop
+endfacet
+endsolid ref
+`, 'synthetic-reference.stl');
+    const entity = model.addReferenceMesh(mesh.name, mesh.triangles);
+
+    const group = createModelGroup(model);
+    const object = group.children[0];
+
+    expect(object.userData.entityId).toBe(entity.id);
+    expect(object.userData.entityType).toBe('referenceMesh');
+    expect(object).toBeInstanceOf(THREE.Mesh);
+    expect((object as THREE.Mesh).geometry.getAttribute('position').count).toBe(3);
+    const material = (object as THREE.Mesh).material;
+    expect(Array.isArray(material)).toBe(false);
+    if (!Array.isArray(material)) {
+      expect(material.transparent).toBe(true);
+      expect((material as THREE.MeshStandardMaterial).wireframe).toBe(true);
+    }
+  });
+
+  it('marks only the selected entity object for viewport highlighting', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+
+    const group = createModelGroup(model, line.id);
+
+    const byEntityId = new Map(group.children.map((child) => [child.userData.entityId, child]));
+    const unselectedBox = byEntityId.get(box.id);
+    const selectedLine = byEntityId.get(line.id);
+    expect(isSelectedObject(unselectedBox)).toBe(false);
+    expect(isSelectedObject(selectedLine)).toBe(true);
+    expect(selectedLine).toBeInstanceOf(THREE.Line);
+    if (selectedLine instanceof THREE.Line && !Array.isArray(selectedLine.material)) {
+      expect(selectedLine.material.color.getHex()).toBe(0x2563eb);
+    }
+  });
+
+  it('finds entity ids on hit ancestors for robust picking', () => {
+    const root = new THREE.Group();
+    const child = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    root.userData.entityId = 'box_1';
+    root.add(child);
+
+    expect(getEntityIdFromObject(child)).toBe('box_1');
+  });
+
+  it('disposes geometries and materials in viewport object trees', () => {
+    const group = new THREE.Group();
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial();
+    let geometryDisposed = false;
+    let materialDisposed = false;
+    geometry.addEventListener('dispose', () => { geometryDisposed = true; });
+    material.addEventListener('dispose', () => { materialDisposed = true; });
+    group.add(new THREE.Mesh(geometry, material));
+
+    disposeObjectTree(group);
+
+    expect(geometryDisposed).toBe(true);
+    expect(materialDisposed).toBe(true);
   });
 
   it('snaps ground points to the configured millimeter grid', () => {

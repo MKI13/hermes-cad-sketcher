@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
 import { type SketchModel, type ToolName } from '../core/model';
@@ -7,6 +7,8 @@ import {
   applyOrbitToCamera,
   createModelGroup,
   createOrbitCameraState,
+  disposeObjectTree,
+  getEntityIdFromObject,
   orbitCameraDrag,
   screenPointToGround,
   type OrbitCameraState
@@ -26,6 +28,11 @@ type ThreeViewportProps = {
 
 export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [viewportError, setViewportError] = useState<string | undefined>(() =>
+    typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
+      ? 'WebGL konnte in diesem Browser nicht gestartet werden.'
+      : undefined
+  );
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
   const dragRef = useRef<{ x: number; y: number } | null>(null);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
@@ -50,7 +57,16 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const host = hostRef.current;
     if (!host) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = (() => {
+      try {
+        return new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      } catch {
+        setViewportError('WebGL konnte in diesem Browser nicht gestartet werden.');
+        return undefined;
+      }
+    })();
+    if (!renderer) return;
+    setViewportError(undefined);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0xe2e8f0);
     renderer.domElement.className = 'three-canvas';
@@ -65,7 +81,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const grid = new THREE.GridHelper(6000, 60, 0x64748b, 0xcbd5e1);
     scene.add(grid);
 
-    const modelGroup = createModelGroup(model);
+    const modelGroup = createModelGroup(model, selectedId);
     scene.add(modelGroup);
     let previewObject: THREE.Object3D | undefined;
 
@@ -180,7 +196,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
         const hit = raycaster.intersectObjects(modelGroup.children, true)[0];
-        onSelectRef.current?.(hit?.object.userData.entityId);
+        onSelectRef.current?.(getEntityIdFromObject(hit?.object));
       }
     };
 
@@ -241,14 +257,17 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       renderer.domElement.removeEventListener('contextmenu', contextMenu);
       window.removeEventListener('keydown', keyDown);
       clearDrawingPreview();
+      if (modelGroup.parent) modelGroup.parent.remove(modelGroup);
+      disposeObjectTree(modelGroup);
       host.removeChild(renderer.domElement);
       renderer.dispose();
     };
-  }, [model]);
+  }, [model, selectedId]);
 
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
-      <div className="viewport-help">Rechts ziehen: Ansicht drehen. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
+      {viewportError && <div className="viewport-error"><strong>3D-Viewport nicht verfügbar</strong><span>{viewportError}</span></div>}
+      <div className="viewport-help">3D-Arbeitsfläche: Rechts ziehen dreht die Ansicht. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
     </div>
   );
 }

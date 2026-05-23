@@ -62,16 +62,68 @@ export function applyOrbitToCamera(camera: THREE.PerspectiveCamera, state: Orbit
   camera.lookAt(new THREE.Vector3(state.target.x, state.target.z, state.target.y));
 }
 
-export function createModelGroup(model: SketchModel): THREE.Group {
+export function createModelGroup(model: SketchModel, selectedId?: string): THREE.Group {
   const group = new THREE.Group();
   group.name = 'sketch-model';
   for (const entity of model.allEntities()) {
     const object = entityToObject(entity);
     object.userData.entityId = entity.id;
     object.userData.entityType = entity.type;
+    object.userData.selected = entity.id === selectedId;
+    if (object.userData.selected) applySelectedHighlight(object);
     group.add(object);
   }
   return group;
+}
+
+export function isSelectedObject(object: THREE.Object3D | undefined): boolean {
+  return object?.userData.selected === true;
+}
+
+export function getEntityIdFromObject(object: THREE.Object3D | undefined): string | undefined {
+  let current: THREE.Object3D | null | undefined = object;
+  while (current) {
+    if (typeof current.userData.entityId === 'string') return current.userData.entityId;
+    current = current.parent;
+  }
+  return undefined;
+}
+
+export function disposeObjectTree(object: THREE.Object3D): void {
+  object.traverse((child) => {
+    const maybeGeometry = (child as THREE.Mesh | THREE.Line).geometry;
+    if (maybeGeometry && typeof maybeGeometry.dispose === 'function') maybeGeometry.dispose();
+
+    const maybeMaterial = (child as THREE.Mesh | THREE.Line).material;
+    if (Array.isArray(maybeMaterial)) {
+      for (const material of maybeMaterial) material.dispose();
+    } else if (maybeMaterial && typeof maybeMaterial.dispose === 'function') {
+      maybeMaterial.dispose();
+    }
+  });
+}
+
+function applySelectedHighlight(object: THREE.Object3D): void {
+  object.traverse((child) => {
+    if (child instanceof THREE.Line) {
+      child.material = new THREE.LineBasicMaterial({ color: 0x2563eb, linewidth: 2 });
+    }
+    if (child instanceof THREE.Mesh) {
+      const material = child.material;
+      const selectedMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2563eb,
+        emissive: 0x1d4ed8,
+        emissiveIntensity: 0.18,
+        roughness: 0.55,
+        metalness: 0.05,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.82
+      });
+      if (Array.isArray(material)) child.material = material.map(() => selectedMaterial.clone());
+      else child.material = selectedMaterial;
+    }
+  });
 }
 
 export function snapToGrid(point: Vec3, gridSize = 50): Vec3 {

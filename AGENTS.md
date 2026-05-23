@@ -8,6 +8,8 @@ Ziel: Neue Erweiterungen dürfen nicht nur einzeln funktionieren. Sie müssen sa
 
 **Kein Commit und kein Pull Request, wenn das Gesamtprogramm nicht geprüft wurde.**
 
+Diese Datei ist die verbindliche Arbeitsanweisung für Agenten. Wenn `README.md` kürzer oder allgemeiner formuliert ist, gilt für Agenten immer `AGENTS.md`.
+
 Vor jedem Commit muss mindestens laufen:
 
 ```bash
@@ -18,31 +20,36 @@ npm run check
 
 ## Pflicht-Workflow für neue Erweiterungen
 
-1. **Repository verstehen**
+1. **Repository sauber vorbereiten**
+   - Für Agenten ist die reproduzierbare Installation `npm ci`.
+   - Verwende Node.js 20 oder neuer. Wenn eine `.nvmrc` vorhanden ist, nutze diese Version.
+   - Danach erst entwickeln oder prüfen.
+
+2. **Repository verstehen**
    - Lies zuerst `README.md` und diese Datei vollständig.
    - Prüfe die bestehende Architektur, bevor du neue Dateien oder neue Patterns einführst.
    - Bestehende Kernlogik liegt vor allem unter `src/core/`.
    - UI- und Viewport-Logik liegt vor allem unter `src/ui/` und `src/App.tsx`.
    - Tests liegen unter `tests/`.
 
-2. **Aufgabe klar abgrenzen**
-   - Arbeite pro Branch nur an einer klaren Erweiterung oder einem klaren Werkzeug.
+3. **Aufgabe klar abgrenzen**
+   - Arbeite pro Commit nur an einer klaren Erweiterung, einem klaren Werkzeug oder einer klaren Dokumentationskorrektur.
    - Keine zufälligen Nebenänderungen.
    - Keine großen Umbauten, wenn eine kleine, getestete Erweiterung reicht.
 
-3. **Tests mitdenken, nicht nachträglich raten**
+4. **Tests mitdenken, nicht nachträglich raten**
    - Neue Kernfunktionen brauchen Tests.
    - Neue Import-/Export-Funktionen brauchen Testdaten oder strukturierte Beispieltests.
    - Neue Werkzeug-Zustände sollen möglichst als reine Funktionen testbar sein.
    - UI-Änderungen sollen die zugrunde liegende Logik nicht untestbar machen.
 
-4. **Integration prüfen**
+5. **Integration prüfen**
    - Die Erweiterung muss mit dem vorhandenen Modell, den Einheiten und den vorhandenen Werkzeugen zusammenarbeiten.
    - Millimeter bleiben die Basiseinheit.
    - IDs, Komponenten, Transformationen und Projektdateien dürfen nicht kaputtgehen.
    - Keine falsche Kompatibilität versprechen, besonders nicht bei DWG, SKP, RB oder RBZ.
 
-5. **Gesamtprüfung ausführen**
+6. **Gesamtprüfung ausführen**
    - Vor dem Commit immer ausführen:
 
    ```bash
@@ -57,13 +64,14 @@ npm run check
      5. `npm run check` erneut ausführen,
      6. erst bei grünem Ergebnis committen.
 
-6. **Dokumentation aktualisieren**
-   - Wenn eine geplante Erweiterung umgesetzt wurde, streiche sie aus der Liste `Geplante Erweiterungen` oder markiere sie dort als erledigt.
-   - Füge sie unter `Erledigte Funktionen und Werkzeuge` mit kurzer Beschreibung hinzu.
+7. **Dokumentation aktualisieren**
+   - Wenn eine geplante Erweiterung vollständig umgesetzt und geprüft wurde, lösche sie selbst aus `Geplante Erweiterungen`.
+   - Füge sie im gleichen Commit unter `Erledigte Funktionen und Werkzeuge` mit kurzer Beschreibung hinzu.
    - Wenn sich Bedienung, Datei-Formate oder Grenzen ändern, aktualisiere auch `README.md`.
 
-7. **Commit sauber beschreiben**
-   - Commit-Nachricht muss sagen, was die Erweiterung genau macht.
+8. **Commit sauber beschreiben**
+   - Commit-Nachricht muss konkret sagen, was die Erweiterung genau macht.
+   - Wenn eine geplante Erweiterung erledigt wurde, muss Commit oder PR-Text sagen, welche Aufgabe aus `Geplante Erweiterungen` entfernt und welcher Done-Eintrag ergänzt wurde.
    - Gute Beispiele:
      - `feat: add snap-aware rectangle drawing`
      - `feat: add project save and load workflow`
@@ -82,6 +90,7 @@ Dieses Repository soll stabil bleiben. Nicht jeder Agent oder externe User darf 
 
 - Änderungen am offiziellen Repository dürfen nur durch Marios oder ausdrücklich autorisierte Maintainer/Hermes-Agenten erfolgen.
 - Externe Personen oder fremde Agenten sollen Vorschläge als Pull Request, Patch oder Issue liefern, aber nicht ungeprüft direkt in das Hauptprojekt schreiben.
+- Ohne ausdrückliche Autorisierung darf ein Gast-Agent keinen Branch im offiziellen Remote erstellen, nicht pushen und keine PRs im Namen des Projekts öffnen.
 - `main` bleibt der stabile Stand.
 - Direkte Pushes auf `main` sind nicht erlaubt.
 - Neue Änderungen werden erst nach Prüfung und bestandenem `npm run check` übernommen.
@@ -100,6 +109,8 @@ Bevorzugte Struktur:
 Regeln:
 
 - Kleine geprüfte Dokumentations- oder Reparaturänderungen sollen möglichst auf einem bestehenden passenden Arbeitsbranch landen, statt immer neue Branches zu erzeugen.
+- Wenn ein aktiver Versionsbranch wie `dev/v0.2` existiert, landen normale neue Erweiterungen zuerst dort.
+- Kurzlebige `feat/...`-Branches sind nur sinnvoll, wenn mehrere Arbeiten parallel laufen oder ein externer PR vorbereitet wird.
 - Feature-Branches müssen nach Merge geschlossen oder gelöscht werden.
 - Ein Commit darf erst gepusht werden, wenn die lokale Prüfung bestanden hat.
 - Wenn mehrere Agenten arbeiten, müssen sie vorher den aktuellen Stand holen und dürfen keine fremden Änderungen überschreiben.
@@ -114,63 +125,55 @@ Eine Erweiterung gilt erst als fertig, wenn alle Punkte erfüllt sind:
 - `npm run check` ist erfolgreich durchgelaufen.
 - Dokumentation und Aufgabenlisten sind aktualisiert.
 - Der Commit beschreibt die Änderung konkret.
+- Der Commit enthält nicht mehrere unabhängige Features auf einmal.
 
 ## Geplante Erweiterungen
 
 Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn eine Erweiterung fertig ist, verschiebe sie in die erledigte Liste.
 
-1. **Push/Pull für Flächen verbessern**
-   - Rechtecke und Flächen kontrolliert extrudieren.
-   - Negative oder Null-Extrusion sauber blockieren.
+1. **Push/Pull für Flächen erweitern**
+   - Aktuell gibt es ein präzises Push/Pull-Panel für die Höhe ausgewählter Boxkörper.
+   - Nächster Schritt: Rechtecke und beliebige Flächen kontrolliert zu Körpern extrudieren.
+   - Später: Box-Flächen in Breite/Tiefe/Höhe gezielt ziehen.
+   - Negative oder Null-Endmaße sauber blockieren.
    - Maße müssen in Millimeter stabil bleiben.
 
-2. **Komponenten verbessern**
-   - Komponenten duplizieren.
+2. **Komponenten als Instanzen verbessern**
    - Verschachtelte Komponenten vorbereiten.
    - Komponenten als Instanzen mit eigener Transformation modellieren.
 
 3. **DXF-Import erweitern**
-   - LWPOLYLINE importieren.
-   - Layer auslesen.
-   - Einheiten prüfen.
+   - Weitere Entitäten erst nach fail-closed Tests ergänzen.
    - Testdateien unter `tests/fixtures/` ergänzen.
 
-4. **STL-Import ergänzen**
-   - ASCII-STL lesen.
-   - Mesh als Referenzkörper anzeigen.
-   - Bekannte STL-Testdatei mit erwarteter Dreieckszahl prüfen.
 
-5. **Bundle-Größe reduzieren**
+4. **Bundle-Größe reduzieren**
    - Three.js-Viewport dynamisch laden oder Vite-Code-Splitting nutzen.
    - Build-Warnungen dokumentieren oder reduzieren.
 
-6. **DWG-Bridge planen**
+5. **DWG-Bridge planen**
    - Realistischen Workflow über LibreDWG, ODA File Converter oder andere Bridge dokumentieren.
    - Keine native DWG-Unterstützung behaupten, solange sie nicht wirklich existiert.
 
-7. **SKP-Bridge planen**
+6. **SKP-Bridge planen**
    - Offizielle SketchUp C API und Lizenzlage prüfen.
    - Linux-Build realistisch bewerten.
    - Adapter-Interface ohne SketchUp-Abhängigkeit testbar halten.
 
-8. **GitHub Actions CI aktivieren**
-   - CI soll `npm ci` und `npm run check` ausführen.
-   - Nur mit GitHub-Token/Workflow-Rechten ändern.
-
-9. **Weitere Werkzeuglogik aus React lösen**
+7. **Weitere Werkzeuglogik aus React lösen**
    - Select, Move, Rotate und weitere Werkzeugaktionen als reine Funktionen testbar machen.
    - React soll möglichst nur Darstellung und Event-Anbindung übernehmen.
 
-10. **Dateiformate erweitern**
+8. **Dateiformate erweitern**
     - `.obj`, `.glb`, `.ifc` oder `.step` nur nach realistischer technischer Prüfung ergänzen.
     - Import/Export nie als fertig markieren, wenn nur ein Teilformat unterstützt wird.
 
-11. **Hermes-Agenten-Konsole planen**
+9. **Hermes-Agenten-Konsole planen**
     - Interne Bedienkonsole für Hermes Agenten entwerfen.
     - Sichere Befehle für Modellaktionen definieren.
     - Keine direkte Ausführung ungeprüfter Systembefehle erlauben.
 
-12. **Eigenes Erweiterungsformat planen**
+10. **Eigenes Erweiterungsformat planen**
     - Format wie `.hcad-ext` oder `.hcad-extension.json` prüfen.
     - Manifest, Berechtigungen, Versionen und Kompatibilitätsprüfung definieren.
     - Testbarer Loader ohne SketchUp-Ruby-Abhängigkeit.
@@ -185,12 +188,27 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Verschieben und Drehen um Z-Achse** — Basis-Transformationen im Modell.
 - **Push/Pull-Grundfunktion für Körperhöhe** — einfache Höhenänderung für Boxkörper.
 - **Komponenten/Gruppen** — Elemente können gruppiert werden.
+- **Komponenten duplizieren** — bestehende Komponenten können mit neuen Element-IDs und Millimeter-Versatz kopiert werden.
 - **Maßband-Grundfunktion** — Distanzen können berechnet und angezeigt werden.
-- **DXF-Export-Grundlage und einfacher DXF-LINE-Import** — erster Austausch mit DXF-Linien.
+- **DXF-Export-Grundlage und begrenzter DXF-Dateiimport** — erster Austausch mit DXF-Linien und geschlossenen, achsenparallelen Vierpunkt-Rechteck-Polylinien ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor; UI-Import zeigt importierte und übersprungene Entitäten im Status.
+- **DXF-Layer-Metadaten für MVP-Entitäten** — importierte `LINE`- und unterstützte `LWPOLYLINE`-Rechtecke behalten DXF-Layernamen im Modell, zeigen sie im Inspector und exportieren sie wieder als DXF-Layerfeld.
+- **Fail-closed DXF-Einheitenprüfung** — `$INSUNITS=4` wird als Millimeter akzeptiert, fehlende Einheiten werden sichtbar als Millimeter-Annahme gemeldet und bekannte andere Einheiten werden vor Geometrieimport abgelehnt.
 - **ASCII-STL-Export für Boxkörper** — einfache STL-Ausgabe für Boxgeometrie.
+- **ASCII-STL-Referenzmesh-Import** — synthetische ASCII-STL-Dateien können als nicht editierbare Referenzmeshes mit Dreieckszahl geladen, inspiziert, gerendert und in `.hcad.json` Projekten erhalten werden; Binary-STL und Solid-Healing bleiben bewusst ausgeschlossen.
 - **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.
-- **Interaktiver Three.js-Viewport, Maus-Zeichnen, Live-Vorschau, Move und Tape-Workflow** — begonnen bzw. teilweise umgesetzt auf dem vorhandenen Feature-Stand; vor dem Verschieben nach `main` immer aktuellen Code und Tests prüfen.
+- **Interaktiver Three.js-Viewport mit Picking und Auswahlmarkierung** — Szene aus dem Kernmodell rendern, Objekte anklicken und ausgewählte Elemente sichtbar hervorheben.
+- **Axis-aligned Rechteck-Extrusion** — ausgewählte rechteckige, achsenparallele Flächen können mit positiver Millimeterhöhe zu Boxkörpern extrudiert werden.
+- **GitHub Actions CI** — Pull Requests und wichtige Branches führen `npm ci` und `npm run check` automatisch aus.
+- **Undo/Redo-Verlauf** — Modelländerungen werden als Snapshots historisiert; Rückgängig/Wiederholen ist über eigene UI-Schaltflächen möglich.
+- **Selected-Entity-Inspector** — ausgewählte Linien, Flächen und Körper zeigen Maße, Bounding Box und relevante Werte in Millimeter.
+- **Maus-Zeichnen mit Live-Vorschau** — Linien und Rechtecke über zwei Rasterklicks zeichnen; Boxkörper über einen Rasterklick mit einstellbaren Standardmaßen erzeugen.
+- **Move- und Tape-Workflow im Viewport** — ausgewählte Elemente per Start-/Zielpunkt in Millimeter verschieben und Distanzen über zwei Klicks messen.
+- **Auswahl löschen** — ausgewählte Elemente per Button oder Delete/Backspace entfernen; Komponentenreferenzen werden bereinigt.
+- **Box-Dimensionspanel** — Standardmaße für neue Boxkörper in Millimeter setzen und ungültige Maße blockieren.
+- **Präzises Verschieben** — ausgewählte Elemente per ΔX/ΔY/ΔZ in Millimeter transformieren.
+- **Präzises Drehen** — ausgewählte Elemente per Grad-Eingabe um die Z-Achse drehen; Boxen bleiben dabei um ihren sichtbaren Mittelpunkt stabil.
+- **Präzises Push/Pull für Boxhöhe** — ausgewählte Boxkörper per ΔH in Millimeter höher oder niedriger machen; ungültige oder auf Null führende Werte werden blockiert.
 
 ## Sicherheits- und Realismusregeln
 
