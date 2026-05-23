@@ -1,4 +1,4 @@
-import { type Vec3, vec } from './geometry';
+import { type Vec3, distance, sub, vec } from './geometry';
 import { SketchModel, type BoxEntity, type ReferenceMeshEntity } from './model';
 
 export type StlTriangle = Readonly<{
@@ -28,6 +28,9 @@ export function importAsciiStl(text: string, name = 'reference.stl'): Omit<Refer
     }
     if (!isFacetNormalLine(line)) throw new Error('ASCII STL enthält unerwartete oder unvollständige Facettenstruktur.');
     const parsed = parseFacet(lines, index);
+    if (triangleAreaMagnitude(parsed.triangle.vertices) <= 1e-9) {
+      throw new Error('ASCII STL enthält degenerierte Dreiecke.');
+    }
     triangles.push(parsed.triangle);
     index = parsed.nextIndex;
   }
@@ -70,6 +73,18 @@ function parseVertex(line: string | undefined): Vec3 {
     throw new Error('ASCII STL enthält ungültige Vertex-Koordinaten.');
   }
   return vertex;
+}
+
+function triangleAreaMagnitude(vertices: [Vec3, Vec3, Vec3]): number {
+  return distance(vec(0, 0, 0), crossProduct(sub(vertices[1], vertices[0]), sub(vertices[2], vertices[0]))) / 2;
+}
+
+function crossProduct(a: Vec3, b: Vec3): Vec3 {
+  return vec(
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x
+  );
 }
 
 export function exportAsciiStl(model: SketchModel, name = 'hermes-cad-sketcher'): string {

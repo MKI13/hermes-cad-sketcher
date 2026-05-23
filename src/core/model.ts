@@ -162,8 +162,11 @@ export class SketchModel {
   }
 
   addReferenceMesh(name: string, triangles: ReferenceMeshEntity['triangles']): ReferenceMeshEntity {
-    if (triangles.length === 0) throw new Error('Ein Referenzmesh braucht mindestens ein Dreieck.');
-    const entity: ReferenceMeshEntity = { id: nextId('mesh'), type: 'referenceMesh', name, triangles: structuredClone(triangles), triangleCount: triangles.length };
+    const clonedTriangles = structuredClone(triangles);
+    if (clonedTriangles.length === 0 || !hasOwnArrayEntries(clonedTriangles) || !clonedTriangles.every(isValidReferenceMeshTriangle)) {
+      throw new Error('Ein Referenzmesh braucht mindestens ein gültiges Dreieck mit finiten Koordinaten.');
+    }
+    const entity: ReferenceMeshEntity = { id: nextId('mesh'), type: 'referenceMesh', name, triangles: clonedTriangles, triangleCount: clonedTriangles.length };
     this.entities.set(entity.id, entity);
     return entity;
   }
@@ -291,6 +294,33 @@ export class SketchModel {
 
 function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Vec3, Vec3] {
   return [add(vertices[0], delta), add(vertices[1], delta), add(vertices[2], delta)];
+}
+
+function isValidReferenceMeshTriangle(triangle: ReferenceMeshEntity['triangles'][number]): boolean {
+  return Boolean(triangle) && Array.isArray(triangle.vertices) && triangle.vertices.length === 3 &&
+    [0, 1, 2].every((index) => Object.hasOwn(triangle.vertices, index) && isFiniteVec3(triangle.vertices[index])) &&
+    triangleAreaMagnitude(triangle.vertices) > 1e-9;
+}
+
+function triangleAreaMagnitude(vertices: [Vec3, Vec3, Vec3]): number {
+  return distance(vec(0, 0, 0), crossProduct(sub(vertices[1], vertices[0]), sub(vertices[2], vertices[0]))) / 2;
+}
+
+function crossProduct(a: Vec3, b: Vec3): Vec3 {
+  return vec(
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x
+  );
+}
+
+function hasOwnArrayEntries<T>(values: T[]): boolean {
+  return Array.from({ length: values.length }, (_value, index) => Object.hasOwn(values, index)).every(Boolean);
+}
+
+function isFiniteVec3(point: Vec3 | undefined): boolean {
+  if (point === undefined) return false;
+  return Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
 }
 
 function rotateEntitySnapshot(entity: Entity, angleRadians: number, origin: Vec3): Entity {

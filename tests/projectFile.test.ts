@@ -41,6 +41,26 @@ describe('Hermes CAD project files', () => {
     expect(roundTrip.snapshot()).toEqual(model.snapshot());
   });
 
+  it('rejects project files with degenerate reference mesh triangles before restoring the model', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    const degenerateMesh = {
+      id: 'mesh_1',
+      type: 'referenceMesh',
+      name: 'degenerate.stl',
+      triangles: [
+        { vertices: [vec(0, 0, 0), vec(50, 0, 0), vec(100, 0, 0)] }
+      ],
+      triangleCount: 1
+    };
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [degenerateMesh] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
   it('rejects project files with non-string layer metadata before restoring the model', () => {
     const model = new SketchModel();
     const parsed = JSON.parse(exportProjectFile(model));
