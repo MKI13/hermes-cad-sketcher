@@ -7,9 +7,11 @@ describe('selection keyboard controls', () => {
     expect(shouldDeleteSelectionFromKey({ key: 'Backspace' })).toBe(true);
   });
 
-  it('does not delete the selection while the user edits text or number inputs', () => {
+  it('does not delete the selection while the user edits text, number, or select controls', () => {
     expect(shouldDeleteSelectionFromKey({ key: 'Backspace', target: { tagName: 'INPUT' } })).toBe(false);
     expect(shouldDeleteSelectionFromKey({ key: 'Delete', target: { tagName: 'TEXTAREA' } })).toBe(false);
+    expect(shouldDeleteSelectionFromKey({ key: 'Delete', target: { tagName: 'SELECT' } })).toBe(false);
+    expect(shouldDeleteSelectionFromKey({ key: 'Backspace', target: { tagName: 'SELECT' } })).toBe(false);
     expect(shouldDeleteSelectionFromKey({ key: 'Delete', target: { isContentEditable: true } })).toBe(false);
   });
 });

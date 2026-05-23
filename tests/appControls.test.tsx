@@ -27,6 +27,13 @@ describe('App controls', () => {
     expect(markup).not.toContain('nächsten Ausbauschritt');
   });
 
+  it('tells users that Delete and Backspace are destructive selection shortcuts', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Auswahl löschen');
+    expect(markup).toContain('Delete/Backspace');
+  });
+
   it('renders a selected entity inspector with measured values', () => {
     const markup = renderToStaticMarkup(<App />);
 

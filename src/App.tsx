@@ -303,7 +303,7 @@ export default function App() {
         </div>
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button>
-        <button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}>
+        <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId} onClick={deleteSelectedEntity}>
           <Trash2 size={18}/> Auswahl löschen
         </button>
         <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
