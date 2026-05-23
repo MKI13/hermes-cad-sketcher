@@ -173,6 +173,53 @@ describe('SketchModel geometry tools', () => {
     }
   });
 
+  it('rejects invalid reference mesh triangles before storing them in the model', () => {
+    const model = new SketchModel();
+
+    expect(() => model.addReferenceMesh('non-finite.stl', [
+      { vertices: [vec(0, 0, 0), vec(Number.NaN, 0, 0), vec(0, 50, 0)] }
+    ])).toThrow('finiten Koordinaten');
+    expect(model.allEntities()).toEqual([]);
+  });
+
+  it('rejects sparse reference mesh triangle arrays before storing them in the model', () => {
+    const model = new SketchModel();
+    const sparseTriangles = new Array(1) as Parameters<typeof model.addReferenceMesh>[1];
+
+    expect(() => model.addReferenceMesh('sparse-triangles.stl', sparseTriangles)).toThrow('finiten Koordinaten');
+    expect(model.allEntities()).toEqual([]);
+  });
+
+  it('rejects sparse reference mesh vertex arrays before storing them in the model', () => {
+    const model = new SketchModel();
+    const sparseVertices = [vec(0, 0, 0), , vec(0, 50, 0)] as unknown as [ReturnType<typeof vec>, ReturnType<typeof vec>, ReturnType<typeof vec>];
+
+    expect(() => model.addReferenceMesh('sparse-vertices.stl', [
+      { vertices: sparseVertices }
+    ])).toThrow('finiten Koordinaten');
+    expect(model.allEntities()).toEqual([]);
+  });
+
+  it('validates the exact cloned reference mesh triangles that it stores', () => {
+    const model = new SketchModel();
+    let xReads = 0;
+    const vertexWithChangingGetter = {
+      get x() {
+        xReads += 1;
+        return xReads === 1 ? 100 : Number.NaN;
+      },
+      y: 0,
+      z: 0
+    } as ReturnType<typeof vec>;
+
+    const entity = model.addReferenceMesh('accessor-backed.stl', [
+      { vertices: [vec(0, 0, 0), vertexWithChangingGetter, vec(0, 50, 0)] }
+    ]);
+
+    expect(Number.isFinite(entity.triangles[0].vertices[1].x)).toBe(true);
+    expect(model.allEntities()).toEqual([entity]);
+  });
+
   it('duplicates reference mesh components with the same stable millimeter offset', () => {
     const model = new SketchModel();
     const mesh = model.addReferenceMesh('synthetic-reference.stl', [
