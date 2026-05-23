@@ -13,12 +13,10 @@ What should be true when this task is done?
 ## Scope
 
 In scope:
-
-- 
+-
 
 Out of scope:
-
-- 
+-
 
 ## Acceptance Criteria
 
@@ -44,8 +42,7 @@ npm run smoke:browser
 ```
 
 ## Suggested files or areas
-
-- 
+-
 
 ## Coordination notes
 

@@ -46,4 +46,21 @@ describe('agent-friendly contribution surface', () => {
     expect(template).toContain('synthetische');
     expect(template).toContain('npm run check');
   });
+
+  it('keeps GitHub issue templates free of trailing whitespace', async () => {
+    const templates = [
+      '.github/ISSUE_TEMPLATE/agent-task.md',
+      '.github/ISSUE_TEMPLATE/bug-report.md',
+    ];
+
+    for (const path of templates) {
+      const lines = (await read(path)).split('\n');
+      const trailingWhitespaceLines = lines
+        .map((line, index) => ({ line, lineNumber: index + 1 }))
+        .filter(({ line }) => /[ \t]$/.test(line))
+        .map(({ lineNumber }) => lineNumber);
+
+      expect(trailingWhitespaceLines, `${path} trailing whitespace lines`).toEqual([]);
+    }
+  });
 });

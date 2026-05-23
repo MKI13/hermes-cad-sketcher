@@ -8,9 +8,9 @@ assignees: ''
 
 ## Schritte zur Reproduktion
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ## Erwartetes Verhalten
 
