@@ -47,6 +47,17 @@ Vorhanden im Code:
 - interaktiver Three.js-Viewport
 - Orbit/View-Drehung mit rechter Maustaste
 - Auswahl/Picking im Viewport mit sichtbarer Markierung
+- anpassbare obere Schnell-Werkzeugleiste mit kleinen Icons, Drag-and-drop-Reihenfolge und Tastenkürzeln
+- SketchUp-inspirierter, aber eigenständig gestalteter klassischer CAD-Arbeitsplatz ganz oben mit Menüleiste; jeder Menübutton öffnet seinen passenden Funktionsbereich, z. B. `Datei` für Datei & Import/Export und `Bearbeiten` für Bearbeiten & Maße
+- Bearbeiten-Menü zeigt zuerst Button-Verknüpfungen; die eigentlichen Bearbeiten-/Maße-/Inspektor-Funktionen öffnen danach als verschiebbare, minimierbare und per CSS-Griff skalierbare Fenster
+- seitliche Arbeitsleiste als reine Icon-Leiste für schnelle Werkzeugwahl; ausführliche Eingabe- und Dateifunktionen sitzen oben im passenden Menübereich oder in externen Fenstern
+- linke Maustaste führt die Standardaktion des aktiven Werkzeugs aus: Auswahl anklicken, Linien/Körperpunkte setzen, Körperflächen auswählen und anschließend ziehen
+- Mausrad-Zoom im 3D-Arbeitsbereich: der Punkt unter der Maus wird als Zoom-Fokus verwendet
+- Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
+- normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
+- Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben
+- Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²
+- AI-Chat als eigenes Fenster, standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert
 - Zeichnen direkt auf dem Millimeter-Raster:
   - Linie über zwei Klicks
   - Rechteck über zwei Klicks
@@ -66,6 +77,8 @@ Vorhanden im Code:
 - `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
 - DXF-Export-Grundlage in der UI, DXF-Dateiimport in der UI mit Importbericht, fail-closed Einheitenprüfung, einfacher DXF-LINE-Import und begrenzter DXF-LWPOLYLINE-Rechteckimport
 - ASCII-STL-Export für Boxkörper und ASCII-STL-Referenzmesh-Import ohne editierbare Solid-Konvertierung
+- Ruby-Konsole als sichere Hermes-CAD-Befehls-DSL für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`
+- Hermes-Agent-Bridge über die gleiche CAD-App-Adresse (`/hermes-cad/agent`): die Browser-App spricht nicht direkt mit einem API-Key, sondern mit der Bridge des PCs, der die CAD-Seite ausliefert. Dadurch kann Marios denselben CAD-Host auch von seinem zweiten PC nutzen; die eigentliche Bridge bleibt auf dem Host lokal an `127.0.0.1:8766` gebunden.
 - lokale Vitest-Tests plus Production-Build über `npm run check`
 - GitHub Actions CI für Pull Requests und zentrale Branches
 
@@ -110,6 +123,32 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - `Projekt laden` importiert eine vorher gespeicherte `.hcad.json` Datei.
 - Das Projektformat prüft Formatversion, Einheit, Elemente und Komponentenreferenzen.
 - `DXF laden` importiert nur die dokumentierte MVP-Teilmenge: `LINE` und geschlossene, vierpunktige, achsenparallele `LWPOLYLINE`-Rechtecke ohne Bulge, Breite, Dicke oder Sonder-Extrusionsvektor. `$INSUNITS=4` wird als Millimeter akzeptiert; fehlende `$INSUNITS` werden sichtbar als Millimeter-Annahme gemeldet; bekannte andere Einheiten werden vor Geometrieimport abgelehnt. Andere DXF-Entitäten werden übersprungen und im Status als übersprungen gezählt.
+
+### Ruby-Konsole und lokaler Hermes-Agent
+
+Die Ruby-Konsole ist keine SketchUp-Ruby-API und lädt keine `.rb`/`.rbz` Plugins. Sie ist eine sichere Hermes-CAD-Befehls-DSL, die absichtlich nur die vorhandenen Modellfunktionen ausführt und immer in Millimeter arbeitet.
+
+Beispiele:
+
+```ruby
+line(0, 0, 0, 1000, 0, 0)
+rectangle(0, 0, 0, 1200, 600)
+box(0, 0, 0, 600, 400, 200)
+move(selected, 100, 0, 0)
+rotate_z(selected, 90)
+resize(selected, width: 800, depth: 450, height: 250)
+push_pull(selected, 50)
+extrude(selected, 300)
+delete(selected)
+```
+
+Der Hermes-Agent im Programm läuft nicht als Browser-API-Key. Die Oberfläche spricht über die gleiche CAD-App-Adresse mit `/hermes-cad/agent`; der Vite-Dev-Server leitet diese Anfragen auf dem CAD-Host an die lokal gebundene Bridge `http://127.0.0.1:8766/hermes-cad/agent` weiter. Dadurch kann derselbe User die CAD-Seite auch von einem zweiten PC öffnen, ohne dass der Browser auf diesem zweiten PC eine eigene Bridge braucht. Die Bridge übergibt Modell-Snapshot, Auswahl und Zeichnungsmodus an Hermes und erwartet eine sichere JSON-Antwort. Normale Nachrichten werden wie im Telegram-Chat beantwortet; wenn Hermes eine CAD-Aktion ausführen soll, liefert er zusätzlich erlaubte CAD-Befehle zurück.
+
+Start der lokalen Bridge auf dem CAD-App-Host:
+
+```bash
+npm run agent:bridge
+```
 
 ### Export
 
@@ -215,6 +254,7 @@ Jeder Pull Request muss enthalten:
 src/core/
   geometry.ts     Vektoren, Maße, Rotation, Bounding Boxes
   model.ts        CAD-Kernmodell: Elemente, Komponenten, Werkzeuge
+  cadCommands.ts  Ruby-Konsole-DSL und Agent-Chat-Brücke für live CAD-Befehle
   dxf.ts          DXF Import/Export-Grundlage
   stl.ts          STL Export-Grundlage
   projectFile.ts  Lokales .hcad.json Projektformat

@@ -11,6 +11,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "agent:bridge": "python3 scripts/hermes-cad-agent-bridge.py",
     "smoke:browser": "node scripts/smoke-browser.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

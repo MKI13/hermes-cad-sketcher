@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { type Entity } from '../core/model';
+import { type BoxEntity, type BoxFaceName, type Entity } from '../core/model';
+
+type FaceSpec = Readonly<{ name: BoxFaceName; points: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3] }>;
 
 export function entityToObject(entity: Entity): THREE.Object3D {
   if (entity.type === 'edge') {
@@ -25,10 +27,65 @@ export function entityToObject(entity: Entity): THREE.Object3D {
     geometry.computeVertexNormals();
     return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x94a3b8, side: THREE.DoubleSide, transparent: true, opacity: 0.42, wireframe: true }));
   }
-  const geometry = new THREE.BoxGeometry(entity.width, entity.height, entity.depth);
-  const material = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.7, metalness: 0.05 });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(entity.origin.x + entity.width / 2, entity.origin.z + entity.height / 2, entity.origin.y + entity.depth / 2);
-  mesh.rotation.y = entity.rotationZ;
+  return boxToLineBuiltObject(entity);
+}
+
+function boxToLineBuiltObject(entity: BoxEntity): THREE.Group {
+  const group = new THREE.Group();
+  group.userData.solidFutureReady = true;
+  group.position.set(entity.origin.x + entity.width / 2, entity.origin.z + entity.height / 2, entity.origin.y + entity.depth / 2);
+  group.rotation.y = entity.rotationZ;
+
+  const x0 = -entity.width / 2;
+  const x1 = entity.width / 2;
+  const y0 = -entity.height / 2;
+  const y1 = entity.height / 2;
+  const z0 = -entity.depth / 2;
+  const z1 = entity.depth / 2;
+  const p = {
+    lbf: new THREE.Vector3(x0, y0, z1),
+    rbf: new THREE.Vector3(x1, y0, z1),
+    rbb: new THREE.Vector3(x1, y0, z0),
+    lbb: new THREE.Vector3(x0, y0, z0),
+    ltf: new THREE.Vector3(x0, y1, z1),
+    rtf: new THREE.Vector3(x1, y1, z1),
+    rtb: new THREE.Vector3(x1, y1, z0),
+    ltb: new THREE.Vector3(x0, y1, z0)
+  };
+
+  const faces: FaceSpec[] = [
+    { name: 'front', points: [p.lbf, p.rbf, p.rtf, p.ltf] },
+    { name: 'back', points: [p.rbb, p.lbb, p.ltb, p.rtb] },
+    { name: 'left', points: [p.lbb, p.lbf, p.ltf, p.ltb] },
+    { name: 'right', points: [p.rbf, p.rbb, p.rtb, p.rtf] },
+    { name: 'top', points: [p.ltf, p.rtf, p.rtb, p.ltb] },
+    { name: 'bottom', points: [p.lbb, p.rbb, p.rbf, p.lbf] }
+  ];
+
+  for (const face of faces) group.add(createFaceMesh(face));
+
+  const edgePoints = [
+    p.lbf, p.rbf, p.rbf, p.rbb, p.rbb, p.lbb, p.lbb, p.lbf,
+    p.ltf, p.rtf, p.rtf, p.rtb, p.rtb, p.ltb, p.ltb, p.ltf,
+    p.lbf, p.ltf, p.rbf, p.rtf, p.rbb, p.rtb, p.lbb, p.ltb
+  ];
+  const edgeSkeleton = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(edgePoints),
+    new THREE.LineBasicMaterial({ color: 0x111827, transparent: true, opacity: 0.95 })
+  );
+  edgeSkeleton.userData.edgeSkeleton = true;
+  group.add(edgeSkeleton);
+  return group;
+}
+
+function createFaceMesh(face: FaceSpec): THREE.Mesh {
+  const geometry = new THREE.BufferGeometry().setFromPoints([face.points[0], face.points[1], face.points[2], face.points[3]]);
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(
+    geometry,
+    new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.7, metalness: 0.05, side: THREE.DoubleSide, transparent: true, opacity: 0.62 })
+  );
+  mesh.userData.boxFace = face.name;
   return mesh;
 }

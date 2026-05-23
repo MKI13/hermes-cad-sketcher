@@ -4,88 +4,100 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import App from '../src/App';
 
 describe('App controls', () => {
-  it('renders a delete button for the selected entity workflow', () => {
+  it('starts compact and routes workspace expansion through the matching classic menu buttons', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Auswahl löschen');
-    expect(markup).toContain('Ausgewähltes Element löschen');
+    expect(markup).toContain('class="top-toolbar workspace-collapsed"');
+    expect(markup).not.toContain('Arbeitsplatz ausklappen');
+    expect(markup).toContain('aria-label="Datei-Funktionen öffnen"');
+    expect(markup).toContain('aria-label="Bearbeiten &amp; Maße öffnen"');
+    expect(markup).toContain('aria-label="Fenster &amp; Hermes öffnen"');
+    expect(markup).not.toContain('Auswahl löschen');
+    expect(markup).not.toContain('Delta X in Millimeter');
+    expect(markup).not.toContain('Ruby-Konsole');
+    expect(markup).not.toContain('class="top-function-workspace"');
   });
 
-  it('renders precise transform controls instead of vague future-work actions', () => {
+  it('keeps the classic CAD workplace as the first top element for SketchUp-like browser use', () => {
     const markup = renderToStaticMarkup(<App />);
+    const classicIndex = markup.indexOf('Klassischer CAD-Arbeitsplatz');
+    const titleIndex = markup.indexOf('Hermes CAD Sketcher');
 
-    expect(markup).toContain('Auswahl verschieben');
-    expect(markup).toContain('Delta X in Millimeter');
-    expect(markup).toContain('Delta Y in Millimeter');
-    expect(markup).toContain('Delta Z in Millimeter');
-    expect(markup).toContain('Auswahl drehen');
-    expect(markup).toContain('Drehwinkel in Grad');
-    expect(markup).toContain('Höhe ändern');
-    expect(markup).toContain('Höhenänderung in Millimeter');
-    expect(markup).not.toContain('Demo-Aktion mit Werkzeug');
-    expect(markup).not.toContain('präzise Winkel-Eingabe folgt');
-    expect(markup).not.toContain('nächsten Ausbauschritt');
+    expect(classicIndex).toBeGreaterThanOrEqual(0);
+    expect(titleIndex).toBeGreaterThanOrEqual(0);
+    expect(classicIndex).toBeLessThan(titleIndex);
+    expect(markup).toContain('Datei');
+    expect(markup).toContain('Kamera');
+    expect(markup).toContain('Zeichnen');
   });
 
-  it('tells users that Delete and Backspace are destructive selection shortcuts', () => {
+  it('keeps the side rail icon-only and marks the selected tool', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Auswahl löschen');
-    expect(markup).toContain('Delete/Backspace');
+    expect(markup).toContain('class="app-shell icon-rail-left"');
+    expect(markup).toContain('aria-label="Seitliche Icon-Werkzeugleiste"');
+    expect(markup).toContain('class="icon-rail-button active"');
+    expect(markup).toContain('title="Auswahl · Taste V"');
+    expect(markup).not.toContain('Der linke Arbeitsplatz kann nach rechts oder zurück nach links geschoben werden.');
   });
 
-  it('renders a selected entity inspector with measured values', () => {
+  it('renders a customizable top icon toolbar with visible keyboard shortcuts', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Inspektor');
-    expect(markup).toContain('Bounding Box Größe');
-    expect(markup).toContain('Breite');
-    expect(markup).toContain('Höhe');
+    expect(markup).toContain('Schnell-Werkzeugleiste');
+    expect(markup).toContain('aria-label="Werkzeug Auswahl, Tastenkürzel V"');
+    expect(markup).toContain('aria-label="Werkzeug Linie, Tastenkürzel L"');
+    expect(markup).toContain('title="Linie · Taste L · Icon ziehen zum Verschieben"');
+    expect(markup).toContain('Shortcuts: V Auswahl · L Linie · R Rechteck · B Körper · M Verschieben · P Push/Pull · O Drehen · T Maßband');
   });
 
-  it('renders undo and redo controls for reversible CAD edits', () => {
+  it('documents left-click as the standard action for current tools', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Rückgängig');
-    expect(markup).toContain('Wiederholen');
-    expect(markup).toContain('Letzte Modelländerung rückgängig machen');
-    expect(markup).toContain('Rückgängig gemachte Modelländerung wiederholen');
+    expect(markup).toContain('Linke Maustaste: Standardaktion des aktiven Werkzeugs');
+    expect(markup).toContain('Auswahl: klicken · Linie/Körper: Punkte setzen · Fläche: klicken zum Ziehen');
   });
 
-  it('renders selected box dimension editing controls', () => {
+  it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Auswahlmaße bearbeiten');
-    expect(markup).toContain('Breite der Auswahl in Millimeter');
-    expect(markup).toContain('Tiefe der Auswahl in Millimeter');
-    expect(markup).toContain('Höhe der Auswahl in Millimeter');
-    expect(markup).toContain('Maße übernehmen');
+    expect(markup).toContain('class="measurement-field"');
+    expect(markup).toContain('Einheitenfeld');
+    expect(markup).toContain('Aktuelles Maß');
+    expect(markup).toContain('mm');
+    expect(markup).toContain('Fläche: keine Körperfläche');
+    expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
   });
 
-  it('renders face extrusion controls for rectangle-to-body workflows', () => {
+  it('renders a viewport arrow cursor badge with the selected tool symbol', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Fläche extrudieren');
-    expect(markup).toContain('Extrusionshöhe in Millimeter');
-    expect(markup).toContain('Projekt: Projekt nicht gespeichert');
+    expect(markup).toContain('Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol');
+    expect(markup).toContain('class="cursor-arrow"');
+    expect(markup).not.toContain('class="cursor-symbol"');
+    expect(markup).not.toContain('Mauszeiger: Pfeil mit Auswahl Symbol');
   });
 
-  it('renders an honest limited DXF import control instead of claiming full DXF support', () => {
+  it('renders a research-backed classic CAD workbench bar without copying protected branding', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('DXF laden');
-    expect(markup).toContain('Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.');
-    expect(markup).toContain('DXF-Einheiten: $INSUNITS=4 wird als Millimeter importiert; fehlende Einheiten werden sichtbar als Millimeter angenommen, andere Einheiten werden abgelehnt.');
-    expect(markup).not.toContain('vollständiger DXF-Import');
+    expect(markup).toContain('Klassischer CAD-Arbeitsplatz');
+    expect(markup).not.toContain('Arbeitsplatz ausklappen');
+    expect(markup).not.toContain('Push/Pull-artig');
+    expect(markup).not.toContain('AI-Konzeptbild');
+    expect(markup).toContain('SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.');
+    expect(markup).not.toContain('Trimble');
+    expect(markup).not.toContain('3D Warehouse');
   });
 
-  it('renders an honest ASCII STL reference import control without editable solid claims', () => {
+  it('keeps the AI chat window closed by default and exposes a compact open button', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('STL-Referenz laden');
-    expect(markup).toContain('Importiert ASCII-STL nur als nicht editierbares Referenzmesh.');
-    expect(markup).toContain('STL-Import: ASCII-STL wird nur als Referenzmesh geladen, nicht als editierbarer Körper oder validiertes Fertigungsmesh.');
-    expect(markup).not.toContain('editierbarer STL-Körper');
+    expect(markup).toContain('Hermes Agent verbinden');
+    expect(markup).toContain('Lokaler Hermes Agent des CAD-App-Hosts');
+    expect(markup).toContain('Zeichnungsmodus');
+    expect(markup).not.toContain('oder ein anderer AI Agent');
+    expect(markup).not.toContain('class="ai-chat-window"');
   });
 
   it('documents production CI in the repository workflow', async () => {

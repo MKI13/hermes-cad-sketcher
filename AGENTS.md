@@ -168,12 +168,7 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
     - `.obj`, `.glb`, `.ifc` oder `.step` nur nach realistischer technischer Prüfung ergänzen.
     - Import/Export nie als fertig markieren, wenn nur ein Teilformat unterstützt wird.
 
-9. **Hermes-Agenten-Konsole planen**
-    - Interne Bedienkonsole für Hermes Agenten entwerfen.
-    - Sichere Befehle für Modellaktionen definieren.
-    - Keine direkte Ausführung ungeprüfter Systembefehle erlauben.
-
-10. **Eigenes Erweiterungsformat planen**
+9. **Eigenes Erweiterungsformat planen**
     - Format wie `.hcad-ext` oder `.hcad-extension.json` prüfen.
     - Manifest, Berechtigungen, Versionen und Kompatibilitätsprüfung definieren.
     - Testbarer Loader ohne SketchUp-Ruby-Abhängigkeit.
@@ -197,6 +192,17 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **ASCII-STL-Referenzmesh-Import** — synthetische ASCII-STL-Dateien können als nicht editierbare Referenzmeshes mit Dreieckszahl geladen, inspiziert, gerendert und in `.hcad.json` Projekten erhalten werden; Binary-STL und Solid-Healing bleiben bewusst ausgeschlossen.
 - **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.
+- **Anpassbare Schnell-Werkzeugleiste** — kleine Werkzeug-Icons liegen oben, lassen sich per Drag-and-drop umsortieren und bieten Tastenkürzel für schnelle Arbeit.
+- **SketchUp-inspirierter klassischer CAD-Arbeitsplatz** — eigene, rechtlich saubere Menü- und Werkzeuggruppen für Basis, Zeichnen, Modellieren, Messen, Kamera, Struktur und Visualisierung; der klassische Arbeitsplatz steht ganz oben. Jeder Menübutton öffnet den passenden Funktionsbereich, z. B. Datei → Datei & Import/Export und Bearbeiten → Bearbeiten & Maße. Die detaillierten Bearbeiten-/Maße-Funktionen erscheinen zuerst als Button-Verknüpfungen und öffnen danach als externe Fenster statt als große Dauerleiste.
+- **Externe Funktionsfenster** — Bearbeiten-, Maße-, Inspektor-, Ruby- und Hermes-Agent-Fenster müssen verschiebbar, minimierbar und skalierbar/vergrößerbar/verkleinerbar bleiben, damit die CAD-Arbeitsfläche nicht blockiert wird.
+- **Seitliche Icon-Werkzeugleiste** — die Seitenleiste ist bewusst nur eine schmale Icon-Leiste für die aktive Werkzeugwahl; Text und Formulare gehören in den oberen CAD-Arbeitsplatz oder in schwebende Fenster.
+- **Linke-Maus-Standardaktion** — Linksklick ist die Hauptbedienung für Auswahl, Punktsetzen beim Zeichnen und Körperflächen-Auswahl.
+- **Snapping und Körperlinien** — Linien und Körper stellen Anfangs-, End- und Mittelpunkt-Fangpunkte bereit; Boxkörper werden im Viewport als auswählbare Flächen plus sichtbares Linien-/Kantenskelett gerendert und bleiben im Modell als spätere Vollkörper-/3D-Druck-fähige Boxdaten erhalten.
+- **Viewport-Zoom und SketchUp-ähnliche Orientierung** — Mausrad zoomt im Arbeitsbereich auf den Punkt unter der Maus; Nullpunkt-Hilfslinien zeigen rote, grüne und blaue Achsen.
+- **Pfeil-Cursor ohne Dauersymbol** — der Viewport zeigt keinen dauerhaft störenden Werkzeug-Badge neben dem Mauszeiger; spezielle temporäre Cursorhinweise nur gezielt pro Funktion ergänzen.
+- **Einheitenfeld unten rechts** — aktuelle Linienlängen, Rechteckmaße, Körpermaße, Maßbandwerte und Flächen in m² werden im Viewport sichtbar gehalten.
+- **AI-Chat-Fenster** — der Agent-Chat kann als separates Fenster neben dem Viewport genutzt werden, bleibt aber standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert.
+- **Lokale Hermes-Agent-Bridge** — `scripts/hermes-cad-agent-bridge.py` bindet nur an `127.0.0.1:8766`; die Browser-App spricht über die gleiche CAD-App-Adresse mit `/hermes-cad/agent` und `/hermes-cad/identity`. Der Vite-Dev-Server leitet diese Pfade auf dem CAD-App-Host an die lokale Bridge weiter, damit Marios denselben CAD-Host auch von einem zweiten PC nutzen kann, ohne API-Keys im Browser und ohne die Bridge direkt im LAN zu öffnen. Jeder Agent-Auftrag erhält Zeichnungsmodus, Modell-Snapshot, Auswahl und die Policy `local-pc-agent-only`. Normale Chat-Nachrichten werden wie im Telegram-Chat beantwortet; CAD-Aktionen laufen zusätzlich über erlaubte Befehle.
 - **Interaktiver Three.js-Viewport mit Picking und Auswahlmarkierung** — Szene aus dem Kernmodell rendern, Objekte anklicken und ausgewählte Elemente sichtbar hervorheben.
 - **Axis-aligned Rechteck-Extrusion** — ausgewählte rechteckige, achsenparallele Flächen können mit positiver Millimeterhöhe zu Boxkörpern extrudiert werden.
 - **GitHub Actions CI** — Pull Requests und wichtige Branches führen `npm ci` und `npm run check` automatisch aus.
@@ -209,6 +215,8 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Präzises Verschieben** — ausgewählte Elemente per ΔX/ΔY/ΔZ in Millimeter transformieren.
 - **Präzises Drehen** — ausgewählte Elemente per Grad-Eingabe um die Z-Achse drehen; Boxen bleiben dabei um ihren sichtbaren Mittelpunkt stabil.
 - **Präzises Push/Pull für Boxhöhe** — ausgewählte Boxkörper per ΔH in Millimeter höher oder niedriger machen; ungültige oder auf Null führende Werte werden blockiert.
+- **Ruby-Konsole / Hermes-CAD-Befehls-DSL** — sichere interne Bedienkonsole für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`; keine Systembefehle, keine SketchUp-Ruby-API und keine `.rb/.rbz` Plugin-Kompatibilität.
+- **Agent-Chat-Brücke** — Hermes oder ein anderer AI Agent kann direkte CAD-Befehle oder einfache Sätze wie „erstelle box …“ und „verschiebe auswahl …“ live gegen dieselbe geprüfte Befehlslogik ausführen.
 
 ## Sicherheits- und Realismusregeln
 

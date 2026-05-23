@@ -50,6 +50,7 @@ export type ReferenceMeshEntity = {
   rotationZ?: never;
   componentId?: ComponentId;
 };
+export type BoxFaceName = 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 export type BoxEntity = {
   id: EntityId;
   type: 'box';
@@ -184,11 +185,13 @@ export class SketchModel {
     return updated;
   }
 
-  pushPullBoxFace(id: EntityId, deltaHeight: number): BoxEntity {
+  pushPullBoxFace(id: EntityId, deltaHeight: number): BoxEntity;
+  pushPullBoxFace(id: EntityId, face: BoxFaceName, delta: number): BoxEntity;
+  pushPullBoxFace(id: EntityId, faceOrDelta: BoxFaceName | number, maybeDelta?: number): BoxEntity {
     const entity = this.requireBox(id);
-    const nextHeight = entity.height + deltaHeight;
-    if (!isPositiveFinite(nextHeight)) throw new Error('Push/Pull braucht eine positive Höhe.');
-    const updated = { ...entity, height: nextHeight };
+    const face = typeof faceOrDelta === 'number' ? 'top' : faceOrDelta;
+    const delta = typeof faceOrDelta === 'number' ? faceOrDelta : maybeDelta ?? 0;
+    const updated = pushPullBoxFaceSnapshot(entity, face, delta);
     this.entities.set(id, updated);
     return updated;
   }
@@ -290,6 +293,28 @@ export class SketchModel {
     if (entity.type !== 'box') throw new Error('Push/Pull ist im MVP nur für Körper aktiv.');
     return entity;
   }
+}
+
+function pushPullBoxFaceSnapshot(entity: BoxEntity, face: BoxFaceName, delta: number): BoxEntity {
+  if (!Number.isFinite(delta)) throw new Error('Push/Pull braucht eine positive Höhe.');
+  const next = { ...entity };
+  if (face === 'top') next.height += delta;
+  if (face === 'bottom') {
+    next.origin = add(next.origin, vec(0, 0, -delta));
+    next.height += delta;
+  }
+  if (face === 'right') next.width += delta;
+  if (face === 'left') {
+    next.origin = add(next.origin, vec(-delta, 0, 0));
+    next.width += delta;
+  }
+  if (face === 'front') next.depth += delta;
+  if (face === 'back') {
+    next.origin = add(next.origin, vec(0, -delta, 0));
+    next.depth += delta;
+  }
+  assertPositiveBoxDimensions(next.width, next.depth, next.height);
+  return next;
 }
 
 function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Vec3, Vec3] {
