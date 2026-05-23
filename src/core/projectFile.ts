@@ -1,4 +1,5 @@
 import { SketchModel, type SketchModelSnapshot } from './model';
+import { distance, sub, vec, type Vec3 } from './geometry';
 
 export const PROJECT_FILE_VERSION = 1;
 export const PROJECT_FILE_FORMAT = 'hermes-cad-sketcher';
@@ -103,7 +104,22 @@ function isSafeLayerName(value: string): boolean {
 }
 
 function isReferenceMeshTriangle(value: unknown): value is { vertices: [{ x: number; y: number; z: number }, { x: number; y: number; z: number }, { x: number; y: number; z: number }] } {
-  return isRecord(value) && Array.isArray(value.vertices) && value.vertices.length === 3 && value.vertices.every(isVec3);
+  if (!isRecord(value) || !Array.isArray(value.vertices) || value.vertices.length !== 3) return false;
+  const vertices = value.vertices;
+  if (![0, 1, 2].every((index) => Object.hasOwn(vertices, index) && isVec3(vertices[index]))) return false;
+  return triangleAreaMagnitude(vertices as [Vec3, Vec3, Vec3]) > 1e-9;
+}
+
+function triangleAreaMagnitude(vertices: [Vec3, Vec3, Vec3]): number {
+  return distance(vec(0, 0, 0), crossProduct(sub(vertices[1], vertices[0]), sub(vertices[2], vertices[0]))) / 2;
+}
+
+function crossProduct(a: Vec3, b: Vec3): Vec3 {
+  return vec(
+    a.y * b.z - a.z * b.y,
+    a.z * b.x - a.x * b.z,
+    a.x * b.y - a.y * b.x
+  );
 }
 
 function isVec3(value: unknown): value is { x: number; y: number; z: number } {
