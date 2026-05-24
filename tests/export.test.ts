@@ -100,6 +100,19 @@ describe('CAD import/export foundation', () => {
     ]);
   });
 
+  it('rejects malformed DXF INSUNITS records instead of accepting a millimeter-looking value with the wrong group code', () => {
+    const dxf = '0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n999\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
+
+    const report = importDxfWithReport(dxf);
+
+    expect(report.importedEntities).toBe(0);
+    expect(report.model.allEntities()).toEqual([]);
+    expect(report.unitStatus).toEqual({ kind: 'malformed', message: 'Malformed DXF units: $INSUNITS must use group code 70 with integer value 4 for millimeters.' });
+    expect(report.skippedEntities).toEqual([
+      { entityType: 'DXF', reason: 'Malformed DXF units: $INSUNITS must use group code 70 with integer value 4 for millimeters.' }
+    ]);
+  });
+
   it('reads INSUNITS only from the DXF HEADER section', () => {
     const dxf = '0\nSECTION\n2\nENTITIES\n0\nTEXT\n9\n$INSUNITS\n70\n1\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n';
 
