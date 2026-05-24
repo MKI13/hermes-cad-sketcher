@@ -86,6 +86,18 @@ describe('SketchModel geometry tools', () => {
     expect(updated.height).toBe(350);
   });
 
+  it('push-pulls rotated box faces along their local face normals while preserving visual center motion', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 1000, 500, 300);
+    model.rotateEntityZ(box.id, Math.PI / 2, model.entityCenter(box.id));
+
+    const pulledLeft = model.pushPullBoxFace(box.id, 'left', 200);
+    const center = model.entityCenter(pulledLeft.id);
+
+    expect(pulledLeft.width).toBe(1200);
+    expect(center).toEqual(vec(500, 150, 150));
+  });
+
   it('edits selected box dimensions while keeping positive millimeter values', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
