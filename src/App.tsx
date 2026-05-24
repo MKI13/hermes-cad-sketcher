@@ -118,6 +118,7 @@ export default function App() {
   const [agentChatInput, setAgentChatInput] = useState('Hallo Hermes, bist du bereit einen Test zu machen?');
   const [agentChatLog, setAgentChatLog] = useState('Agent-Chat bereit.');
   const [agentChatWindowOpen, setAgentChatWindowOpen] = useState(false);
+  const [rightTrayOpen, setRightTrayOpen] = useState(true);
   const [agentBridgeStatus, setAgentBridgeStatus] = useState('Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus · noch nicht verbunden');
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
@@ -141,6 +142,7 @@ export default function App() {
   const shortcutSummary = DEFAULT_TOOLBAR_ORDER
     .map((toolId) => `${getToolShortcut(toolId)} ${shortcutSummaryLabels[toolId]}`)
     .join(' · ');
+  const materialSwatches = ['#d97706', '#f59e0b', '#fbbf24', '#92400e', '#b45309', '#fde68a', '#ca8a04', '#78350f', '#a16207', '#eab308', '#fef3c7', '#d6d3d1', '#854d0e', '#facc15', '#c2410c', '#fcd34d', '#a8a29e', '#d97706', '#b45309', '#fde047'];
   const mouseBindingPanel = (
     <details className="mouse-bindings-panel" aria-label="Mausbelegung pro Nutzer" data-mouse-bindings={summarizeMouseBindings(mouseBindings)}>
       <summary>
@@ -795,6 +797,62 @@ export default function App() {
     </section>
   ) : undefined;
 
+  const rightTray = (
+    <aside className={rightTrayOpen ? 'right-tray open' : 'right-tray collapsed'} aria-label="Rechte Default-Tray-Leiste">
+      <button
+        type="button"
+        className="right-tray-toggle"
+        aria-label={rightTrayOpen ? 'Rechte Tray-Leiste zuklappen' : 'Rechte Tray-Leiste aufklappen'}
+        title={rightTrayOpen ? 'Default Tray zuklappen' : 'Default Tray aufklappen'}
+        onClick={() => setRightTrayOpen((open) => !open)}
+      >
+        {rightTrayOpen ? '›' : '‹'}
+      </button>
+      {rightTrayOpen && (
+        <div className="right-tray-content">
+          <header className="right-tray-title">
+            <strong>Default Tray</strong>
+            <span>klappbare rechte Leiste</span>
+          </header>
+          <details className="tray-section"><summary>Hermes Agent</summary><p>Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p><p>SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p></details>
+          {mouseBindingPanel}
+          <details className="tray-section" open>
+            <summary>Entity Info</summary>
+            <dl>
+              <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
+              <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
+              <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
+            </dl>
+          </details>
+          <details className="tray-section"><summary>Components</summary><p>{model.allComponents().length} Komponenten im Modell.</p></details>
+          <details className="tray-section"><summary>Styles</summary><p>Schlichter CAD-Stil mit Achsen, Kanten und millimetersicherem Raster.</p></details>
+          <details className="tray-section"><summary>Tags</summary><p>Tag-Verwaltung ist vorbereitet.</p></details>
+          <details className="tray-section"><summary>Shadows</summary><p>Schatten und Tageslicht bleiben als Ansichtsfunktion vorgemerkt.</p></details>
+          <details className="tray-section"><summary>Scenes</summary><p>Szenen und Ansichten werden hier gesammelt.</p></details>
+          <details className="tray-section"><summary>Instructor</summary><p>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p></details>
+          <details className="tray-section materials-section" open>
+            <summary>Materials</summary>
+            <div className="materials-toolbar" aria-label="Material-Auswahl">
+              <span>Holz / warme Muster</span>
+              <button type="button" onClick={() => openFloatingWindow('inspector')}>Details</button>
+            </div>
+            <div className="material-grid" aria-label="Material-Farbfelder">
+              {materialSwatches.map((color, index) => (
+                <button
+                  key={`${color}-${index}`}
+                  type="button"
+                  className="material-swatch"
+                  aria-label={`Materialfeld ${index + 1}`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+    </aside>
+  );
+
   function renderWindowContent(id: FloatingWindowId) {
     if (id === 'history') return <><div className="history-controls" aria-label="Verlauf"><button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}><Undo2 size={18}/> Rückgängig</button><button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}><Redo2 size={18}/> Wiederholen</button></div><button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button><button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}><Trash2 size={18}/> Auswahl löschen</button></>;
     if (id === 'move') return <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />;
@@ -845,7 +903,7 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell icon-rail-left">
+    <main className={`app-shell icon-rail-left sketchup-surface ${rightTrayOpen ? 'right-tray-open' : 'right-tray-closed'}`}>
       <header className={activeMenu ? 'top-toolbar workspace-open' : 'top-toolbar workspace-collapsed'} aria-label="Schnell-Werkzeugleiste">
         <nav className="classic-menu" aria-label="Klassischer CAD-Arbeitsplatz">
           <strong>Klassischer CAD-Arbeitsplatz</strong>
@@ -909,10 +967,7 @@ export default function App() {
           </button>
         </div>
         <p className="shortcut-hint">Shortcuts: {shortcutSummary} · Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.</p>
-        {mouseBindingPanel}
-        <p className="agent-policy-note">Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p>
         {activeMenuPanel}
-        <p className="research-note">SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p>
       </header>
       <aside className="toolbar icon-rail" aria-label="Seitliche Icon-Werkzeugleiste">
         {orderedTools.map((item) => {
@@ -976,6 +1031,7 @@ export default function App() {
           <span>Einheit: mm</span>
         </footer>
       </section>
+      {rightTray}
       {renderFloatingWindow('history')}
       {renderFloatingWindow('move')}
       {renderFloatingWindow('rotate')}

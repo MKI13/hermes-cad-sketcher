@@ -37,10 +37,10 @@ describe('App controls', () => {
     expect(markup).toContain('Zeichnen');
   });
 
-  it('keeps the side rail icon-only and marks the selected tool', () => {
+  it('keeps a SketchUp-like left icon rail and marks the selected tool', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('class="app-shell icon-rail-left"');
+    expect(markup).toContain('class="app-shell icon-rail-left sketchup-surface right-tray-open"');
     expect(markup).toContain('aria-label="Seitliche Icon-Werkzeugleiste"');
     expect(markup).toContain('class="icon-rail-button active"');
     expect(markup).toContain('title="Auswahl · Taste V"');
@@ -71,6 +71,23 @@ describe('App controls', () => {
     expect(markup).toContain('Mausrad');
     expect(markup).toContain('Zusatzbutton 11');
     expect(markup).toContain('data-mouse-bindings="button:0=toolAction;button:1=orbit;button:2=contextMenu;wheel=zoom"');
+  });
+
+  it('renders a SketchUp-like default tray on the right with a collapse arrow and material swatches', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="Rechte Default-Tray-Leiste"');
+    expect(markup).toContain('Default Tray');
+    expect(markup).toContain('aria-label="Rechte Tray-Leiste zuklappen"');
+    expect(markup).toContain('›');
+    expect(markup).toContain('Entity Info');
+    expect(markup).toContain('Components');
+    expect(markup).toContain('Styles');
+    expect(markup).toContain('Tags');
+    expect(markup).toContain('Shadows');
+    expect(markup).toContain('Scenes');
+    expect(markup).toContain('Materials');
+    expect(markup).toContain('class="material-swatch"');
   });
 
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
