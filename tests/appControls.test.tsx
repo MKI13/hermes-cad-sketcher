@@ -96,6 +96,17 @@ describe('App controls', () => {
     expect(markup).toContain('class="material-swatch"');
   });
 
+  it('shows the active drawing plane with SketchUp-style axis colors', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Zeichenebene');
+    expect(markup).toContain('Grundfläche X/Y');
+    expect(markup).toContain('Aktive Ebene: X rot und Y grün. Extrusion geht entlang Z blau.');
+    expect(markup).toContain('class="drawing-plane-indicator drawing-plane-xy"');
+    expect(markup).toContain('X rot');
+    expect(markup).toContain('Y grün');
+  });
+
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
     const markup = renderToStaticMarkup(<App />);
 

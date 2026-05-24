@@ -1,3 +1,5 @@
+import type { MaterialAssignment } from '../core/model';
+
 export type MaterialFileLike = Readonly<{
   name: string;
   type?: string;
@@ -9,6 +11,11 @@ export type MaterialLibraryEntry = Readonly<{
   category: string;
   relativePath: string;
   fileName: string;
+}>;
+
+export type BrowserMaterialLibraryEntry = MaterialLibraryEntry & Readonly<{
+  previewUrl?: string;
+  textureDataUrl?: string;
 }>;
 
 export type MaterialLibrary = Readonly<{
@@ -38,6 +45,16 @@ const DEFAULT_MATERIAL_SWATCHES: MaterialSwatch[] = [
 
 export function buildDefaultMaterialSwatches(): MaterialSwatch[] {
   return DEFAULT_MATERIAL_SWATCHES.map((swatch) => ({ ...swatch }));
+}
+
+export function materialAssignmentFromLibraryEntry(entry: BrowserMaterialLibraryEntry): MaterialAssignment {
+  return {
+    name: entry.name,
+    color: '#b45309',
+    previewUrl: entry.previewUrl,
+    textureDataUrl: entry.textureDataUrl,
+    textureFileName: entry.textureDataUrl ? entry.fileName : undefined
+  };
 }
 
 export function isMaterialImageFile(file: MaterialFileLike): boolean {

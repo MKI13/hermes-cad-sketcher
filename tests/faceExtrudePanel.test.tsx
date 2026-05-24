@@ -58,7 +58,7 @@ describe('FaceExtrudePanel', () => {
 
     expect(validateExtrudableFace(rotatedFace, { ok: true, height: 300 })).toEqual({
       ok: false,
-      error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
+      error: 'Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.'
     });
 
     const markup = renderToStaticMarkup(
@@ -66,7 +66,15 @@ describe('FaceExtrudePanel', () => {
     );
 
     expect(markup).toContain('disabled=""');
-    expect(markup).toContain('Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.');
+    expect(markup).toContain('Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.');
+  });
+
+  it('allows vertical XZ and YZ rectangle faces as extrudable faces', () => {
+    const xzFace = { id: 'face_xz', type: 'face' as const, vertices: [vec(10, 20, 30), vec(510, 20, 30), vec(510, 20, 230), vec(10, 20, 230)] };
+    const yzFace = { id: 'face_yz', type: 'face' as const, vertices: [vec(10, 20, 30), vec(10, -230, 30), vec(10, -230, 330), vec(10, 20, 330)] };
+
+    expect(validateExtrudableFace(xzFace, { ok: true, height: 300 })).toEqual({ ok: true, height: 300 });
+    expect(validateExtrudableFace(yzFace, { ok: true, height: 300 })).toEqual({ ok: true, height: 300 });
   });
 
   it('disables degenerate and self-intersecting axis-aligned corner faces before model mutation', () => {
@@ -76,15 +84,15 @@ describe('FaceExtrudePanel', () => {
 
     expect(validateExtrudableFace(degenerateFace, { ok: true, height: 300 })).toEqual({
       ok: false,
-      error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
+      error: 'Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.'
     });
     expect(validateExtrudableFace(bowTieFace, { ok: true, height: 300 })).toEqual({
       ok: false,
-      error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
+      error: 'Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.'
     });
     expect(validateExtrudableFace(tinyBowTieFace, { ok: true, height: 300 })).toEqual({
       ok: false,
-      error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.'
+      error: 'Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.'
     });
   });
 });

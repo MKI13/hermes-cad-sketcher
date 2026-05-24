@@ -1,4 +1,4 @@
-import { SketchModel, type SketchModelSnapshot } from './model';
+import { SketchModel, type Entity, type SketchModelSnapshot } from './model';
 import { distance, sub, vec, type Vec3 } from './geometry';
 
 export const PROJECT_FILE_VERSION = 1;
@@ -16,7 +16,7 @@ export function exportProjectFile(model: SketchModel): string {
     format: PROJECT_FILE_FORMAT,
     version: PROJECT_FILE_VERSION,
     createdBy: 'Hermes CAD Sketcher',
-    model: model.snapshot()
+    model: snapshotForProjectFile(model.snapshot())
   };
   return JSON.stringify(document, null, 2) + '\n';
 }
@@ -58,10 +58,23 @@ export function importProjectFile(text: string): SketchModel {
   return SketchModel.fromSnapshot(model);
 }
 
+function snapshotForProjectFile(snapshot: SketchModelSnapshot): SketchModelSnapshot {
+  return {
+    ...snapshot,
+    entities: snapshot.entities.map(sanitizeEntityForProjectFile)
+  };
+}
+
+function sanitizeEntityForProjectFile(entity: Entity): Entity {
+  if (!entity.material?.previewUrl?.startsWith('blob:')) return entity;
+  const { previewUrl: _previewUrl, ...material } = entity.material;
+  return { ...entity, material } as Entity;
+}
+
 function isEntityPayload(value: unknown): value is SketchModelSnapshot['entities'][number] {
   if (!isRecord(value) || typeof value.id !== 'string') return false;
   if ('componentId' in value && value.componentId !== undefined && typeof value.componentId !== 'string') return false;
-  if (!hasValidLayerMetadata(value)) return false;
+  if (!hasValidCommonMetadata(value)) return false;
 
   if (value.type === 'edge') {
     return isVec3(value.start) && isVec3(value.end);
@@ -93,9 +106,36 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
   );
 }
 
+function hasValidCommonMetadata(value: Record<string, unknown>): boolean {
+  if (!hasValidLayerMetadata(value)) return false;
+  if ('hidden' in value && value.hidden !== undefined && typeof value.hidden !== 'boolean') return false;
+  if ('material' in value && value.material !== undefined && !isMaterialPayload(value.material)) return false;
+  return true;
+}
+
 function hasValidLayerMetadata(value: Record<string, unknown>): boolean {
   if (!('layer' in value) || value.layer === undefined) return true;
   return typeof value.layer === 'string' && isSafeLayerName(value.layer);
+}
+
+function isMaterialPayload(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (typeof value.name !== 'string' || value.name.trim().length === 0) return false;
+  if (typeof value.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.color)) return false;
+  if ('previewUrl' in value && value.previewUrl !== undefined) {
+    if (typeof value.previewUrl !== 'string' || value.previewUrl.startsWith('blob:')) return false;
+  }
+  if ('textureDataUrl' in value && value.textureDataUrl !== undefined) {
+    if (typeof value.textureDataUrl !== 'string' || !isEmbeddedTextureDataUrl(value.textureDataUrl)) return false;
+  }
+  if ('textureFileName' in value && value.textureFileName !== undefined) {
+    if (typeof value.textureFileName !== 'string' || value.textureFileName.trim().length === 0 || value.textureFileName.includes('\n') || value.textureFileName.includes('\r')) return false;
+  }
+  return true;
+}
+
+function isEmbeddedTextureDataUrl(value: string): boolean {
+  return /^data:image\/(png|jpe?g|webp|gif|bmp|svg\+xml);base64,[a-z0-9+/]+=*$/i.test(value);
 }
 
 function isSafeLayerName(value: string): boolean {

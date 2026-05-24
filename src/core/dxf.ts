@@ -1,4 +1,4 @@
-import { SketchModel, type Entity } from './model';
+import { SketchModel, boxWorldPoints, type Entity } from './model';
 import { almostEqual, vec, type Vec3 } from './geometry';
 
 function pair(code: string | number, value: string | number): string {
@@ -11,11 +11,12 @@ export function exportDxf(model: SketchModel): string {
     if (entity.type === 'edge') line(out, entity.start, entity.end, entity.layer);
     if (entity.type === 'face') polyline(out, entity.vertices, entity.layer);
     if (entity.type === 'box') {
-      const o = entity.origin;
-      const pts = [o, vec(o.x + entity.width, o.y, o.z), vec(o.x + entity.width, o.y + entity.depth, o.z), vec(o.x, o.y + entity.depth, o.z)];
-      polyline(out, pts);
-      for (const p of pts) line(out, p, vec(p.x, p.y, p.z + entity.height));
-      polyline(out, pts.map((p) => vec(p.x, p.y, p.z + entity.height)));
+      const pts = boxWorldPoints(entity);
+      const bottom = pts.slice(0, 4);
+      const top = pts.slice(4, 8);
+      polyline(out, bottom);
+      for (let index = 0; index < 4; index += 1) line(out, bottom[index], top[index]);
+      polyline(out, top);
     }
   }
   out.push(pair(0, 'ENDSEC'), pair(0, 'EOF'));
@@ -228,13 +229,13 @@ function polyline(out: string[], vertices: Vec3[], layer = '0'): void {
   }
 }
 
-export function supportedCadFormats(): Record<string, 'mvp' | 'planned' | 'external-bridge'> {
+export function supportedCadFormats(): Record<string, 'mvp' | 'planned' | 'external-bridge' | 'unsupported'> {
   return {
     dxf: 'mvp',
     stl: 'mvp',
     skp: 'external-bridge',
     dwg: 'external-bridge',
-    rb: 'planned',
-    rbz: 'planned'
+    rb: 'unsupported',
+    rbz: 'unsupported'
   };
 }

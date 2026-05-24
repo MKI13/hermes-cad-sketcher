@@ -28,6 +28,25 @@ describe('browser smoke visual contract', () => {
     expect(source).toContain('GPU stall due to ReadPixels');
     expect(source).toContain('--enable-unsafe-swiftshader');
     expect(source).toContain('--use-angle=swiftshader-webgl');
+    expect(source).toContain('--disable-gpu');
+    expect(source).toContain('--password-store=basic');
+    expect(source).toContain('--no-sandbox');
+    expect(source).toContain('--disable-dev-shm-usage');
+    expect(source).toContain('AbortSignal.timeout');
+    expect(source).toContain('45_000');
+    expect(source).toContain('timed out waiting for a Chrome DevTools Protocol response');
     expect(source).not.toContain('--disable-software-rasterizer');
+  });
+
+  it('auto-detects Brave/Chromium/Chrome instead of requiring one snap path', async () => {
+    const source = await readFile('scripts/smoke-browser.mjs', 'utf8');
+
+    expect(source).toContain('resolveChromiumExecutable');
+    expect(source).toContain('CHROMIUM_PATH');
+    expect(source).toContain('brave-browser');
+    expect(source).toContain('/snap/bin/brave');
+    expect(source).toContain('chromium');
+    expect(source).toContain('google-chrome-stable');
+    expect(source).not.toContain("process.env.CHROMIUM_PATH ?? '/snap/bin/chromium'");
   });
 });

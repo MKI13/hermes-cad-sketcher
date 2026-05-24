@@ -243,6 +243,20 @@ describe('CAD import/export foundation', () => {
     expect(stl.match(/facet normal/g)?.length).toBe(12);
   });
 
+  it('exports rotated box bodies using their visible world geometry in DXF and STL', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 1000, 500, 100);
+    model.rotateEntityZ(box.id, Math.PI / 2);
+
+    const dxf = exportDxf(model);
+    const stl = exportAsciiStl(model);
+
+    expect(dxf).toContain('10\n750');
+    expect(dxf).toContain('20\n-250');
+    expect(stl).toContain('vertex 750 -250 0');
+    expect(stl).toContain('vertex 250 750 100');
+  });
+
   it('adds imported ASCII STL to the model as a separate reference mesh entity', () => {
     const model = new SketchModel();
     const mesh = importAsciiStl(`solid reference_part
@@ -362,5 +376,7 @@ endsolid collinear_vertices
     expect(supportedCadFormats().stl).toBe('mvp');
     expect(supportedCadFormats().dwg).toBe('external-bridge');
     expect(supportedCadFormats().skp).toBe('external-bridge');
+    expect(supportedCadFormats().rb).toBe('unsupported');
+    expect(supportedCadFormats().rbz).toBe('unsupported');
   });
 });

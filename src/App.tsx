@@ -25,7 +25,9 @@ import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type Work
 import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, type WorkbenchMenu } from './ui/workbenchLayout';
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
-import { buildDefaultMaterialSwatches, buildMaterialLibrary, type MaterialLibrary, type MaterialLibraryEntry, type MaterialSwatch } from './ui/materialLibrary';
+import { buildDefaultMaterialSwatches, buildMaterialLibrary, materialAssignmentFromLibraryEntry, type BrowserMaterialLibraryEntry, type MaterialLibrary, type MaterialSwatch } from './ui/materialLibrary';
+import { shouldApplyDxfImportReport, statusFromDxfImportReport } from './ui/dxfImportPolicy';
+import { drawingPlaneAppearance } from './ui/drawingPlaneAppearance';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
 import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
@@ -62,8 +64,19 @@ type FloatingWindowDrag = {
   offsetY: number;
 };
 
-type BrowserMaterialEntry = MaterialLibraryEntry & { previewUrl?: string };
-type BrowserMaterialLibrary = Omit<MaterialLibrary, 'entries'> & { entries: BrowserMaterialEntry[] };
+type BrowserMaterialLibrary = Omit<MaterialLibrary, 'entries'> & { entries: BrowserMaterialLibraryEntry[] };
+
+function readTextureDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Materialbild konnte nicht als Daten-URL gelesen werden.'));
+    });
+    reader.addEventListener('error', () => reject(new Error('Materialbild konnte nicht gelesen werden.')));
+    reader.readAsDataURL(file);
+  });
+}
 
 function loadToolbarOrder(): ToolName[] {
   if (typeof window === 'undefined') return DEFAULT_TOOLBAR_ORDER;
@@ -140,10 +153,11 @@ export default function App() {
   const rectangleMaskResult = parseRectangleDimensionMask(rectangleDimensionMask);
   const activeRectangleDimensions = useRectangleDimensionMask && rectangleMaskResult.ok ? { width: rectangleMaskResult.width, depth: rectangleMaskResult.depth } : undefined;
   const drawingPlaneLabels: Record<DrawingPlane, string> = {
-    xy: 'Grundfläche rot/grün (X/Y)',
-    xz: 'Vertikal rot/blau (X/Z)',
-    yz: 'Vertikal grün/blau (Y/Z)'
+    xy: drawingPlaneAppearance('xy').label,
+    xz: drawingPlaneAppearance('xz').label,
+    yz: drawingPlaneAppearance('yz').label
   };
+  const activeDrawingPlaneAppearance = drawingPlaneAppearance(drawingPlane);
   const orderedTools = toolbarOrder.map((id) => tools.find((item) => item.id === id)).filter((item): item is (typeof tools)[number] => Boolean(item));
   const shortcutSummaryLabels: Record<ToolName, string> = {
     select: 'Auswahl',
@@ -455,20 +469,21 @@ export default function App() {
     setProjectStatus('Mausbelegung auf Standard zurückgesetzt');
   }
 
-  function openMaterialFolder(files: FileList | null) {
+  async function openMaterialFolder(files: FileList | null) {
     const selectedFiles = Array.from(files ?? []);
     const parsed = buildMaterialLibrary(selectedFiles);
     const nextLibrary: BrowserMaterialLibrary = {
       ...parsed,
-      entries: parsed.entries.map((entry) => {
+      entries: await Promise.all(parsed.entries.map(async (entry) => {
         const sourceFile = selectedFiles.find((file) => (file.webkitRelativePath || file.name) === entry.relativePath);
-        return { ...entry, previewUrl: sourceFile ? URL.createObjectURL(sourceFile) : undefined };
-      })
+        const textureDataUrl = sourceFile ? await readTextureDataUrl(sourceFile) : undefined;
+        return { ...entry, previewUrl: textureDataUrl, textureDataUrl };
+      }))
     };
     setMaterialLibrary(nextLibrary);
     setSelectedMaterialCategory(nextLibrary.categories[0]);
     setProjectStatus(nextLibrary.entries.length > 0
-      ? `Materialordner geladen: ${nextLibrary.rootLabel} · ${nextLibrary.entries.length} Bilder`
+      ? `Materialordner geladen: ${nextLibrary.rootLabel} · ${nextLibrary.entries.length} Bilder werden in Projektdateien eingebettet`
       : 'Der gewählte Materialordner enthält keine unterstützten Bilddateien.');
   }
 
@@ -483,8 +498,8 @@ export default function App() {
     setProjectStatus(`Material angewendet: ${material.name}`);
   }
 
-  function materialFromImageEntry(entry: BrowserMaterialEntry): MaterialAssignment {
-    return { name: entry.name, color: '#b45309', previewUrl: entry.previewUrl };
+  function materialFromImageEntry(entry: BrowserMaterialLibraryEntry): MaterialAssignment {
+    return materialAssignmentFromLibraryEntry(entry);
   }
 
   function materialFromSwatch(swatch: MaterialSwatch): MaterialAssignment {
@@ -692,11 +707,14 @@ export default function App() {
     try {
       const text = await file.text();
       const report = importDxfWithReport(text);
+      if (!shouldApplyDxfImportReport(report)) {
+        setProjectStatus(statusFromDxfImportReport(report, file.name));
+        return;
+      }
       setModel(report.model);
       setHistory(createHistory(report.model.snapshot()));
       setSelectedId(report.model.allEntities()[0]?.id);
-      const skipped = report.skippedEntities.length;
-      setProjectStatus(`DXF geladen: ${report.importedEntities} importiert, ${skipped} übersprungen; ${report.unitStatus.message} (${file.name})`);
+      setProjectStatus(statusFromDxfImportReport(report, file.name));
     } catch (error) {
       setProjectStatus(error instanceof Error ? error.message : 'DXF konnte nicht geladen werden.');
     }
@@ -942,6 +960,12 @@ export default function App() {
                 <option value="yz">{drawingPlaneLabels.yz}</option>
               </select>
             </label>
+            <div className={`drawing-plane-indicator ${activeDrawingPlaneAppearance.className}`} aria-label="Aktive Zeichenebene mit Achsfarben">
+              <strong>{activeDrawingPlaneAppearance.label}</strong>
+              <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[0] }}>{activeDrawingPlaneAppearance.axisNames[0]}</span>
+              <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[1] }}>{activeDrawingPlaneAppearance.axisNames[1]}</span>
+            </div>
+            <small>{activeDrawingPlaneAppearance.helperText}</small>
             <p>Stufenloses Zeichnen ist aktiv: der Mauspunkt wird nicht mehr auf feste Rasterabstände gerundet.</p>
             <label>
               <input type="checkbox" checked={useRectangleDimensionMask} onChange={(event) => setUseRectangleDimensionMask(event.currentTarget.checked)} />
@@ -971,7 +995,7 @@ export default function App() {
                   multiple
                   accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"
                   onChange={(event) => {
-                    openMaterialFolder(event.currentTarget.files);
+                    void openMaterialFolder(event.currentTarget.files);
                     event.currentTarget.value = '';
                   }}
                   {...{ webkitdirectory: '', directory: '' }}

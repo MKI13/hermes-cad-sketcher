@@ -71,7 +71,7 @@ export function runCadConsoleCommand(model: SketchModel, input: string, selected
 }
 
 export function runCadConsoleScript(model: SketchModel, script: string, selectedId?: EntityId): CadCommandResult {
-  let currentModel = model;
+  let currentModel = SketchModel.fromSnapshot(model.snapshot());
   let currentSelected = selectedId;
   const messages: string[] = [];
   let changed = false;
@@ -81,7 +81,7 @@ export function runCadConsoleScript(model: SketchModel, script: string, selected
     if (!line) continue;
     const result = runCadConsoleCommand(currentModel, line, currentSelected);
     messages.push(result.message);
-    if (!result.ok) return { ...result, message: messages.join('\n') };
+    if (!result.ok) return { ...result, nextModel: model, selectedId, changed: false, message: messages.join('\n') };
     currentModel = result.nextModel;
     currentSelected = result.selectedId;
     changed ||= result.changed;
@@ -165,7 +165,7 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
 
   if (command === 'delete') {
     const id = resolveEntityId(tokens[0], selectedId);
-    model.deleteEntity(id);
+    if (!model.deleteEntity(id)) throw new Error(`Element nicht gefunden: ${id}`);
     return { selectedId: model.allEntities()[0]?.id, message: `Element gelöscht: ${id}` };
   }
 

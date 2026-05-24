@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDefaultMaterialSwatches, buildMaterialLibrary, categoryFromMaterialPath, isMaterialImageFile } from '../src/ui/materialLibrary';
+import { buildDefaultMaterialSwatches, buildMaterialLibrary, categoryFromMaterialPath, isMaterialImageFile, materialAssignmentFromLibraryEntry } from '../src/ui/materialLibrary';
 
 type TestFile = Readonly<{ name: string; type: string; webkitRelativePath?: string }>;
 
@@ -42,5 +42,24 @@ describe('material library folder import', () => {
     expect(swatches.map((swatch) => swatch.name)).toContain('Holz warm');
     expect(swatches.map((swatch) => swatch.name)).toContain('Dunkel');
     expect(swatches.every((swatch) => swatch.color.startsWith('#'))).toBe(true);
+  });
+
+  it('turns local texture entries into embedded project-safe material assignments', () => {
+    const assignment = materialAssignmentFromLibraryEntry({
+      name: 'oak',
+      category: 'Woods',
+      relativePath: 'RAL/Woods/oak.png',
+      fileName: 'oak.png',
+      previewUrl: 'blob:http://local/oak',
+      textureDataUrl: 'data:image/png;base64,b2Fr'
+    });
+
+    expect(assignment).toEqual({
+      name: 'oak',
+      color: '#b45309',
+      previewUrl: 'blob:http://local/oak',
+      textureDataUrl: 'data:image/png;base64,b2Fr',
+      textureFileName: 'oak.png'
+    });
   });
 });

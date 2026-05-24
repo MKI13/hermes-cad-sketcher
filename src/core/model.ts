@@ -11,32 +11,13 @@ function assertPositiveBoxDimensions(width: number, depth: number, height: numbe
 }
 
 export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
-  if (vertices.length !== 4) return false;
-  if (vertices.some((vertex) => !Number.isFinite(vertex.x) || !Number.isFinite(vertex.y) || !Number.isFinite(vertex.z))) return false;
-  const z = vertices[0].z;
-  if (vertices.some((vertex) => Math.abs(vertex.z - z) > 1e-6)) return false;
-  const box = bbox(vertices);
-  if (!isPositiveFinite(box.size.x) || !isPositiveFinite(box.size.y)) return false;
-  const expectedCorners = [
-    vec(box.min.x, box.min.y, z),
-    vec(box.max.x, box.min.y, z),
-    vec(box.max.x, box.max.y, z),
-    vec(box.min.x, box.max.y, z)
-  ];
-  const corners = new Set(vertices.map((vertex) => `${vertex.x.toFixed(6)},${vertex.y.toFixed(6)}`));
-  if (corners.size !== 4) return false;
-  if (!expectedCorners.every((corner) => corners.has(`${corner.x.toFixed(6)},${corner.y.toFixed(6)}`))) return false;
-
-  return vertices.every((vertex, index) => {
-    const next = vertices[(index + 1) % vertices.length];
-    return (Math.abs(vertex.x - next.x) <= 1e-6 && Math.abs(vertex.y - next.y) > 1e-6) || (Math.abs(vertex.y - next.y) <= 1e-6 && Math.abs(vertex.x - next.x) > 1e-6);
-  });
+  return rectangleFacePlane(vertices) !== undefined;
 }
 
 export type EntityId = string;
 export type ComponentId = string;
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
-export type MaterialAssignment = { name: string; color: string; previewUrl?: string };
+export type MaterialAssignment = { name: string; color: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
 
 type CadMetadata = { layer?: string; hidden?: boolean; material?: MaterialAssignment };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
@@ -83,6 +64,15 @@ function nextId(prefix: string): string {
   return `${prefix}_${nextNumber++}`;
 }
 
+function bumpNextNumberPastSnapshot(snapshot: SketchModelSnapshot): void {
+  const ids = [...snapshot.entities.map((entity) => entity.id), ...snapshot.components.map((component) => component.id)];
+  const highest = ids.reduce((max, id) => {
+    const match = /_(\d+)$/.exec(id);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  nextNumber = Math.max(nextNumber, highest + 1);
+}
+
 export class SketchModel {
   readonly unit = 'mm' as const;
   private entities = new Map<EntityId, Entity>();
@@ -92,6 +82,7 @@ export class SketchModel {
     const model = new SketchModel();
     for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(entity));
     for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
+    bumpNextNumberPastSnapshot(snapshot);
     return model;
   }
 
@@ -134,16 +125,37 @@ export class SketchModel {
     if (!isPositiveFinite(height)) throw new Error('Extrusion braucht eine positive Höhe.');
     const entity = this.requireEntity(id);
     if (entity.type !== 'face') throw new Error('Extrusion braucht eine ausgewählte Fläche.');
-    if (!isAxisAlignedRectangleFace(entity.vertices)) throw new Error('Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.');
+    const plane = rectangleFacePlane(entity.vertices);
+    if (!plane) throw new Error('Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.');
     const box = bbox(entity.vertices);
-    if (box.size.x <= 0 || box.size.y <= 0) throw new Error('Extrusion braucht eine rechteckige Fläche mit positiver Breite und Tiefe.');
+    let origin: Vec3;
+    let width: number;
+    let depth: number;
+    let boxHeight: number;
+    if (plane === 'xz') {
+      origin = vec(box.min.x, box.min.y, box.min.z);
+      width = box.size.x;
+      depth = height;
+      boxHeight = box.size.z;
+    } else if (plane === 'yz') {
+      origin = vec(box.min.x, box.min.y, box.min.z);
+      width = height;
+      depth = box.size.y;
+      boxHeight = box.size.z;
+    } else {
+      origin = box.min;
+      width = box.size.x;
+      depth = box.size.y;
+      boxHeight = height;
+    }
+    if (width <= 0 || depth <= 0 || boxHeight <= 0) throw new Error('Extrusion braucht eine rechteckige Fläche mit positiver Breite und Tiefe.');
     const extruded: BoxEntity = {
       id: nextId('box'),
       type: 'box',
-      origin: box.min,
-      width: box.size.x,
-      depth: box.size.y,
-      height,
+      origin,
+      width,
+      depth,
+      height: boxHeight,
       rotationZ: 0,
       componentId: entity.componentId
     };
@@ -324,6 +336,45 @@ export class SketchModel {
   }
 }
 
+function rectangleFacePlane(vertices: Vec3[]): DrawingPlane | undefined {
+  if (vertices.length !== 4) return undefined;
+  if (vertices.some((vertex) => !Number.isFinite(vertex.x) || !Number.isFinite(vertex.y) || !Number.isFinite(vertex.z))) return undefined;
+  const box = bbox(vertices);
+  const constantAxes = [
+    { axis: 'x' as const, size: box.size.x },
+    { axis: 'y' as const, size: box.size.y },
+    { axis: 'z' as const, size: box.size.z }
+  ].filter(({ size }) => Math.abs(size) <= 1e-6);
+  if (constantAxes.length !== 1) return undefined;
+  const constantAxis = constantAxes[0].axis;
+  const plane: DrawingPlane = constantAxis === 'z' ? 'xy' : constantAxis === 'y' ? 'xz' : 'yz';
+  const variableAxes = plane === 'xy' ? ['x', 'y'] as const : plane === 'xz' ? ['x', 'z'] as const : ['y', 'z'] as const;
+  const minA = box.min[variableAxes[0]];
+  const maxA = box.max[variableAxes[0]];
+  const minB = box.min[variableAxes[1]];
+  const maxB = box.max[variableAxes[1]];
+  if (!isPositiveFinite(maxA - minA) || !isPositiveFinite(maxB - minB)) return undefined;
+
+  const corners = new Set(vertices.map((vertex) => cornerKey(vertex[variableAxes[0]], vertex[variableAxes[1]])));
+  if (corners.size !== 4) return undefined;
+  const expected = [cornerKey(minA, minB), cornerKey(maxA, minB), cornerKey(maxA, maxB), cornerKey(minA, maxB)];
+  if (!expected.every((corner) => corners.has(corner))) return undefined;
+
+  const edgesAreAxisAligned = vertices.every((vertex, index) => {
+    const next = vertices[(index + 1) % vertices.length];
+    const sameA = Math.abs(vertex[variableAxes[0]] - next[variableAxes[0]]) <= 1e-6;
+    const sameB = Math.abs(vertex[variableAxes[1]] - next[variableAxes[1]]) <= 1e-6;
+    const changedA = Math.abs(vertex[variableAxes[0]] - next[variableAxes[0]]) > 1e-6;
+    const changedB = Math.abs(vertex[variableAxes[1]] - next[variableAxes[1]]) > 1e-6;
+    return (sameA && changedB) || (sameB && changedA);
+  });
+  return edgesAreAxisAligned ? plane : undefined;
+}
+
+function cornerKey(a: number, b: number): string {
+  return `${a.toFixed(6)},${b.toFixed(6)}`;
+}
+
 function pushPullBoxFaceSnapshot(entity: BoxEntity, face: BoxFaceName, delta: number): BoxEntity {
   if (!Number.isFinite(delta)) throw new Error('Push/Pull braucht eine positive Höhe.');
   const next = { ...entity };
@@ -405,21 +456,26 @@ function rotateVertices(vertices: [Vec3, Vec3, Vec3], angleRadians: number, orig
   ];
 }
 
+export function boxWorldPoints(entity: BoxEntity): Vec3[] {
+  const localPoints = [
+    vec(0, 0, 0),
+    vec(entity.width, 0, 0),
+    vec(entity.width, entity.depth, 0),
+    vec(0, entity.depth, 0),
+    vec(0, 0, entity.height),
+    vec(entity.width, 0, entity.height),
+    vec(entity.width, entity.depth, entity.height),
+    vec(0, entity.depth, entity.height)
+  ];
+  const center = add(entity.origin, vec(entity.width / 2, entity.depth / 2, 0));
+  return localPoints.map((point) => rotateAroundZ(add(entity.origin, point), entity.rotationZ, center));
+}
+
 export function entityPoints(entity: Entity): Vec3[] {
   if (entity.type === 'edge') return [entity.start, entity.end];
   if (entity.type === 'face') return entity.vertices;
   if (entity.type === 'referenceMesh') return entity.triangles.flatMap((triangle) => triangle.vertices);
-  const { origin, width, depth, height } = entity;
-  return [
-    origin,
-    add(origin, vec(width, 0, 0)),
-    add(origin, vec(width, depth, 0)),
-    add(origin, vec(0, depth, 0)),
-    add(origin, vec(0, 0, height)),
-    add(origin, vec(width, 0, height)),
-    add(origin, vec(width, depth, height)),
-    add(origin, vec(0, depth, height))
-  ];
+  return boxWorldPoints(entity);
 }
 
 export function entityBoundingBox(entity: Entity) {

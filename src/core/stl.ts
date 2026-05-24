@@ -1,5 +1,5 @@
 import { type Vec3, distance, sub, vec } from './geometry';
-import { SketchModel, type BoxEntity, type ReferenceMeshEntity } from './model';
+import { SketchModel, boxWorldPoints, type BoxEntity, type ReferenceMeshEntity } from './model';
 
 export type StlTriangle = Readonly<{
   vertices: [Vec3, Vec3, Vec3];
@@ -97,17 +97,7 @@ export function exportAsciiStl(model: SketchModel, name = 'hermes-cad-sketcher')
 }
 
 function appendBox(out: string[], box: BoxEntity): void {
-  const o = box.origin;
-  const p = [
-    o,
-    vec(o.x + box.width, o.y, o.z),
-    vec(o.x + box.width, o.y + box.depth, o.z),
-    vec(o.x, o.y + box.depth, o.z),
-    vec(o.x, o.y, o.z + box.height),
-    vec(o.x + box.width, o.y, o.z + box.height),
-    vec(o.x + box.width, o.y + box.depth, o.z + box.height),
-    vec(o.x, o.y + box.depth, o.z + box.height)
-  ];
+  const p = boxWorldPoints(box);
   const faces = [
     [0, 1, 2], [0, 2, 3],
     [4, 6, 5], [4, 7, 6],
@@ -124,7 +114,11 @@ function triangle(out: string[], a: Vec3, b: Vec3, c: Vec3): void {
 }
 
 function vertex(p: Vec3): string {
-  return `      vertex ${p.x} ${p.y} ${p.z}`;
+  return `      vertex ${formatCoordinate(p.x)} ${formatCoordinate(p.y)} ${formatCoordinate(p.z)}`;
+}
+
+function formatCoordinate(value: number): string {
+  return String(Number(value.toFixed(6)));
 }
 
 function sanitize(name: string): string {

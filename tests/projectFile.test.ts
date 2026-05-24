@@ -30,6 +30,31 @@ describe('Hermes CAD project files', () => {
     expect(roundTrip.snapshot()).toEqual(model.snapshot());
   });
 
+  it('continues new entity ids after importing explicit saved ids instead of overwriting restored geometry', () => {
+    const probe = new SketchModel().createLine(vec(0, 0, 0), vec(1, 0, 0));
+    const nextIdNumber = Number(probe.id.split('_')[1]) + 1;
+    const restoredId = `edge_${nextIdNumber}`;
+    const project = {
+      format: 'hermes-cad-sketcher',
+      version: PROJECT_FILE_VERSION,
+      createdBy: 'Hermes CAD Sketcher',
+      model: {
+        unit: 'mm',
+        entities: [
+          { id: restoredId, type: 'edge', start: vec(0, 0, 0), end: vec(100, 0, 0) }
+        ],
+        components: []
+      }
+    };
+
+    const imported = importProjectFile(JSON.stringify(project));
+    const created = imported.createLine(vec(0, 100, 0), vec(100, 100, 0));
+
+    expect(created.id).not.toBe(restoredId);
+    expect(imported.getEntity(restoredId)).toMatchObject({ type: 'edge' });
+    expect(imported.allEntities()).toHaveLength(2);
+  });
+
   it('preserves STL reference mesh entities through project round trips', () => {
     const model = new SketchModel();
     model.addReferenceMesh('synthetic-reference.stl', [
@@ -94,6 +119,62 @@ describe('Hermes CAD project files', () => {
       ...parsed,
       model: { ...parsed.model, entities: [malformedFace] }
     }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
+  it('rejects malformed hidden and material metadata before restoring the model', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+    const malformedFace = {
+      id: 'face_1',
+      type: 'face',
+      hidden: 'no',
+      material: { name: '', color: 'javascript:bad' },
+      vertices: [vec(0, 0, 0), vec(100, 0, 0), vec(100, 50, 0), vec(0, 50, 0)]
+    };
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [malformedFace] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
+  it('does not persist ephemeral browser blob URLs in material metadata', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(0, 0, 0), 100, 50);
+    model.applyMaterial(face.id, { name: 'Lokales Bild', color: '#b45309', previewUrl: 'blob:http://example.local/texture' });
+
+    const json = exportProjectFile(model);
+
+    expect(json).toContain('Lokales Bild');
+    expect(json).toContain('#b45309');
+    expect(json).not.toContain('blob:http');
+  });
+
+  it('persists embedded texture data URLs in project material metadata', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(0, 0, 0), 100, 50);
+    model.applyMaterial(face.id, {
+      name: 'Eiche Textur',
+      color: '#b45309',
+      previewUrl: 'blob:http://example.local/texture',
+      textureDataUrl: 'data:image/png;base64,b2Fr',
+      textureFileName: 'oak.png'
+    });
+
+    const json = exportProjectFile(model);
+    const roundTrip = importProjectFile(json);
+
+    expect(json).toContain('data:image/png;base64,b2Fr');
+    expect(json).toContain('oak.png');
+    expect(json).not.toContain('blob:http');
+    expect(roundTrip.allEntities()[0]).toMatchObject({
+      material: {
+        name: 'Eiche Textur',
+        color: '#b45309',
+        textureDataUrl: 'data:image/png;base64,b2Fr',
+        textureFileName: 'oak.png'
+      }
+    });
   });
 
   it('rejects invalid JSON and wrong project formats with clear errors', () => {

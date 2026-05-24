@@ -144,6 +144,12 @@ button { font: inherit; }
 .tray-section dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .tray-section label { display: grid; gap: 3px; padding: 6px 7px 0; color: #334155; }
 .tray-section select, .tray-section input[type="text"], .tray-section input:not([type]) { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #94a3b8; border-radius: 3px; padding: 4px 5px; background: #ffffff; color: #111827; font: inherit; }
+.drawing-plane-indicator { margin: 7px 7px 4px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; padding: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.drawing-plane-indicator strong { flex-basis: 100%; color: #0f172a; }
+.plane-axis-chip { border-radius: 999px; color: #ffffff; font-weight: 800; padding: 2px 7px; text-shadow: 0 1px 1px rgba(15,23,42,0.45); }
+.drawing-plane-xy { box-shadow: inset 4px 0 #dc2626, inset -4px 0 #16a34a; }
+.drawing-plane-xz { box-shadow: inset 4px 0 #dc2626, inset -4px 0 #2563eb; }
+.drawing-plane-yz { box-shadow: inset 4px 0 #16a34a, inset -4px 0 #2563eb; }
 .tray-section input[type="checkbox"] { margin-right: 5px; }
 .tray-section .dimension-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 0 7px 4px; }
 .tray-section small { display: block; padding: 0 7px 7px; color: #475569; }
@@ -162,9 +168,10 @@ button { font: inherit; }
 .right-tray .mouse-bindings-panel p, .right-tray .mouse-bindings-grid small { color: #475569; }
 .right-tray .mouse-bindings-grid { grid-template-columns: 1fr; padding: 7px; }
 @media (max-width: 720px) {
-  .app-shell { grid-template-columns: 52px minmax(0, 1fr); grid-template-rows: auto minmax(620px, 70vh); }
+  .app-shell { grid-template-columns: 52px minmax(0, 1fr); grid-template-rows: auto minmax(620px, 70vh) auto; }
   .app-shell.icon-rail-left .toolbar { grid-column: 1; grid-row: 2; }
   .app-shell.icon-rail-left .workspace { grid-column: 2; grid-row: 2; }
+  .app-shell .right-tray { grid-column: 1 / -1; grid-row: 3; max-height: 520px; }
   .top-toolbar { grid-template-columns: 1fr; }
   .top-function-workspace { grid-template-columns: 1fr; max-height: 420px; }
   .shortcut-hint { grid-column: 1; margin-top: 0; }

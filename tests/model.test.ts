@@ -55,6 +55,20 @@ describe('SketchModel geometry tools', () => {
     expect(model.getEntity(box.id)).toEqual(box);
   });
 
+  it('extrudes vertical XZ and YZ rectangle faces along their missing axis', () => {
+    const model = new SketchModel();
+    const redBlueFace = model.createRectangle(vec(10, 20, 30), 500, 200, {}, 'xz');
+    const greenBlueFace = model.createRectangle(vec(100, 200, 300), -250, 400, {}, 'yz');
+
+    const redBlueBox = model.extrudeFaceToBox(redBlueFace.id, 75);
+    const greenBlueBox = model.extrudeFaceToBox(greenBlueFace.id, 125);
+
+    expect(redBlueBox).toMatchObject({ type: 'box', origin: vec(10, 20, 30), width: 500, depth: 75, height: 200 });
+    expect(greenBlueBox).toMatchObject({ type: 'box', origin: vec(100, -50, 300), width: 125, depth: 250, height: 400 });
+    expect(model.getEntity(redBlueFace.id)).toBeUndefined();
+    expect(model.getEntity(greenBlueFace.id)).toBeUndefined();
+  });
+
   it('rejects rotated rectangle face extrusion instead of silently creating an axis-aligned bbox body', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(0, 0, 0), 1000, 500);

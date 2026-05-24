@@ -54,6 +54,19 @@ describe('Ruby-like CAD command console', () => {
     expect(result.nextModel.getEntity(result.selectedId!)).toMatchObject({ type: 'box', origin: vec(50, 0, 0), width: 1000, depth: 500, height: 300 });
   });
 
+  it('keeps multi-line agent scripts atomic so failed follow-up commands do not leave partial geometry', () => {
+    const model = new SketchModel();
+    const result = runCadConsoleScript(model, `
+      line(0, 0, 0, 100, 0, 0)
+      scale(selected, 2)
+    `);
+
+    expect(result.ok).toBe(false);
+    expect(result.changed).toBe(false);
+    expect(result.nextModel.snapshot()).toEqual(model.snapshot());
+    expect(result.message).toContain('Unbekannter CAD-Befehl');
+  });
+
   it('lets agent scripts delete the current selection without repeating the entity id', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
@@ -76,6 +89,16 @@ describe('Ruby-like CAD command console', () => {
     expect(result.ok).toBe(false);
     expect(result.nextModel.snapshot()).toEqual(model.snapshot());
     expect(result.message).toContain('Unbekannter CAD-Befehl');
+  });
+
+  it('rejects deletion of missing entity ids instead of reporting a false success', () => {
+    const model = new SketchModel();
+    const result = runCadConsoleCommand(model, 'delete(missing_123)');
+
+    expect(result.ok).toBe(false);
+    expect(result.changed).toBe(false);
+    expect(result.nextModel.snapshot()).toEqual(model.snapshot());
+    expect(result.message).toContain('Element nicht gefunden');
   });
 });
 

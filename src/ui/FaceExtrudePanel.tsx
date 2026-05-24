@@ -27,7 +27,7 @@ export function validateExtrudableFace(selectedFace: Extract<Entity, { type: 'fa
   if (!parsed.ok) return parsed;
   if (!selectedFace) return { ok: false, error: 'Extrusion braucht eine ausgewählte Rechteckfläche.' };
   if (!isAxisAlignedRectangleFace(selectedFace.vertices)) {
-    return { ok: false, error: 'Extrusion unterstützt im MVP nur axis-aligned Rechteckflächen.' };
+    return { ok: false, error: 'Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.' };
   }
   return parsed;
 }
