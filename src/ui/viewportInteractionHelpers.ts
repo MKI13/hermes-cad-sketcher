@@ -10,12 +10,6 @@ const MIN_ZOOM_RADIUS = 150;
 const MAX_ZOOM_RADIUS = 100000;
 const WHEEL_STEP_FACTOR = 0.85;
 
-export type CursorBadge = Readonly<{
-  arrow: '↖';
-  symbol: string;
-  label: string;
-}>;
-
 export type SnapPointKind = 'endpoint' | 'midpoint';
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
 export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: SnapPointKind })>;
@@ -99,20 +93,6 @@ export function createOriginGuideGroup(length = 3000): THREE.Group {
   group.add(createAxisLine('z-positive', [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, length, 0)], 0x2563eb, 'solid'));
   group.add(createAxisLine('z-negative', [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -length, 0)], 0x2563eb, 'dashed'));
   return group;
-}
-
-export function cursorBadgeForTool(tool: ToolName): CursorBadge {
-  const badges: Record<ToolName, CursorBadge> = {
-    select: { arrow: '↖', symbol: 'V', label: 'Auswahl' },
-    line: { arrow: '↖', symbol: '╱', label: 'Linie' },
-    rectangle: { arrow: '↖', symbol: '▭', label: 'Rechteck' },
-    box: { arrow: '↖', symbol: '◻', label: 'Körper' },
-    move: { arrow: '↖', symbol: '✥', label: 'Verschieben' },
-    pushPull: { arrow: '↖', symbol: '↕', label: 'Push/Pull' },
-    rotate: { arrow: '↖', symbol: '⟳', label: 'Drehen' },
-    tape: { arrow: '↖', symbol: '↔', label: 'Maßband' }
-  };
-  return badges[tool];
 }
 
 export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' {

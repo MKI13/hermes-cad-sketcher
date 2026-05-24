@@ -7,7 +7,6 @@ import {
   buildViewportContextMenuItems,
   createOriginGuideGroup,
   createWorkspaceGrid,
-  cursorBadgeForTool,
   formatActiveMeasurement,
   formatDraftMeasurement,
   formatEntityMeasurement,
@@ -61,12 +60,6 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(grid).toBeInstanceOf(THREE.GridHelper);
     expect(grid.userData.size).toBe(20000);
     expect(grid.userData.divisions).toBe(200);
-  });
-
-  it('keeps the pointer as an arrow and adds a small function symbol for each active tool', () => {
-    expect(cursorBadgeForTool('select')).toEqual({ arrow: '↖', symbol: 'V', label: 'Auswahl' });
-    expect(cursorBadgeForTool('line')).toEqual({ arrow: '↖', symbol: '╱', label: 'Linie' });
-    expect(cursorBadgeForTool('tape')).toEqual({ arrow: '↖', symbol: '↔', label: 'Maßband' });
   });
 
   it('formats live line and rectangle measurements while the user is drawing', () => {

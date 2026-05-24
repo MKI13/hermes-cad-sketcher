@@ -21,6 +21,18 @@ describe('agent-friendly contribution surface', () => {
     expect(contributing).toContain('Agenten');
   });
 
+  it('keeps the agent plan list split into done, partially implemented, and still-open work', async () => {
+    const agents = await read('AGENTS.md');
+    const auditPlan = await read('docs/plans/2026-05-24-function-audit-and-decisions.md');
+
+    expect(agents).toContain('## Teilweise umgesetzte Funktionen mit offenem Ausbau');
+    expect(agents).toContain('## Geplante Erweiterungen');
+    expect(agents).toContain('Axis-aligned Rechteck-Extrusion');
+    expect(agents).toContain('Freie und rotierte Flächenextrusion');
+    expect(auditPlan).toContain('Punkt 11 abgeschlossen');
+    expect(auditPlan).toContain('done, partial/core-only, and still missing');
+  });
+
   it('provides an agent task issue template with acceptance and verification fields', async () => {
     const template = await read('.github/ISSUE_TEMPLATE/agent-task.md');
 

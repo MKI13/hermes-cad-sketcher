@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { readFile } from 'node:fs/promises';
 import App, { createInitialSketchModel } from '../src/App';
 
 describe('App controls', () => {
@@ -118,13 +119,24 @@ describe('App controls', () => {
     expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
   });
 
-  it('renders a viewport arrow cursor badge with the selected tool symbol', () => {
+  it('renders a normal viewport arrow without a permanent tool symbol', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol');
     expect(markup).toContain('class="cursor-arrow"');
     expect(markup).not.toContain('class="cursor-symbol"');
     expect(markup).not.toContain('Mauszeiger: Pfeil mit Auswahl Symbol');
+  });
+
+  it('does not keep stale cursor symbol helper wiring in the viewport source', async () => {
+    const [viewportSource, helperSource] = await Promise.all([
+      readFile('src/ui/ThreeViewport.tsx', 'utf8'),
+      readFile('src/ui/viewportInteractionHelpers.ts', 'utf8')
+    ]);
+
+    expect(viewportSource).not.toContain('cursorBadgeForTool');
+    expect(helperSource).not.toContain('cursorBadgeForTool');
+    expect(helperSource).not.toContain('type CursorBadge');
   });
 
   it('renders a research-backed classic CAD workbench bar without copying protected branding', () => {

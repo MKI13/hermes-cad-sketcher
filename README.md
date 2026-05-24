@@ -204,6 +204,11 @@ Hermes CAD Sketcher kann später ein eigenes Erweiterungsformat bekommen, aber e
 
 ## Bekannte Grenzen
 
+Teilweise vorhanden, aber noch nicht vollständig ausgebaut:
+
+- axis-aligned Rechteckflächen auf X/Y, X/Z und Y/Z können bereits extrudiert werden; freie oder rotierte Flächenextrusion fehlt noch
+- Boxkörper haben auswählbare Flächen und ein Höhen-Push/Pull; gezieltes Ziehen einzelner Körperseiten in Breite/Tiefe/Höhe fehlt noch
+
 Noch nicht fertig oder nur teilweise vorhanden:
 
 - freie Flächenbearbeitung wie in einem vollständigen CAD-System

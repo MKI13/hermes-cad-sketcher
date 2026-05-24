@@ -127,14 +127,20 @@ Eine Erweiterung gilt erst als fertig, wenn alle Punkte erfüllt sind:
 - Der Commit beschreibt die Änderung konkret.
 - Der Commit enthält nicht mehrere unabhängige Features auf einmal.
 
+## Teilweise umgesetzte Funktionen mit offenem Ausbau
+
+Diese Punkte haben bereits eine geprüfte Grundlage, sind aber noch nicht vollständig ausgebaut. Future Agents sollen den vorhandenen Kern weiterführen statt dieselbe Arbeit erneut zu beginnen.
+
+- **Axis-aligned Rechteck-Extrusion** — ausgewählte achsenparallele Rechteckflächen auf X/Y, X/Z und Y/Z können bereits mit positiver Millimeterhöhe zu Boxkörpern extrudiert werden. Offen bleiben freie und rotierte Flächen, komplexere Face-Operationen und erweitertes Push/Pull für Breite, Tiefe und Höhe.
+- **Box-Face-Auswahl und Grund-Push/Pull** — Boxkörper zeigen auswählbare Seitenflächen und haben ein präzises Höhen-Push/Pull-Panel. Offen ist eine stabile Command-/Modellschicht für gezieltes Ziehen einzelner Körperseiten in alle Richtungen.
+
 ## Geplante Erweiterungen
 
-Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn eine Erweiterung fertig ist, verschiebe sie in die erledigte Liste.
+Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn eine Erweiterung fertig ist, verschiebe sie in die erledigte Liste. Teilweise umgesetzte Grundlagen bleiben oben getrennt dokumentiert.
 
-1. **Push/Pull für Flächen erweitern**
-   - Aktuell gibt es ein präzises Push/Pull-Panel für die Höhe ausgewählter Boxkörper.
-   - Nächster Schritt: Rechtecke und beliebige Flächen kontrolliert zu Körpern extrudieren.
-   - Später: Box-Flächen in Breite/Tiefe/Höhe gezielt ziehen.
+1. **Freie und rotierte Flächenextrusion und erweitertes Push/Pull**
+   - Freie und rotierte Flächenextrusion über die bereits erledigte axis-aligned Rechteck-Extrusion hinaus ergänzen.
+   - Box-Flächen in Breite/Tiefe/Höhe gezielt ziehen.
    - Negative oder Null-Endmaße sauber blockieren.
    - Maße müssen in Millimeter stabil bleiben.
 

@@ -3,7 +3,6 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { accessSync, constants } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 
@@ -11,6 +10,8 @@ const previewPort = Number(process.env.SMOKE_PREVIEW_PORT ?? 4173);
 const previewUrl = `http://127.0.0.1:${previewPort}`;
 const chromiumExecutable = resolveChromiumExecutable();
 const visualEvidenceDir = process.env.SMOKE_VISUAL_DIR ?? path.join(process.cwd(), 'tmp', 'visual-smoke');
+const defaultBrowserProfileRoot = path.join(process.env.TMPDIR ?? '/tmp', 'hermes-cad-smoke-profiles');
+const browserProfileRoot = process.env.SMOKE_BROWSER_TMPDIR ?? defaultBrowserProfileRoot;
 const supportedDxfFixture = `0
 SECTION
 2
@@ -77,23 +78,19 @@ function resolveChromiumExecutable() {
     'brave',
     'chromium',
     'chromium-browser',
-    'google-chrome-stable',
-    'google-chrome',
     '/usr/bin/brave-browser',
     '/usr/bin/brave-browser-stable',
     '/snap/bin/brave',
     '/opt/brave.com/brave/brave',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/google-chrome',
     '/snap/bin/chromium'
   ].filter(Boolean);
   for (const candidate of candidates) {
     const resolved = executablePath(candidate);
     if (resolved) return resolved;
   }
-  throw new Error(`No Chromium-compatible browser found. Set CHROMIUM_PATH to Brave, Chromium, or Chrome. Tried: ${candidates.join(', ')}`);
+  throw new Error(`No Brave or Chromium browser found. Set CHROMIUM_PATH to Brave or Chromium. Tried: ${candidates.join(', ')}`);
 }
 
 function executablePath(candidate) {
@@ -148,8 +145,8 @@ async function waitForHttp(url, timeoutMs = 30_000, isProcessAlive = () => true)
   throw lastError ?? new Error(`${url} was not reachable`);
 }
 
-function startProcess(command, args) {
-  const child = spawn(command, args, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+function startProcess(command, args, options = {}) {
+  const child = spawn(command, args, { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'], detached: options.detached ?? true });
   child.stdout.on('data', (chunk) => { if (process.env.SMOKE_VERBOSE) process.stderr.write(chunk); });
   child.stderr.on('data', (chunk) => { if (process.env.SMOKE_VERBOSE) process.stderr.write(chunk); });
   return child;
@@ -207,7 +204,7 @@ function attachExitCleanup(children) {
   }
 }
 
-async function findPageTarget(debugPort, timeoutMs = 30_000) {
+async function findPageTarget(debugPort, timeoutMs = 60_000, targetUrl = previewUrl) {
   const deadline = Date.now() + timeoutMs;
   let tabs = [];
   while (Date.now() < deadline) {
@@ -216,10 +213,16 @@ async function findPageTarget(debugPort, timeoutMs = 30_000) {
       tabs = await response.json();
       const page = tabs.find((tab) => tab.type === 'page' && tab.webSocketDebuggerUrl);
       if (page?.webSocketDebuggerUrl) return page.webSocketDebuggerUrl;
+      if (targetUrl) {
+        await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(targetUrl)}`, {
+          method: 'PUT',
+          signal: AbortSignal.timeout(2000)
+        });
+      }
     } catch {
       // Retry until DevTools finishes publishing targets.
     }
-    await wait(250);
+    await wait(500);
   }
   throw new Error(`Could not find Chromium page target: ${JSON.stringify(tabs)}`);
 }
@@ -443,12 +446,15 @@ async function runDxfLoadSmoke(cdp) {
     const failures = [];
     const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const text = () => document.body.innerText;
-    const input = (() => {
+    const hasVisibleEntityCount = (expected) => Array.from(document.querySelectorAll('span')).some((node) => (node.textContent || '').trim() === 'Aktuelle Elemente: ' + expected);
+    const findFileInput = (label) => Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
+      node.closest('label')?.textContent?.includes(label)
+    );
+    let input = findFileInput('DXF laden');
+    if (!input) {
       Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.includes('Datei'))?.click();
-      return Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
-        node.closest('label')?.textContent?.includes('DXF laden')
-      );
-    })();
+      input = findFileInput('DXF laden');
+    }
     if (!input) {
       failures.push('Missing DXF laden file input');
       return { ok: false, failures };
@@ -465,16 +471,16 @@ async function runDxfLoadSmoke(cdp) {
       while (performance.now() < deadline) {
         await afterFrame();
         lastText = text();
-        if (lastText.includes('DXF geladen: 2 importiert, 0 übersprungen') && lastText.includes('Aktuelle Elemente: 2')) return lastText;
+        if (lastText.includes('DXF geladen: 2 importiert, 0 übersprungen') && hasVisibleEntityCount(2)) return lastText;
       }
       return lastText;
     };
     const settledText = await waitForDxfImportStatus();
     if (!settledText.includes('DXF geladen: 2 importiert, 0 übersprungen')) failures.push('DXF import status did not report 2 imported / 0 skipped');
     if (!settledText.includes('DXF units: millimeters ($INSUNITS=4).')) failures.push('DXF import status did not report millimeter INSUNITS handling');
-    if (!settledText.includes('Aktuelle Elemente: 2')) failures.push('DXF import did not show expected entity count');
+    if (!hasVisibleEntityCount(2)) failures.push('DXF import did not show expected entity count');
     if (!settledText.includes('Auswahl: edge_')) failures.push('DXF import did not select the first imported line');
-    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 2') };
+    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: hasVisibleEntityCount(2) };
   })()`);
   if (!result?.ok) throw new Error(`DXF load smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
   return result;
@@ -486,12 +492,15 @@ async function runStlReferenceLoadSmoke(cdp) {
     const failures = [];
     const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const text = () => document.body.innerText;
-    const input = (() => {
+    const hasVisibleEntityCount = (expected) => Array.from(document.querySelectorAll('span')).some((node) => (node.textContent || '').trim() === 'Aktuelle Elemente: ' + expected);
+    const findFileInput = (label) => Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
+      node.closest('label')?.textContent?.includes(label)
+    );
+    let input = findFileInput('STL-Referenz laden');
+    if (!input) {
       Array.from(document.querySelectorAll('button')).find((node) => node.textContent?.includes('Datei'))?.click();
-      return Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
-        node.closest('label')?.textContent?.includes('STL-Referenz laden')
-      );
-    })();
+      input = findFileInput('STL-Referenz laden');
+    }
     if (!input) {
       failures.push('Missing STL-Referenz laden file input');
       return { ok: false, failures };
@@ -524,18 +533,18 @@ endsolid reference_part
       while (performance.now() < deadline) {
         await afterFrame();
         lastText = text();
-        if (lastText.includes('STL-Referenzmesh geladen: 2 Dreiecke') && lastText.includes('Aktuelle Elemente: 3')) return lastText;
+        if (lastText.includes('STL-Referenzmesh geladen: 2 Dreiecke') && hasVisibleEntityCount(3)) return lastText;
       }
       return lastText;
     };
     const settledText = await waitForStlImportStatus();
     if (!settledText.includes('STL-Referenzmesh geladen: 2 Dreiecke')) failures.push('STL reference import status did not report 2 triangles');
     if (!settledText.includes('nicht als editierbarer Körper importiert')) failures.push('STL reference import did not state non-editable body boundary');
-    if (!settledText.includes('Aktuelle Elemente: 3')) failures.push('STL reference import did not append an entity to the model');
+    if (!hasVisibleEntityCount(3)) failures.push('STL reference import did not append an entity to the model');
     if (!settledText.includes('Auswahl: mesh_')) failures.push('STL reference import did not select the mesh entity');
     if (!settledText.includes('STL-Referenzmesh')) failures.push('Inspector did not show STL reference mesh title');
     if (!settledText.includes('Dreiecke') || !settledText.includes('2')) failures.push('Inspector did not show triangle count');
-    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 3') };
+    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: hasVisibleEntityCount(3) };
   })()`);
   if (!result?.ok) throw new Error(`STL reference load smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
   return result;
@@ -543,7 +552,8 @@ endsolid reference_part
 
 async function main() {
   const preview = startProcess('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(previewPort), '--strictPort']);
-  const chromiumDataDir = await mkdtemp(path.join(tmpdir(), 'hermes-cad-smoke-chrome-'));
+  await mkdir(browserProfileRoot, { recursive: true });
+  const chromiumDataDir = await mkdtemp(path.join(browserProfileRoot, 'hermes-cad-smoke-chromium-'));
   let chromium;
   let protocol;
   attachExitCleanup([preview]);
@@ -556,27 +566,17 @@ async function main() {
       `--remote-debugging-address=127.0.0.1`,
       `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${chromiumDataDir}`,
-      '--enable-unsafe-swiftshader',
-      '--use-angle=swiftshader-webgl',
       '--disable-gpu',
       '--password-store=basic',
       '--no-sandbox',
-      '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-component-update',
-      '--disable-domain-reliability',
-      '--disable-sync',
-      '--no-first-run',
-      '--no-default-browser-check',
       previewUrl
-    ]);
+    ], { detached: false });
     attachExitCleanup([chromium]);
-    await waitForHttp(`http://127.0.0.1:${debugPort}/json/version`, 30_000, () => chromium.exitCode === null && chromium.signalCode === null);
+    const pageTarget = await findPageTarget(debugPort);
 
-    protocol = await openProtocolSocket(await findPageTarget(debugPort));
+    protocol = await openProtocolSocket(pageTarget);
     await protocol.send('Runtime.enable');
-    await protocol.send('Log.enable');
-    await protocol.send('Network.enable');
     await protocol.send('Page.enable');
     await protocol.send('DOM.enable');
     await setViewport(protocol, { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });

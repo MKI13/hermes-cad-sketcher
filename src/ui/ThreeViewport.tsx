@@ -15,7 +15,7 @@ import {
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createWorkspaceGrid, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -40,7 +40,6 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const [cursorPosition, setCursorPosition] = useState({ x: 28, y: 28 });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
-  const cursorBadge = cursorBadgeForTool(activeTool);
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
       ? 'WebGL konnte in diesem Browser nicht gestartet werden.'

@@ -14,7 +14,7 @@
 
 - `npm run check`: passed — 32 test files, 206 tests, production build successful.
 - Dev app reachability: `http://127.0.0.1:5173/` and `http://192.168.178.21:5173/` both returned HTTP 200.
-- `npm run smoke:browser`: blocked because `/snap/bin/chromium` does not exist and no `chromium`, `google-chrome`, or `brave-browser` command was found.
+- `npm run smoke:browser`: originally blocked by `/snap/bin/chromium`; current decision is Brave/Chromium only, with `/snap/bin/brave` available on this machine.
 - Temporary audit probes confirmed several behavior gaps; the temporary probe file was removed afterward.
 
 ---
@@ -143,9 +143,9 @@
 
 **Risk:** Some UI regressions are not caught by `npm run check`.
 
-**Marios decision:** Smoke script should auto-detect Brave/Chromium/Chrome.
+**Marios decision:** Smoke script should use Brave/Chromium only, not Google Chrome.
 
-**Status:** Partly fixed locally. The script now auto-detects `CHROMIUM_PATH`, Brave, Chromium, Google Chrome, `/snap/bin/brave`, `/snap/bin/chromium`, and common `/usr/bin`/`/opt` paths. It also has explicit HTTP/CDP timeouts and current UI expectations. This machine has `/snap/bin/brave`, but the Brave Snap CDP run is unstable here, so `npm run smoke:browser` is not yet green. `npm run test` and `npm run build` are green.
+**Status:** Fixed locally. The script now auto-detects `CHROMIUM_PATH`, Brave and Chromium paths, including `/snap/bin/brave`; Google Chrome fallback paths were removed. It uses a disposable browser profile under `SMOKE_BROWSER_TMPDIR` or `/tmp/hermes-cad-smoke-profiles`, waits/retries CDP page-target creation, and avoids Brave-Snap flags that prevented DevTools targets on this machine. During this session, `/tmp` was full from old temporary agent worktrees; after freeing temporary space, the Brave smoke ran green. DXF/STL entity-count checks now read the visible status spans instead of brittle full-page `innerText` matching.
 
 ---
 
@@ -157,7 +157,7 @@
 
 **Recommended intended behavior:** Split planned items into: done, partial/core-only, and still missing UI/advanced geometry.
 
-**Status:** Recommended docs cleanup.
+**Status:** Punkt 11 abgeschlossen. `AGENTS.md` now separates done, partial/core-only, and still missing work: axis-aligned X/Y X/Z Y/Z rectangle extrusion and basic box-face/push-pull foundations are documented as partially implemented with open expansion, while free/rotated face extrusion and advanced box-face pulling remain in planned work.
 
 ---
 
@@ -167,11 +167,9 @@
 
 **Risk:** Confusing tests and future implementation drift.
 
-**Decision options:**
-- Keep helper for future temporary specialty hints but rename/reword tests.
-- Remove symbol helper until needed.
+**Decision:** Remove the symbol helper until a real temporary specialty hint is needed. The viewport should keep only the normal arrow and explicit snap/tool status text.
 
-**Status:** Needs Marios decision, low priority.
+**Status:** Fixed locally. `cursorBadgeForTool()` and the stale symbol tests were removed; the viewport source now only renders the normal arrow badge and snap cues.
 
 ---
 
