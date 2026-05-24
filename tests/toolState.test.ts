@@ -10,7 +10,7 @@ describe('pure CAD tool state', () => {
 
   it('stores first line point then commits a line command on second point', () => {
     const first = handleGroundClick(createInitialToolState(), 'line', vec(0, 0, 0));
-    expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 0), tool: 'line' });
+    expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 0), tool: 'line', plane: 'xy' });
     expect(first.command).toBeUndefined();
 
     const second = handleGroundClick(first.state, 'line', vec(1000, 0, 0));
@@ -22,8 +22,16 @@ describe('pure CAD tool state', () => {
     const first = handleGroundClick(createInitialToolState(), 'rectangle', vec(500, 700, 0));
     const second = handleGroundClick(first.state, 'rectangle', vec(100, 200, 0));
 
-    expect(second.command).toEqual({ type: 'createRectangle', first: vec(500, 700, 0), second: vec(100, 200, 0) });
+    expect(second.command).toEqual({ type: 'createRectangle', first: vec(500, 700, 0), second: vec(100, 200, 0), plane: 'xy' });
     expect(second.state.mode).toBe('idle');
+  });
+
+  it('keeps the chosen vertical plane with a pending rectangle command', () => {
+    const first = handleGroundClick(createInitialToolState(), 'rectangle', vec(0, 0, 50), undefined, 'xz');
+    const second = handleGroundClick(first.state, 'rectangle', vec(600, 0, 450), undefined, 'xz');
+
+    expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 50), tool: 'rectangle', plane: 'xz' });
+    expect(second.command).toEqual({ type: 'createRectangle', first: vec(0, 0, 50), second: vec(600, 0, 450), plane: 'xz' });
   });
 
   it('commits a starter box immediately on box tool click', () => {
@@ -43,7 +51,7 @@ describe('pure CAD tool state', () => {
     const first = handleGroundClick(createInitialToolState(), 'line', vec(0, 0, 0));
     const switched = handleGroundClick(first.state, 'rectangle', vec(100, 100, 0));
 
-    expect(switched.state).toEqual({ mode: 'drawing', pendingPoint: vec(100, 100, 0), tool: 'rectangle' });
+    expect(switched.state).toEqual({ mode: 'drawing', pendingPoint: vec(100, 100, 0), tool: 'rectangle', plane: 'xy' });
     expect(switched.command).toBeUndefined();
   });
 
@@ -63,7 +71,8 @@ describe('pure CAD tool state', () => {
     expect(getDrawingPreview(first.state, 'rectangle', vec(100, 200, 0))).toEqual({
       type: 'rectanglePreview',
       first: vec(500, 700, 0),
-      second: vec(100, 200, 0)
+      second: vec(100, 200, 0),
+      plane: 'xy'
     });
   });
 
@@ -77,7 +86,7 @@ describe('pure CAD tool state', () => {
 
   it('stores first tape point then commits a distance measurement command on second point', () => {
     const first = handleGroundClick(createInitialToolState(), 'tape', vec(0, 0, 0));
-    expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 0), tool: 'tape' });
+    expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 0), tool: 'tape', plane: 'xy' });
     expect(first.command).toBeUndefined();
 
     const second = handleGroundClick(first.state, 'tape', vec(300, 400, 0));

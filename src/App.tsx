@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bot, Box, Component, Copy, Download, FolderOpen, GripVertical, MessageSquare, Move3D, Play, Redo2, Ruler, RotateCw, Save, Square, Slash, Trash2, Undo2, Upload } from 'lucide-react';
-import { SketchModel, type BoxFaceName, type ToolName } from './core/model';
+import { SketchModel, type BoxFaceName, type DrawingPlane, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
@@ -11,7 +11,7 @@ import { runAgentChatCommand, runCadConsoleScript } from './core/cadCommands';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
-import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS } from './ui/drawingController';
+import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS, parseRectangleDimensionMask, type RectangleDimensionMask } from './ui/drawingController';
 import { SelectedDimensionsPanel, boxDimensionsToInput, parseSelectedBoxDimensions, type DimensionInput } from './ui/SelectedDimensionsPanel';
 import { FaceExtrudePanel, parseExtrudeHeight, validateExtrudableFace } from './ui/FaceExtrudePanel';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
@@ -108,6 +108,9 @@ export default function App() {
   const [liveMeasurement, setLiveMeasurement] = useState<string | undefined>();
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
+  const [drawingPlane, setDrawingPlane] = useState<DrawingPlane>('xy');
+  const [useRectangleDimensionMask, setUseRectangleDimensionMask] = useState(false);
+  const [rectangleDimensionMask, setRectangleDimensionMask] = useState<RectangleDimensionMask>({ width: '1000', depth: '500' });
   const [selectedDimensions, setSelectedDimensions] = useState<DimensionInput>(() => {
     const first = initialModel.allEntities()[0];
     return first?.type === 'box' ? boxDimensionsToInput(first) : boxDimensionsToInput(DEFAULT_BOX_DIMENSIONS);
@@ -134,6 +137,13 @@ export default function App() {
   const selectedMeasurement = selected ? formatEntityMeasurement(selected) : undefined;
   const selectedFaceLabel = selectedBoxFace && selectedBoxFace.entityId === selectedId ? faceSelectionLabel(selectedBoxFace) : faceSelectionLabel();
   const activeMeasurement = formatActiveMeasurement({ draft: liveMeasurement, selected: selectedMeasurement, last: lastMeasurement });
+  const rectangleMaskResult = parseRectangleDimensionMask(rectangleDimensionMask);
+  const activeRectangleDimensions = useRectangleDimensionMask && rectangleMaskResult.ok ? { width: rectangleMaskResult.width, depth: rectangleMaskResult.depth } : undefined;
+  const drawingPlaneLabels: Record<DrawingPlane, string> = {
+    xy: 'Grundfläche rot/grün (X/Y)',
+    xz: 'Vertikal rot/blau (X/Z)',
+    yz: 'Vertikal grün/blau (Y/Z)'
+  };
   const orderedTools = toolbarOrder.map((id) => tools.find((item) => item.id === id)).filter((item): item is (typeof tools)[number] => Boolean(item));
   const shortcutSummaryLabels: Record<ToolName, string> = {
     select: 'Auswahl',
@@ -287,12 +297,12 @@ export default function App() {
     setLiveMeasurement(measurement);
   }
 
-  function createRectangleFromViewport(first: Vec3, second: Vec3) {
-    const draft = createRectangleDraft(first, second);
+  function createRectangleFromViewport(first: Vec3, second: Vec3, plane: DrawingPlane) {
+    const draft = createRectangleDraft(first, second, plane);
     if (!draft.ok) return;
     let measurement: string | undefined;
     mutate((m) => {
-      const entity = m.createRectangle(draft.origin, draft.width, draft.depth);
+      const entity = m.createRectangle(draft.origin, draft.width, draft.depth, {}, draft.plane);
       setSelectedId(entity.id);
       measurement = formatEntityMeasurement(entity);
     });
@@ -849,6 +859,27 @@ export default function App() {
               <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
             </dl>
           </details>
+          <details className="tray-section" open>
+            <summary>Zeichnen &amp; Maße</summary>
+            <label>
+              <span>Zeichenebene</span>
+              <select aria-label="Zeichenebene" value={drawingPlane} onChange={(event) => setDrawingPlane(event.currentTarget.value as DrawingPlane)}>
+                <option value="xy">{drawingPlaneLabels.xy}</option>
+                <option value="xz">{drawingPlaneLabels.xz}</option>
+                <option value="yz">{drawingPlaneLabels.yz}</option>
+              </select>
+            </label>
+            <p>Stufenloses Zeichnen ist aktiv: der Mauspunkt wird nicht mehr auf feste Rasterabstände gerundet.</p>
+            <label>
+              <input type="checkbox" checked={useRectangleDimensionMask} onChange={(event) => setUseRectangleDimensionMask(event.currentTarget.checked)} />
+              genaue Rechteck-Maßmaske verwenden
+            </label>
+            <div className="dimension-grid">
+              <label><span>Breite mm</span><input aria-label="Rechteck Breite mm" value={rectangleDimensionMask.width} onChange={(event) => setRectangleDimensionMask((current) => ({ ...current, width: event.currentTarget.value }))} /></label>
+              <label><span>Tiefe/Höhe mm</span><input aria-label="Rechteck Tiefe oder Höhe mm" value={rectangleDimensionMask.depth} onChange={(event) => setRectangleDimensionMask((current) => ({ ...current, depth: event.currentTarget.value }))} /></label>
+            </div>
+            <small>{useRectangleDimensionMask ? (rectangleMaskResult.ok ? `Aktiv: ${rectangleMaskResult.width} mm × ${rectangleMaskResult.depth} mm, Richtung kommt von der Maus.` : rectangleMaskResult.error) : 'Aus: zweite Mausklick-Position bestimmt die Größe frei.'}</small>
+          </details>
           <details className="tray-section"><summary>Components</summary><p>{model.allComponents().length} Komponenten im Modell.</p></details>
           <details className="tray-section"><summary>Styles</summary><p>Schlichter CAD-Stil mit Achsen, Kanten und millimetersicherem Raster.</p></details>
           <details className="tray-section"><summary>Tags</summary><p>Tag-Verwaltung ist vorbereitet.</p></details>
@@ -1061,6 +1092,8 @@ export default function App() {
             mouseBindings={mouseBindings}
             onMouseBindingAction={handleMouseBindingAction}
             onContextMenuCommand={handleViewportContextMenuCommand}
+            drawingPlane={drawingPlane}
+            rectangleDimensions={activeRectangleDimensions}
           />
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>

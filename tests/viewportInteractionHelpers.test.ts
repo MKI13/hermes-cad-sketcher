@@ -74,15 +74,20 @@ describe('SketchUp-like viewport interaction helpers', () => {
 
     const firstRectangleStep = handleGroundClick(createInitialToolState(), 'rectangle', vec(0, 0, 0));
     expect(formatDraftMeasurement(firstRectangleStep.state, 'rectangle', vec(2400, 900, 0))).toBe('Rechteck: 2400 mm × 900 mm · Fläche 2.16 m²');
+
+    const verticalRectangleStep = handleGroundClick(createInitialToolState(), 'rectangle', vec(0, 0, 100), undefined, 'xz');
+    expect(formatDraftMeasurement(verticalRectangleStep.state, 'rectangle', vec(2400, 0, 1000))).toBe('Rechteck: 2400 mm × 900 mm · Fläche 2.16 m²');
   });
 
   it('shows exact edge length and face area for the bottom-right unit field', () => {
     const model = new SketchModel();
     const edge = model.createLine(vec(0, 0, 0), vec(300, 400, 0));
     const face = model.createRectangle(vec(0, 0, 0), 2400, 900);
+    const verticalFace = model.createRectangle(vec(0, 0, 0), 2400, 900, {}, 'xz');
 
     expect(formatEntityMeasurement(edge)).toBe('Linie: 500 mm');
     expect(formatEntityMeasurement(face)).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
+    expect(formatEntityMeasurement(verticalFace)).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
     expect(formatActiveMeasurement({ hovered: formatEntityMeasurement(face), selected: formatEntityMeasurement(edge), last: 'noch keine Messung' })).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
   });
 

@@ -112,8 +112,8 @@ export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: 
     if (tool === 'line') return `Linie: ${formatMillimeters(distance(state.pendingPoint, point))}`;
     if (tool === 'tape') return `Maßband: ${formatMillimeters(distance(state.pendingPoint, point))}`;
     if (tool === 'rectangle') {
-      const width = Math.abs(point.x - state.pendingPoint.x);
-      const depth = Math.abs(point.y - state.pendingPoint.y);
+      const width = Math.abs(state.plane === 'yz' ? point.y - state.pendingPoint.y : point.x - state.pendingPoint.x);
+      const depth = Math.abs(state.plane === 'xy' ? point.y - state.pendingPoint.y : point.z - state.pendingPoint.z);
       return `Rechteck: ${formatMillimeters(width)} × ${formatMillimeters(depth)} · Fläche ${formatSquareMeters(width * depth)}`;
     }
   }
@@ -128,9 +128,10 @@ export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: 
 export function formatEntityMeasurement(entity: Entity): string {
   if (entity.type === 'edge') return `Linie: ${formatMillimeters(distance(entity.start, entity.end))}`;
   if (entity.type === 'face') {
-    const box = entityBoundingBox(entity);
     const area = polygonAreaMm2(entity.vertices);
-    return `Fläche: ${formatSquareMeters(area)} · ${formatMillimeters(box.size.x)} × ${formatMillimeters(box.size.y)}`;
+    const width = entity.vertices.length >= 2 ? distance(entity.vertices[0], entity.vertices[1]) : 0;
+    const depth = entity.vertices.length >= 3 ? distance(entity.vertices[1], entity.vertices[2]) : 0;
+    return `Fläche: ${formatSquareMeters(area)} · ${formatMillimeters(width)} × ${formatMillimeters(depth)}`;
   }
   if (entity.type === 'box') {
     return `Körper: ${formatMillimeters(entity.width)} × ${formatMillimeters(entity.depth)} × ${formatMillimeters(entity.height)}`;
@@ -241,13 +242,17 @@ function createAxisLine(axis: string, points: [THREE.Vector3, THREE.Vector3], co
 
 function polygonAreaMm2(vertices: Vec3[]): number {
   if (vertices.length < 3) return 0;
-  let sum = 0;
+  let areaVector = vec(0, 0, 0);
   for (let index = 0; index < vertices.length; index += 1) {
     const current = vertices[index];
     const next = vertices[(index + 1) % vertices.length];
-    sum += current.x * next.y - next.x * current.y;
+    areaVector = vec(
+      areaVector.x + current.y * next.z - current.z * next.y,
+      areaVector.y + current.z * next.x - current.x * next.z,
+      areaVector.z + current.x * next.y - current.y * next.x
+    );
   }
-  return Math.abs(sum / 2);
+  return Math.sqrt(areaVector.x ** 2 + areaVector.y ** 2 + areaVector.z ** 2) / 2;
 }
 
 function formatSquareMeters(squareMillimeters: number): string {

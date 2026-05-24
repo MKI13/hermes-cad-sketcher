@@ -23,6 +23,15 @@ describe('SketchModel geometry tools', () => {
     expect(face.vertices).toEqual([vec(500, 700, 0), vec(100, 700, 0), vec(100, 200, 0), vec(500, 200, 0)]);
   });
 
+  it('creates vertical rectangle faces on red-blue and green-blue drawing planes', () => {
+    const model = new SketchModel();
+    const redBlue = model.createRectangle(vec(10, 20, 30), 500, 200, {}, 'xz');
+    const greenBlue = model.createRectangle(vec(10, 20, 30), -250, 300, {}, 'yz');
+
+    expect(redBlue.vertices).toEqual([vec(10, 20, 30), vec(510, 20, 30), vec(510, 20, 230), vec(10, 20, 230)]);
+    expect(greenBlue.vertices).toEqual([vec(10, 20, 30), vec(10, -230, 30), vec(10, -230, 330), vec(10, 20, 330)]);
+  });
+
   it('extrudes an axis-aligned rectangle face into a box and removes the source face', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1000, 500);

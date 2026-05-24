@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
-import { type SketchModel, type ToolName } from '../core/model';
+import { type DrawingPlane, type SketchModel, type ToolName } from '../core/model';
 import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick, type ToolCommand, type ToolPreview, type ToolState } from '../core/toolState';
+import { secondPointForRectangleDimensions, type RectangleDimensions } from './drawingController';
 import {
   applyOrbitToCamera,
   createModelGroup,
@@ -10,11 +11,11 @@ import {
   disposeObjectTree,
   getEntityIdFromObject,
   orbitCameraDrag,
-  screenPointToGround,
+  screenPointToDrawingPlane,
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createWorkspaceGrid, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createWorkspaceGrid, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -22,7 +23,7 @@ type ThreeViewportProps = {
   selectedId?: string;
   onSelect?: (entityId: string | undefined, faceSelection?: FaceSelection) => void;
   onCreateLine?: (start: Vec3, end: Vec3) => void;
-  onCreateRectangle?: (first: Vec3, second: Vec3) => void;
+  onCreateRectangle?: (first: Vec3, second: Vec3, plane: DrawingPlane) => void;
   onCreateBox?: (origin: Vec3) => void;
   onMeasure?: (start: Vec3, end: Vec3) => void;
   onMove?: (entityId: string, delta: Vec3) => void;
@@ -30,9 +31,11 @@ type ThreeViewportProps = {
   mouseBindings?: MouseBindings;
   onMouseBindingAction?: (action: MouseAction) => void;
   onContextMenuCommand?: (command: ViewportContextMenuCommand) => void;
+  drawingPlane?: DrawingPlane;
+  rectangleDimensions?: RectangleDimensions;
 };
 
-export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 28, y: 28 });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
@@ -57,6 +60,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const mouseBindingsRef = useRef<MouseBindings>({});
   const onMouseBindingActionRef = useRef(onMouseBindingAction);
   const onContextMenuCommandRef = useRef(onContextMenuCommand);
+  const drawingPlaneRef = useRef<DrawingPlane>(drawingPlane);
+  const rectangleDimensionsRef = useRef<RectangleDimensions | undefined>(rectangleDimensions);
   activeToolRef.current = activeTool;
   selectedIdRef.current = selectedId;
   onSelectRef.current = onSelect;
@@ -69,6 +74,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   mouseBindingsRef.current = (mouseBindings ?? {}) as MouseBindings;
   onMouseBindingActionRef.current = onMouseBindingAction;
   onContextMenuCommandRef.current = onContextMenuCommand;
+  drawingPlaneRef.current = drawingPlane;
+  rectangleDimensionsRef.current = rectangleDimensions;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -124,7 +131,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const executeCommand = (command?: ToolCommand) => {
       if (!command) return;
       if (command.type === 'createLine') onCreateLineRef.current?.(command.start, command.end);
-      if (command.type === 'createRectangle') onCreateRectangleRef.current?.(command.first, command.second);
+      if (command.type === 'createRectangle') onCreateRectangleRef.current?.(command.first, command.second, command.plane);
       if (command.type === 'createBox') onCreateBoxRef.current?.(command.origin);
       if (command.type === 'measureDistance') onMeasureRef.current?.(command.start, command.end);
       if (command.type === 'moveEntity') onMoveRef.current?.(command.entityId, command.delta);
@@ -132,12 +139,17 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const toPreviewVector = (point: Vec3) => new THREE.Vector3(point.x, point.z + 3, point.y);
 
-    const rectanglePreviewCorners = (first: Vec3, second: Vec3): Vec3[] => [
-      first,
-      { x: second.x, y: first.y, z: first.z },
-      second,
-      { x: first.x, y: second.y, z: second.z }
-    ];
+    const rectanglePreviewCorners = (first: Vec3, second: Vec3, plane: DrawingPlane): Vec3[] => {
+      if (plane === 'xz') return [first, { x: second.x, y: first.y, z: first.z }, second, { x: first.x, y: first.y, z: second.z }];
+      if (plane === 'yz') return [first, { x: first.x, y: second.y, z: first.z }, second, { x: first.x, y: first.y, z: second.z }];
+      return [first, { x: second.x, y: first.y, z: first.z }, second, { x: first.x, y: second.y, z: second.z }];
+    };
+
+    const previewColor = (plane: DrawingPlane) => {
+      if (plane === 'xz') return 0xdc2626;
+      if (plane === 'yz') return 0x2563eb;
+      return 0x16a34a;
+    };
 
     const createPreviewObject = (preview: ToolPreview): THREE.Object3D => {
       if (preview.type === 'linePreview') {
@@ -145,14 +157,15 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9 }));
       }
 
-      const corners = rectanglePreviewCorners(preview.first, preview.second);
+      const corners = rectanglePreviewCorners(preview.first, preview.second, preview.plane);
+      const color = previewColor(preview.plane);
       const group = new THREE.Group();
       group.name = 'drawing-preview';
       const fillGeometry = new THREE.BufferGeometry().setFromPoints([toPreviewVector(corners[0]), toPreviewVector(corners[1]), toPreviewVector(corners[2]), toPreviewVector(corners[0]), toPreviewVector(corners[2]), toPreviewVector(corners[3])]);
       fillGeometry.setIndex([0, 1, 2, 3, 4, 5]);
-      group.add(new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({ color: 0x2563eb, side: THREE.DoubleSide, transparent: true, opacity: 0.16 })));
+      group.add(new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.16 })));
       const outlineGeometry = new THREE.BufferGeometry().setFromPoints([...corners.map(toPreviewVector), toPreviewVector(corners[0])]);
-      group.add(new THREE.Line(outlineGeometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.95 })));
+      group.add(new THREE.Line(outlineGeometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 })));
       return group;
     };
 
@@ -172,9 +185,17 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       previewObject = undefined;
     };
 
+    const rectangleAwarePoint = (point: Vec3): Vec3 => {
+      const dimensions = rectangleDimensionsRef.current;
+      const state = toolStateRef.current;
+      if (!dimensions || activeToolRef.current !== 'rectangle' || state.mode !== 'drawing' || state.tool !== 'rectangle') return point;
+      return secondPointForRectangleDimensions(state.pendingPoint, point, dimensions, state.plane);
+    };
+
     const updateDrawingPreview = (groundPoint?: Vec3) => {
       clearDrawingPreview();
-      const preview = groundPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
+      const preview = previewPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       if (preview) {
         previewObject = createPreviewObject(preview);
         scene.add(previewObject);
@@ -183,7 +204,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const updateMeasurementPreview = (groundPoint?: Vec3) => {
-      const draft = groundPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
+      const draft = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       if (draft) {
         onMeasurementPreviewRef.current?.(draft);
         return;
@@ -214,12 +236,12 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const performActiveToolAction = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      const rawGroundPoint = screenPointToGround(
+      const rawGroundPoint = screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
-        50
+        drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? snapPointToModel(rawGroundPoint, model).point : undefined;
+      const groundPoint = rawGroundPoint ? rectangleAwarePoint(rawGroundPoint) : undefined;
       const usesGroundPoint =
         activeToolRef.current === 'line' ||
         activeToolRef.current === 'rectangle' ||
@@ -227,7 +249,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         activeToolRef.current === 'tape' ||
         (activeToolRef.current === 'move' && selectedIdRef.current !== undefined);
       if (groundPoint && usesGroundPoint) {
-        const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current);
+        const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current, drawingPlaneRef.current);
         toolStateRef.current = step.state;
         executeCommand(step.command);
         updateDrawingPreview(groundPoint);
@@ -281,26 +303,27 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return;
       }
 
-      const rawGroundPoint = screenPointToGround(
+      const rawGroundPoint = screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
-        50
+        drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? snapPointToModel(rawGroundPoint, model).point : undefined;
+      const groundPoint = rawGroundPoint;
       updateDrawingPreview(groundPoint);
-      const draftMeasurement = groundPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
+      const draftMeasurement = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       onMeasurementPreviewRef.current?.(draftMeasurement ?? (activeToolRef.current === 'tape' ? pickMeasurementAtPointer(event) : undefined));
     };
 
     const wheel = (event: WheelEvent) => {
       if (resolveWheelAction(mouseBindingsRef.current) !== 'zoom') return;
       const rect = renderer.domElement.getBoundingClientRect();
-      const rawGroundPoint = screenPointToGround(
+      const rawGroundPoint = screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
-        50
+        drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? snapPointToModel(rawGroundPoint, model).point : undefined;
+      const groundPoint = rawGroundPoint;
       if (!groundPoint) return;
       event.preventDefault();
       orbitRef.current = zoomOrbitTowardPoint(orbitRef.current, groundPoint, event.deltaY);

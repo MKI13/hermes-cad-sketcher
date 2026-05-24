@@ -35,6 +35,7 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 
 export type EntityId = string;
 export type ComponentId = string;
+export type DrawingPlane = 'xy' | 'xz' | 'yz';
 
 type CadMetadata = { layer?: string };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
@@ -120,9 +121,9 @@ export class SketchModel {
     return entity;
   }
 
-  createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}): FaceEntity {
+  createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}, plane: DrawingPlane = 'xy'): FaceEntity {
     if (!isPositiveFinite(Math.abs(width)) || !isPositiveFinite(Math.abs(depth))) throw new Error('Ein Rechteck braucht eine Breite und Tiefe ungleich null.');
-    const vertices = [origin, add(origin, vec(width, 0, 0)), add(origin, vec(width, depth, 0)), add(origin, vec(0, depth, 0))];
+    const vertices = rectangleVertices(origin, width, depth, plane);
     const entity: FaceEntity = { id: nextId('face'), type: 'face', vertices, ...metadata };
     this.entities.set(entity.id, entity);
     return entity;
@@ -315,6 +316,16 @@ function pushPullBoxFaceSnapshot(entity: BoxEntity, face: BoxFaceName, delta: nu
   }
   assertPositiveBoxDimensions(next.width, next.depth, next.height);
   return next;
+}
+
+function rectangleVertices(origin: Vec3, width: number, depth: number, plane: DrawingPlane): Vec3[] {
+  if (plane === 'xz') {
+    return [origin, add(origin, vec(width, 0, 0)), add(origin, vec(width, 0, depth)), add(origin, vec(0, 0, depth))];
+  }
+  if (plane === 'yz') {
+    return [origin, add(origin, vec(0, width, 0)), add(origin, vec(0, width, depth)), add(origin, vec(0, 0, depth))];
+  }
+  return [origin, add(origin, vec(width, 0, 0)), add(origin, vec(width, depth, 0)), add(origin, vec(0, depth, 0))];
 }
 
 function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Vec3, Vec3] {

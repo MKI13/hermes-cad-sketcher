@@ -57,6 +57,9 @@ Vorhanden im Code:
 - Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
 - normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
 - Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben: positive Richtungen durchgezogen, negative Richtungen gestrichelt
+- stufenloses Zeichnen ohne automatische Raster-Rundung; Fang-/Rasterlogik darf den ersten Klick und den Mausendpunkt nicht ungefragt verschieben
+- Zeichenebenen für Grundfläche X/Y, vertikale rot-blaue X/Z-Fläche und vertikale grün-blaue Y/Z-Fläche
+- rechte Default-Tray-Maßmaske für exakte Rechteckmaße: Breite und Tiefe/Höhe in mm eingeben, Richtung wird vor der Bestätigung über die Maus gewählt
 - Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²
 - AI-Chat als eigenes Fenster, standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert
 - Zeichnen direkt auf dem Millimeter-Raster:
@@ -97,7 +100,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 
 1. Werkzeug `Linie`, `Quadrat/Rechteck` oder `Körper` wählen.
 2. Im Viewport auf das Raster klicken.
-3. Bei Linie/Rechteck den zweiten Punkt klicken; beim Rechteck bleibt die zuerst geklickte Ecke exakt an ihrer Position und die Fläche wächst nur zur zweiten Ecke. Bei Körper reicht ein Punkt.
+3. Bei Linie/Rechteck den zweiten Punkt klicken; beim Rechteck bleibt die zuerst geklickte Ecke exakt an ihrer Position und die Fläche wächst nur zur zweiten Ecke. Über die rechte Default Tray kann die Zeichenebene X/Y, X/Z oder Y/Z und optional eine genaue Maßmaske gesetzt werden. Bei Körper reicht ein Punkt.
 4. Für Körper vorher optional Breite, Tiefe und Höhe im Box-Dimensionspanel einstellen.
 
 ### Auswählen und Bearbeiten
