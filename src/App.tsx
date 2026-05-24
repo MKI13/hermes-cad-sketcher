@@ -25,8 +25,11 @@ import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, typ
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection } from './ui/viewportInteractionHelpers';
-import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
+
+const LazyThreeViewport = React.lazy(() =>
+  import('./ui/ThreeViewport').then((module) => ({ default: module.ThreeViewport }))
+);
 
 const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
   { id: 'select', label: 'Auswahl', icon: <Component size={18} /> },
@@ -855,18 +858,20 @@ export default function App() {
       </aside>
       <section className="workspace">
         <div className="viewport-placeholder">
-          <ThreeViewport
-            model={model}
-            activeTool={tool}
-            selectedId={selectedId}
-            onSelect={handleViewportSelect}
-            onCreateLine={createLineFromViewport}
-            onCreateRectangle={createRectangleFromViewport}
-            onCreateBox={createBoxFromViewport}
-            onMeasure={measureFromViewport}
-            onMove={moveFromViewport}
-            onMeasurementPreview={setLiveMeasurement}
-          />
+          <React.Suspense fallback={<div className="viewport-loading" aria-live="polite">3D-Viewport wird geladen …</div>}>
+            <LazyThreeViewport
+              model={model}
+              activeTool={tool}
+              selectedId={selectedId}
+              onSelect={handleViewportSelect}
+              onCreateLine={createLineFromViewport}
+              onCreateRectangle={createRectangleFromViewport}
+              onCreateBox={createBoxFromViewport}
+              onMeasure={measureFromViewport}
+              onMove={moveFromViewport}
+              onMeasurementPreview={setLiveMeasurement}
+            />
+          </React.Suspense>
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>
             <span>Mausrad: Zoom auf den Punkt unter der Maus.</span>
