@@ -61,7 +61,7 @@ Vorhanden im Code:
 - AI-Chat als eigenes Fenster, standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert
 - Zeichnen direkt auf dem Millimeter-Raster:
   - Linie über zwei Klicks
-  - Rechteck über zwei Klicks
+  - Rechteck über zwei Klicks; der erste Klick bleibt millimetergenau als Anker-Ecke erhalten, auch wenn die zweite Ecke Richtung negativer roter/grüner Achse liegt
   - Box über einen Klick mit einstellbaren Standardmaßen
 - Live-Vorschau beim Zeichnen von Linien und Rechtecken
 - Verschieben per Maus über Start-/Zielpunkt
@@ -97,7 +97,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 
 1. Werkzeug `Linie`, `Quadrat/Rechteck` oder `Körper` wählen.
 2. Im Viewport auf das Raster klicken.
-3. Bei Linie/Rechteck den zweiten Punkt klicken; bei Körper reicht ein Punkt.
+3. Bei Linie/Rechteck den zweiten Punkt klicken; beim Rechteck bleibt die zuerst geklickte Ecke exakt an ihrer Position und die Fläche wächst nur zur zweiten Ecke. Bei Körper reicht ein Punkt.
 4. Für Körper vorher optional Breite, Tiefe und Höhe im Box-Dimensionspanel einstellen.
 
 ### Auswählen und Bearbeiten

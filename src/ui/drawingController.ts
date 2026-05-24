@@ -42,14 +42,12 @@ export function createLineDraft(start: Vec3, end: Vec3): DrawingDraftResult<Line
 }
 
 export function createRectangleDraft(first: Vec3, second: Vec3): DrawingDraftResult<RectangleDraft> {
-  const minX = Math.min(first.x, second.x);
-  const minY = Math.min(first.y, second.y);
-  const width = Math.abs(second.x - first.x);
-  const depth = Math.abs(second.y - first.y);
-  if (width <= 0 || depth <= 0) {
+  const width = second.x - first.x;
+  const depth = second.y - first.y;
+  if (!Number.isFinite(width) || !Number.isFinite(depth) || width === 0 || depth === 0) {
     return { ok: false, error: 'Ein Rechteck braucht positive Breite und Tiefe.' };
   }
-  return { ok: true, origin: vec(minX, minY, 0), width, depth };
+  return { ok: true, origin: cloneVec(first), width, depth };
 }
 
 export function createBoxDraft(

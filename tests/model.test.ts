@@ -16,6 +16,13 @@ describe('SketchModel geometry tools', () => {
     expect(face.vertices).toEqual([vec(10, 20, 0), vec(1010, 20, 0), vec(1010, 520, 0), vec(10, 520, 0)]);
   });
 
+  it('keeps the first rectangle corner fixed when width or depth points back toward an axis', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(500, 700, 0), -400, -500);
+
+    expect(face.vertices).toEqual([vec(500, 700, 0), vec(100, 700, 0), vec(100, 200, 0), vec(500, 200, 0)]);
+  });
+
   it('extrudes an axis-aligned rectangle face into a box and removes the source face', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1000, 500);

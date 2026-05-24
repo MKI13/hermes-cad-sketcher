@@ -121,7 +121,7 @@ export class SketchModel {
   }
 
   createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}): FaceEntity {
-    if (width <= 0 || depth <= 0) throw new Error('Ein Rechteck braucht positive Breite und Tiefe.');
+    if (!isPositiveFinite(Math.abs(width)) || !isPositiveFinite(Math.abs(depth))) throw new Error('Ein Rechteck braucht eine Breite und Tiefe ungleich null.');
     const vertices = [origin, add(origin, vec(width, 0, 0)), add(origin, vec(width, depth, 0)), add(origin, vec(0, depth, 0))];
     const entity: FaceEntity = { id: nextId('face'), type: 'face', vertices, ...metadata };
     this.entities.set(entity.id, entity);

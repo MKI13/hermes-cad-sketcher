@@ -24,14 +24,14 @@ describe('drawing controller geometry helpers', () => {
     if (!result.ok) expect(result.error).toContain('zwei verschiedene Punkte');
   });
 
-  it('creates a positive rectangle draft from diagonal points independent of drag direction', () => {
+  it('keeps the first rectangle point as the exact anchor even when drawing toward negative axes', () => {
     const result = createRectangleDraft(vec(500, 700, 0), vec(100, 200, 0));
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.origin).toEqual(vec(100, 200, 0));
-      expect(result.width).toBe(400);
-      expect(result.depth).toBe(500);
+      expect(result.origin).toEqual(vec(500, 700, 0));
+      expect(result.width).toBe(-400);
+      expect(result.depth).toBe(-500);
     }
   });
 
