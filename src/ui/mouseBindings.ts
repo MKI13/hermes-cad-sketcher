@@ -24,7 +24,7 @@ export type MouseToolAction =
   | 'tool:pushPull'
   | 'tool:rotate'
   | 'tool:tape';
-export type MouseAction = 'none' | 'toolAction' | 'orbit' | 'zoom' | MouseToolAction | 'undo' | 'redo' | 'delete';
+export type MouseAction = 'none' | 'toolAction' | 'contextMenu' | 'orbit' | 'zoom' | MouseToolAction | 'undo' | 'redo' | 'delete';
 export type MouseBindings = Partial<Record<MouseInputId, MouseAction>>;
 
 export type MouseInputOption = Readonly<{
@@ -54,6 +54,7 @@ const MOUSE_INPUT_ID_SET = new Set<MouseInputId>(MOUSE_INPUTS.map((input) => inp
 const ACTIONS: MouseAction[] = [
   'none',
   'toolAction',
+  'contextMenu',
   'orbit',
   'zoom',
   'tool:select',
@@ -100,6 +101,7 @@ export function mouseActionLabel(action: MouseAction): string {
   const labels: Record<MouseAction, string> = {
     none: 'Keine Aktion',
     toolAction: 'Standardaktion des aktiven Werkzeugs',
+    contextMenu: 'Arbeitsflächen-Kontextmenü',
     orbit: 'Ansicht drehen',
     zoom: 'Zoom',
     'tool:select': 'Werkzeug Auswahl wählen',
@@ -132,7 +134,8 @@ export function toolFromMouseAction(action: MouseAction): ToolName | undefined {
 
 function defaultActionForInput(input: MouseInputId): MouseAction {
   if (input === 'button:0') return 'toolAction';
-  if (input === 'button:2') return 'orbit';
+  if (input === 'button:1') return 'orbit';
+  if (input === 'button:2') return 'contextMenu';
   if (input === 'wheel') return 'zoom';
   return 'none';
 }

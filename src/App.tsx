@@ -25,7 +25,7 @@ import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type Work
 import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, type WorkbenchMenu } from './ui/workbenchLayout';
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
-import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection } from './ui/viewportInteractionHelpers';
+import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand } from './ui/viewportInteractionHelpers';
 import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
 
@@ -84,14 +84,12 @@ function loadMouseBindings(): Record<MouseInputId, MouseAction> {
   }
 }
 
+export function createInitialSketchModel(): SketchModel {
+  return new SketchModel();
+}
+
 export default function App() {
-  const [initialModel] = useState(() => {
-    const m = new SketchModel();
-    const box = m.createBox(vec(0, 0, 0), 2400, 900, 720);
-    const line = m.createLine(vec(0, -300, 0), vec(2400, -300, 0));
-    m.createComponent('Beispiel-Komponente Tischkörper', [box.id, line.id]);
-    return m;
-  });
+  const [initialModel] = useState(createInitialSketchModel);
   const [model, setModel] = useState(initialModel);
   const [history, setHistory] = useState<ModelHistory>(() => createHistory(initialModel.snapshot()));
   const [tool, setTool] = useState<ToolName>('select');
@@ -147,9 +145,9 @@ export default function App() {
     <details className="mouse-bindings-panel" aria-label="Mausbelegung pro Nutzer" data-mouse-bindings={summarizeMouseBindings(mouseBindings)}>
       <summary>
         <strong>Mausbelegung pro Nutzer</strong>
-        <span>Standard: links Werkzeug, rechts Ansicht, Rad Zoom</span>
+        <span>Standard: links Werkzeug, mittlere Taste Ansicht, Rechtsklick Kontextmenü, Rad Zoom</span>
       </summary>
-      <p>Standard: Linke Taste nutzt das aktive Werkzeug, rechte Taste dreht die Ansicht, Mausrad zoomt. Zusatzbuttons, zum Beispiel bei der Logitech G604, kann jeder Nutzer selbst belegen.</p>
+      <p>Standard: Linke Taste nutzt das aktive Werkzeug, mittlere Taste dreht die Ansicht, Rechtsklick öffnet das Arbeitsflächen-Kontextmenü, Mausrad zoomt. Zusatzbuttons, zum Beispiel bei der Logitech G604, kann jeder Nutzer selbst belegen.</p>
       <div className="mouse-bindings-grid">
         {MOUSE_INPUTS.map((input) => (
           <label key={input.id}>
@@ -453,6 +451,15 @@ export default function App() {
       return;
     }
     if (action === 'delete') deleteSelectedEntity();
+  }
+
+  function handleViewportContextMenuCommand(command: ViewportContextMenuCommand) {
+    if (command.type === 'mouseAction') {
+      handleMouseBindingAction(command.action);
+      return;
+    }
+    openFloatingWindow(command.windowId);
+    setProjectStatus(`Fenster geöffnet: ${floatingWindowTitle(command.windowId)}`);
   }
 
   function defaultFloatingWindow(id: FloatingWindowId): FloatingWindowState {
@@ -940,10 +947,11 @@ export default function App() {
             onMeasurementPreview={setLiveMeasurement}
             mouseBindings={mouseBindings}
             onMouseBindingAction={handleMouseBindingAction}
+            onContextMenuCommand={handleViewportContextMenuCommand}
           />
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>
-            <span>Mausbelegung pro Nutzer: links Werkzeugaktion, rechts Ansicht drehen, Rad Zoom; Zusatzbuttons sind frei belegbar.</span>
+            <span>Mausbelegung pro Nutzer: links Werkzeugaktion, mittlere Taste Ansicht drehen, Rechtsklick öffnet das Arbeitsflächen-Kontextmenü, Rad Zoom; Zusatzbuttons sind frei belegbar.</span>
             <span>Linie/Rechteck/Maßband: zwei Klicks auf das Raster.</span>
             <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
             <span>Körper: ein Klick auf das Raster.</span>

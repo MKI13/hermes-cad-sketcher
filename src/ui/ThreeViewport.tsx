@@ -14,7 +14,7 @@ import {
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapPointToModel, zoomOrbitTowardPoint, type FaceSelection } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createWorkspaceGrid, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -29,11 +29,13 @@ type ThreeViewportProps = {
   onMeasurementPreview?: (message: string | undefined) => void;
   mouseBindings?: MouseBindings;
   onMouseBindingAction?: (action: MouseAction) => void;
+  onContextMenuCommand?: (command: ViewportContextMenuCommand) => void;
 };
 
-export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 28, y: 28 });
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
   const cursorBadge = cursorBadgeForTool(activeTool);
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
@@ -54,6 +56,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const onMeasurementPreviewRef = useRef(onMeasurementPreview);
   const mouseBindingsRef = useRef<MouseBindings>({});
   const onMouseBindingActionRef = useRef(onMouseBindingAction);
+  const onContextMenuCommandRef = useRef(onContextMenuCommand);
   activeToolRef.current = activeTool;
   selectedIdRef.current = selectedId;
   onSelectRef.current = onSelect;
@@ -65,6 +68,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   onMeasurementPreviewRef.current = onMeasurementPreview;
   mouseBindingsRef.current = (mouseBindings ?? {}) as MouseBindings;
   onMouseBindingActionRef.current = onMouseBindingAction;
+  onContextMenuCommandRef.current = onContextMenuCommand;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -91,9 +95,9 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     sun.position.set(3000, 5000, 2500);
     scene.add(sun);
 
-    const grid = new THREE.GridHelper(6000, 60, 0x64748b, 0xcbd5e1);
+    const grid = createWorkspaceGrid();
     scene.add(grid);
-    const originGuides = createOriginGuideGroup(3200);
+    const originGuides = createOriginGuideGroup(10000);
     scene.add(originGuides);
 
     const modelGroup = createModelGroup(model, selectedId);
@@ -198,6 +202,16 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       return entity ? formatEntityMeasurement(entity) : undefined;
     };
 
+    const pickSelectionAtPointer = (event: PointerEvent | MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(modelGroup.children, true)[0];
+      const entityId = getEntityIdFromObject(hit?.object);
+      return { entityId, faceSelection: getFaceSelectionFromObject(hit?.object) };
+    };
+
     const performActiveToolAction = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       const rawGroundPoint = screenPointToGround(
@@ -223,20 +237,20 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       toolStateRef.current = cancelToolState(toolStateRef.current);
       updateDrawingPreview();
       updateMeasurementPreview();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(modelGroup.children, true)[0];
-      const faceSelection = getFaceSelectionFromObject(hit?.object);
-      onSelectRef.current?.(getEntityIdFromObject(hit?.object), faceSelection);
+      const selection = pickSelectionAtPointer(event);
+      onSelectRef.current?.(selection.entityId, selection.faceSelection);
     };
 
     const pointerDown = (event: PointerEvent) => {
+      if (event.button !== 2) setContextMenu(undefined);
       const action = resolveMouseInputAction(mouseBindingsRef.current, event.button);
       if (action === 'orbit') {
         dragRef.current = { x: event.clientX, y: event.clientY };
         renderer.domElement.setPointerCapture(event.pointerId);
         event.preventDefault();
+        return;
+      }
+      if (action === 'contextMenu') {
         return;
       }
       if (action === 'toolAction') {
@@ -301,10 +315,26 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       }
     };
 
-    const contextMenu = (event: MouseEvent) => event.preventDefault();
+    const contextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      toolStateRef.current = cancelToolState(toolStateRef.current);
+      updateDrawingPreview();
+      onMeasurementPreviewRef.current?.(undefined);
+      const selection = pickSelectionAtPointer(event);
+      const contextSelectedId = selection.entityId ?? selectedIdRef.current;
+      if (selection.entityId) onSelectRef.current?.(selection.entityId, selection.faceSelection);
+      const selectedEntityType = contextSelectedId ? model.getEntity(contextSelectedId)?.type : undefined;
+      const hostRect = host.getBoundingClientRect();
+      setContextMenu({
+        x: Math.max(8, Math.min(event.clientX - hostRect.left, hostRect.width - 230)),
+        y: Math.max(8, Math.min(event.clientY - hostRect.top, hostRect.height - 260)),
+        items: buildViewportContextMenuItems({ selectedEntityType })
+      });
+    };
     const keyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         toolStateRef.current = cancelToolState(toolStateRef.current);
+        setContextMenu(undefined);
         updateDrawingPreview();
         onMeasurementPreviewRef.current?.(undefined);
       }
@@ -339,9 +369,32 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
   }, [model, selectedId]);
 
+  function runContextMenuCommand(command: ViewportContextMenuCommand) {
+    setContextMenu(undefined);
+    if (command.type === 'mouseAction') {
+      onMouseBindingActionRef.current?.(command.action);
+      return;
+    }
+    onContextMenuCommandRef.current?.(command);
+  }
+
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
       {viewportError && <div className="viewport-error"><strong>3D-Viewport nicht verfügbar</strong><span>{viewportError}</span></div>}
+      {contextMenu && (
+        <section
+          className="viewport-context-menu"
+          aria-label="Arbeitsflächen-Kontextmenü"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <strong>Arbeitsfläche bearbeiten</strong>
+          {contextMenu.items.map((item) => (
+            <button key={item.label} type="button" onClick={() => runContextMenuCommand(item.command)}>
+              {item.label}
+            </button>
+          ))}
+        </section>
+      )}
       <div
         className="cursor-tool-badge cursor-arrow-only"
         aria-label="Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol"
@@ -349,7 +402,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       >
         <span className="cursor-arrow">↖</span>
       </div>
-      <div className="viewport-help">3D-Arbeitsfläche: Standardbelegung links = Werkzeugaktion, rechts ziehen = Ansicht drehen, Mausrad = Zoom am Mauspunkt. Zusatzbuttons sind oben in der Mausbelegung konfigurierbar. Escape: Aktion abbrechen.</div>
+      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Escape: Aktion abbrechen.</div>
     </div>
   );
 }

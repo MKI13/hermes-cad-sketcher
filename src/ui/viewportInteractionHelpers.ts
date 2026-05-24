@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { distance, type Vec3, vec } from '../core/geometry';
 import { entityBoundingBox, formatMillimeters, type BoxFaceName, type Entity, type EntityId, type SketchModel, type ToolName } from '../core/model';
 import { type ToolState } from '../core/toolState';
+import { type MouseAction } from './mouseBindings';
 import { type OrbitCameraState } from './viewportController';
+import { type FloatingWindowId } from './workspaceMenuRouting';
 
 const MIN_ZOOM_RADIUS = 150;
 const MAX_ZOOM_RADIUS = 100000;
@@ -18,6 +20,43 @@ export type SnapPointKind = 'endpoint' | 'midpoint';
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
 export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: SnapPointKind })>;
 export type FaceSelection = Readonly<{ entityId: EntityId; face: BoxFaceName }>;
+export type ViewportContextMenuCommand =
+  | Readonly<{ type: 'mouseAction'; action: MouseAction }>
+  | Readonly<{ type: 'openWindow'; windowId: FloatingWindowId }>;
+export type ViewportContextMenuItem = Readonly<{ label: string; command: ViewportContextMenuCommand }>;
+
+export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
+  const items: ViewportContextMenuItem[] = [
+    { label: 'Auswahl-Werkzeug', command: { type: 'mouseAction', action: 'tool:select' } },
+    { label: 'Linie zeichnen', command: { type: 'mouseAction', action: 'tool:line' } },
+    { label: 'Rechteck zeichnen', command: { type: 'mouseAction', action: 'tool:rectangle' } },
+    { label: 'Körper setzen', command: { type: 'mouseAction', action: 'tool:box' } },
+    { label: 'Maßband', command: { type: 'mouseAction', action: 'tool:tape' } },
+    { label: 'Verlauf und Auswahl', command: { type: 'openWindow', windowId: 'history' } }
+  ];
+
+  if (!input.selectedEntityType) return items;
+
+  items.push(
+    { label: 'Auswahl verschieben', command: { type: 'openWindow', windowId: 'move' } },
+    { label: 'Auswahl drehen', command: { type: 'openWindow', windowId: 'rotate' } },
+    { label: 'Inspektor öffnen', command: { type: 'openWindow', windowId: 'inspector' } }
+  );
+
+  if (input.selectedEntityType === 'box') {
+    items.push(
+      { label: 'Körperhöhe ziehen', command: { type: 'openWindow', windowId: 'pushPull' } },
+      { label: 'Körpermaße bearbeiten', command: { type: 'openWindow', windowId: 'dimensions' } }
+    );
+  }
+
+  if (input.selectedEntityType === 'face') {
+    items.push({ label: 'Fläche extrudieren', command: { type: 'openWindow', windowId: 'extrude' } });
+  }
+
+  items.push({ label: 'Auswahl löschen', command: { type: 'mouseAction', action: 'delete' } });
+  return items;
+}
 
 export function zoomOrbitTowardPoint(state: OrbitCameraState, focus: Vec3, wheelDeltaY: number): OrbitCameraState {
   const zoomSteps = Math.max(1, Math.min(6, Math.abs(wheelDeltaY) / 120));
@@ -35,15 +74,22 @@ export function zoomOrbitTowardPoint(state: OrbitCameraState, focus: Vec3, wheel
   };
 }
 
+export function createWorkspaceGrid(size = 20000, divisions = 200): THREE.GridHelper {
+  const grid = new THREE.GridHelper(size, divisions, 0x64748b, 0xcbd5e1);
+  grid.userData.size = size;
+  grid.userData.divisions = divisions;
+  return grid;
+}
+
 export function createOriginGuideGroup(length = 3000): THREE.Group {
   const group = new THREE.Group();
   group.name = 'origin-guides';
-  group.add(createAxisLine('x-red', [new THREE.Vector3(-length, 2, 0), new THREE.Vector3(length, 2, 0)], 0xdc2626));
-  group.add(createAxisLine('y-green', [new THREE.Vector3(0, 2, -length), new THREE.Vector3(0, 2, length)], 0x16a34a));
-  group.add(createAxisLine('z-blue', [new THREE.Vector3(0, -length, 0), new THREE.Vector3(0, length, 0)], 0x2563eb));
-  const origin = new THREE.Mesh(new THREE.SphereGeometry(Math.max(18, length * 0.012), 16, 12), new THREE.MeshBasicMaterial({ color: 0xf8fafc }));
-  origin.userData.axis = 'origin';
-  group.add(origin);
+  group.add(createAxisLine('x-positive', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(length, 2, 0)], 0xdc2626, 'solid'));
+  group.add(createAxisLine('x-negative', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(-length, 2, 0)], 0xdc2626, 'dashed'));
+  group.add(createAxisLine('y-positive', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 2, length)], 0x16a34a, 'solid'));
+  group.add(createAxisLine('y-negative', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 2, -length)], 0x16a34a, 'dashed'));
+  group.add(createAxisLine('z-positive', [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, length, 0)], 0x2563eb, 'solid'));
+  group.add(createAxisLine('z-negative', [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -length, 0)], 0x2563eb, 'dashed'));
   return group;
 }
 
@@ -182,8 +228,13 @@ function isBoxFaceName(value: unknown): value is BoxFaceName {
   return value === 'top' || value === 'bottom' || value === 'front' || value === 'back' || value === 'left' || value === 'right';
 }
 
-function createAxisLine(axis: string, points: [THREE.Vector3, THREE.Vector3], color: number): THREE.Line {
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color, linewidth: 2 }));
+function createAxisLine(axis: string, points: [THREE.Vector3, THREE.Vector3], color: number, style: 'solid' | 'dashed'): THREE.Line {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = style === 'solid'
+    ? new THREE.LineBasicMaterial({ color, linewidth: 2 })
+    : new THREE.LineDashedMaterial({ color, dashSize: 140, gapSize: 90, linewidth: 2 });
+  const line = new THREE.Line(geometry, material);
+  if (style === 'dashed') line.computeLineDistances();
   line.userData.axis = axis;
   return line;
 }

@@ -45,7 +45,7 @@ Vorhanden im Code:
 - Millimeter als feste Basiseinheit
 - Linien, Rechtecke/Flächen und Boxkörper
 - interaktiver Three.js-Viewport
-- Orbit/View-Drehung mit rechter Maustaste
+- Orbit/View-Drehung standardmäßig mit mittlerer Maustaste
 - Auswahl/Picking im Viewport mit sichtbarer Markierung
 - anpassbare obere Schnell-Werkzeugleiste mit kleinen Icons, Drag-and-drop-Reihenfolge und Tastenkürzeln
 - SketchUp-inspirierter, aber eigenständig gestalteter klassischer CAD-Arbeitsplatz ganz oben mit Menüleiste; jeder Menübutton öffnet seinen passenden Funktionsbereich, z. B. `Datei` für Datei & Import/Export und `Bearbeiten` für Bearbeiten & Maße
@@ -53,10 +53,10 @@ Vorhanden im Code:
 - seitliche Arbeitsleiste als reine Icon-Leiste für schnelle Werkzeugwahl; ausführliche Eingabe- und Dateifunktionen sitzen oben im passenden Menübereich oder in externen Fenstern
 - linke Maustaste führt die Standardaktion des aktiven Werkzeugs aus: Auswahl anklicken, Linien/Körperpunkte setzen, Körperflächen auswählen und anschließend ziehen
 - Mausrad-Zoom im 3D-Arbeitsbereich: der Punkt unter der Maus wird als Zoom-Fokus verwendet
-- anpassbare Mausbelegung pro Browser-Nutzer: standardmäßig linke Taste = Werkzeugaktion, rechte Taste = Ansicht drehen, Mausrad = Zoom; zusätzliche Browser-Maustasten, z. B. Logitech-G604-Seitentasten, können auf Werkzeugwahl, Undo/Redo oder Löschen gelegt werden
+- anpassbare Mausbelegung pro Browser-Nutzer: standardmäßig linke Taste = Werkzeugaktion, mittlere Taste = Ansicht drehen, rechte Taste = Arbeitsflächen-Kontextmenü, Mausrad = Zoom; zusätzliche Browser-Maustasten, z. B. Logitech-G604-Seitentasten, können auf Werkzeugwahl, Undo/Redo oder Löschen gelegt werden
 - Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
 - normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
-- Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben
+- Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben: positive Richtungen durchgezogen, negative Richtungen gestrichelt
 - Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²
 - AI-Chat als eigenes Fenster, standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert
 - Zeichnen direkt auf dem Millimeter-Raster:
@@ -115,7 +115,8 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 ### Mausbelegung
 
 - Im Bereich `Mausbelegung pro Nutzer` kann jeder Browser-Nutzer seine eigene Maus speichern.
-- Standard bleibt bewusst einfach: linke Taste = aktive Werkzeugaktion, rechte Taste = Ansicht drehen, Mausrad = Zoom.
+- Standard bleibt bewusst einfach: linke Taste = aktive Werkzeugaktion, mittlere Taste = Ansicht drehen, rechte Taste = Arbeitsflächen-Kontextmenü, Mausrad = Zoom.
+- Rechtsklick öffnet ein Arbeitsflächenmenü mit schnellen Werkzeugen sowie passenden Bearbeiten-Fenstern für die aktuelle Auswahl.
 - Zusatzbuttons, die der Browser als Button 3 bis 11 meldet, können z. B. Werkzeuge wählen, Rückgängig/Wiederholen auslösen oder die Auswahl löschen.
 - Bei Mäusen wie Logitech G604 müssen Tasten, die der Browser nicht als Maustaste meldet, in der Maussoftware eventuell zuerst als normale Maustaste oder Tastaturkürzel konfiguriert werden.
 

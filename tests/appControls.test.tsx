@@ -1,9 +1,15 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import App from '../src/App';
+import App, { createInitialSketchModel } from '../src/App';
 
 describe('App controls', () => {
+  it('starts a new project with an empty model instead of sample furniture geometry', () => {
+    const model = createInitialSketchModel();
+
+    expect(model.allEntities()).toEqual([]);
+  });
+
   it('starts compact and routes workspace expansion through the matching classic menu buttons', () => {
     const markup = renderToStaticMarkup(<App />);
 
@@ -52,17 +58,19 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
-  it('documents configurable per-user mouse bindings with left, right and wheel defaults', () => {
+  it('documents configurable per-user mouse bindings with left, middle, right and wheel defaults', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Linke Maustaste: Standardaktion des aktiven Werkzeugs');
     expect(markup).toContain('Auswahl: klicken · Linie/Körper: Punkte setzen · Fläche: klicken zum Ziehen');
     expect(markup).toContain('Mausbelegung pro Nutzer');
+    expect(markup).toContain('Rechtsklick öffnet das Arbeitsflächen-Kontextmenü');
     expect(markup).toContain('Linke Taste');
+    expect(markup).toContain('Mittlere Taste');
     expect(markup).toContain('Rechte Taste');
     expect(markup).toContain('Mausrad');
     expect(markup).toContain('Zusatzbutton 11');
-    expect(markup).toContain('data-mouse-bindings="button:0=toolAction;button:2=orbit;wheel=zoom"');
+    expect(markup).toContain('data-mouse-bindings="button:0=toolAction;button:1=orbit;button:2=contextMenu;wheel=zoom"');
   });
 
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {

@@ -9,9 +9,10 @@ import {
 } from '../src/ui/mouseBindings';
 
 describe('user configurable mouse bindings', () => {
-  it('starts with only the normal left, right and wheel defaults assigned', () => {
+  it('starts with SketchUp-like defaults: left tool, middle orbit, right context menu and wheel zoom', () => {
     expect(DEFAULT_MOUSE_BINDINGS['button:0']).toBe('toolAction');
-    expect(DEFAULT_MOUSE_BINDINGS['button:2']).toBe('orbit');
+    expect(DEFAULT_MOUSE_BINDINGS['button:1']).toBe('orbit');
+    expect(DEFAULT_MOUSE_BINDINGS['button:2']).toBe('contextMenu');
     expect(DEFAULT_MOUSE_BINDINGS.wheel).toBe('zoom');
     expect(DEFAULT_MOUSE_BINDINGS['button:3']).toBe('none');
     expect(DEFAULT_MOUSE_BINDINGS['button:11']).toBe('none');
@@ -22,6 +23,7 @@ describe('user configurable mouse bindings', () => {
     expect(MOUSE_INPUTS.map((input) => input.id)).toContain('button:11');
     expect(MOUSE_INPUTS.map((input) => input.id)).toContain('wheel');
     expect(mouseActionLabel('tool:move')).toBe('Werkzeug Verschieben wählen');
+    expect(mouseActionLabel('contextMenu')).toBe('Arbeitsflächen-Kontextmenü');
   });
 
   it('sanitizes per-user bindings while keeping unknown or unsafe values at defaults', () => {
@@ -39,7 +41,7 @@ describe('user configurable mouse bindings', () => {
     expect(sanitized['button:9']).toBe('delete');
     expect((sanitized as Record<string, MouseAction | undefined>)['button:99']).toBeUndefined();
     expect(sanitized.wheel).toBe('zoom');
-    expect(sanitized['button:2']).toBe('orbit');
+    expect(sanitized['button:2']).toBe('contextMenu');
   });
 
   it('resolves pointer button numbers through the active user mapping', () => {
