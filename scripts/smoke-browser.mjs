@@ -379,6 +379,16 @@ async function runDxfLoadSmoke(cdp) {
     const failures = [];
     const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const text = () => document.body.innerText;
+    const clickByText = async (selector, label) => {
+      const element = Array.from(document.querySelectorAll(selector)).find((node) => node.textContent.includes(label));
+      if (!element) {
+        failures.push('Missing control: ' + label);
+        return;
+      }
+      element.click();
+      await afterFrame();
+    };
+    await clickByText('button', 'Datei');
     const input = Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
       node.closest('label')?.textContent?.includes('DXF laden')
     );
@@ -420,6 +430,16 @@ async function runStlReferenceLoadSmoke(cdp) {
     const failures = [];
     const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const text = () => document.body.innerText;
+    const clickByText = async (selector, label) => {
+      const element = Array.from(document.querySelectorAll(selector)).find((node) => node.textContent.includes(label));
+      if (!element) {
+        failures.push('Missing control: ' + label);
+        return;
+      }
+      element.click();
+      await afterFrame();
+    };
+    await clickByText('button', 'Datei');
     const input = Array.from(document.querySelectorAll('input[type="file"]')).find((node) =>
       node.closest('label')?.textContent?.includes('STL-Referenz laden')
     );
@@ -522,11 +542,23 @@ async function main() {
         element.click();
       };
       const afterFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      ['Hermes CAD Sketcher', 'Auswahl', 'Linie', 'Quadrat/Rechteck', 'Körper', 'Rückgängig', 'Wiederholen', 'Auswahl löschen', 'Projekt speichern', 'DXF laden', 'STL-Referenz laden', 'DXF exportieren', 'STL exportieren'].forEach((label) => {
+      ['Hermes CAD Sketcher', 'Auswahl', 'Linie', 'Quadrat/Rechteck', 'Körper'].forEach((label) => {
         if (!text().includes(label)) failures.push('Missing visible label: ' + label);
       });
       const before = text();
       if (!document.querySelector('canvas') && !text().includes('3D-Viewport nicht verfügbar')) failures.push('No canvas or WebGL fallback rendered');
+      clickByText('button', 'Datei');
+      await afterFrame();
+      ['Projekt speichern', 'DXF laden', 'STL-Referenz laden', 'DXF exportieren', 'STL exportieren'].forEach((label) => {
+        if (!text().includes(label)) failures.push('Missing visible label after opening Datei menu: ' + label);
+      });
+      clickByText('button', 'Bearbeiten');
+      await afterFrame();
+      clickByText('button', 'Verlauf');
+      await afterFrame();
+      ['Rückgängig', 'Wiederholen', 'Auswahl löschen'].forEach((label) => {
+        if (!text().includes(label)) failures.push('Missing visible label after opening Bearbeiten/Verlauf controls: ' + label);
+      });
       clickByText('button', 'Körper');
       await afterFrame();
       if (!text().includes('Werkzeug: box')) failures.push('Box tool click did not update statusbar');
@@ -566,6 +598,7 @@ async function main() {
         'app loaded',
         'no unexpected console/runtime errors',
         'core controls visible',
+        'core file/import/export controls visible after opening the Datei menu',
         'tool button interaction updates statusbar',
         'dxf load workflow imports supported synthetic fixture',
         'stl reference load workflow imports supported synthetic ASCII fixture as non-editable mesh',

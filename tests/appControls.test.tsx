@@ -70,11 +70,11 @@ describe('App controls', () => {
     expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
   });
 
-  it('renders a viewport arrow cursor badge with the selected tool symbol', () => {
+  it('renders the initial viewport loading boundary without the heavy Three.js cursor layer', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol');
-    expect(markup).toContain('class="cursor-arrow"');
+    expect(markup).toContain('3D-Viewport wird geladen');
+    expect(markup).not.toContain('class="cursor-arrow"');
     expect(markup).not.toContain('class="cursor-symbol"');
     expect(markup).not.toContain('Mauszeiger: Pfeil mit Auswahl Symbol');
   });

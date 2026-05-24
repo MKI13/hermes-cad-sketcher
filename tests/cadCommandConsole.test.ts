@@ -54,6 +54,50 @@ describe('Ruby-like CAD command console', () => {
     expect(result.nextModel.getEntity(result.selectedId!)).toMatchObject({ type: 'box', origin: vec(50, 0, 0), width: 1000, depth: 500, height: 300 });
   });
 
+  it('wraps agent-created box bodies in their own component without merging separate bodies', () => {
+    const result = runCadConsoleScript(new SketchModel(), `
+      box(0, 0, 0, 600, 400, 200)
+      box(1000, 0, 0, 300, 200, 100)
+    `);
+
+    expect(result.ok).toBe(true);
+    const boxes = result.nextModel.allEntities().filter((entity) => entity.type === 'box');
+    const components = result.nextModel.allComponents();
+    expect(boxes).toHaveLength(2);
+    expect(components).toHaveLength(2);
+    expect(components.map((component) => component.entityIds)).toEqual([[boxes[0].id], [boxes[1].id]]);
+    expect(boxes.map((box) => box.componentId)).toEqual(components.map((component) => component.id));
+  });
+
+  it('wraps agent-extruded box bodies in their own component', () => {
+    const result = runCadConsoleScript(new SketchModel(), `
+      rectangle(0, 0, 0, 1000, 500)
+      extrude(selected, 300)
+    `);
+
+    expect(result.ok).toBe(true);
+    const box = result.nextModel.getEntity(result.selectedId!);
+    const component = result.nextModel.allComponents()[0];
+    expect(box).toMatchObject({ type: 'box', width: 1000, depth: 500, height: 300, componentId: component.id });
+    expect(component.entityIds).toEqual([result.selectedId]);
+  });
+
+  it('moves an agent-extruded body out of a source face component into its own component', () => {
+    const result = runCadConsoleScript(new SketchModel(), `
+      rectangle(0, 0, 0, 1000, 500)
+      component("Skizzenfläche", selected)
+      extrude(selected, 300)
+    `);
+
+    expect(result.ok).toBe(true);
+    const box = result.nextModel.getEntity(result.selectedId!);
+    const components = result.nextModel.allComponents();
+    const boxComponent = components.find((component) => component.entityIds.includes(result.selectedId!));
+    expect(box).toMatchObject({ type: 'box', componentId: boxComponent?.id });
+    expect(boxComponent?.name).toBe(`Körper ${result.selectedId}`);
+    expect(components.filter((component) => component.entityIds.includes(result.selectedId!))).toHaveLength(1);
+  });
+
   it('lets agent scripts delete the current selection without repeating the entity id', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 600, 400, 200);

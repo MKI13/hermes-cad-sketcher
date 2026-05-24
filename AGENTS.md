@@ -138,49 +138,43 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
    - Negative oder Null-Endmaße sauber blockieren.
    - Maße müssen in Millimeter stabil bleiben.
 
-2. **Agent-erstellte Körper automatisch als Komponenten führen**
-   - Wenn Hermes/Agent/Console einen Körper erstellt, soll der Körper standardmäßig eine eigene Komponente bekommen.
-   - Wenn eine Baugruppe aus zwei oder mehr Körpern entsteht, müssen die Einzelkörper weiterhin trennbar, einzeln auswählbar und verschiebbar bleiben.
-   - Komponenten brauchen später saubere Stücklisten-/OpenCutList-Metadaten, z. B. Teilname, Material, Stärke, Länge/Breite/Tiefe und Zuschnitt-Orientierung.
-   - Keine reine Verschmelzung zu einem untrennbaren Mesh, wenn die Teile später getrennt bearbeitet oder zugeschnitten werden sollen.
-
-3. **Körper-Faces für Zieh-/Push-Pull-Werkzeuge ausbauen**
+2. **Körper-Faces für Zieh-/Push-Pull-Werkzeuge ausbauen**
    - Jeder Körper muss für die Bedienung klare Seiten/Faces bereitstellen: oben, unten, vorne, hinten, links, rechts.
    - Faces sollen auswählbar und für Ziehen/Push/Pull nutzbar sein, damit Maße in Millimeter direkt verändert werden können.
    - Boxkörper rendern bereits Seitenflächen; der nächste Schritt ist eine stabile Modell-/Command-Schicht für gezieltes Face-Ziehen in Breite, Tiefe und Höhe.
    - Null- oder Negativmaße müssen weiterhin blockiert werden.
 
-4. **Komponenten als Instanzen verbessern**
+3. **Komponenten als Instanzen verbessern**
    - Verschachtelte Komponenten vorbereiten.
    - Komponenten als Instanzen mit eigener Transformation modellieren.
 
-5. **DXF-Import erweitern**
+4. **DXF-Import erweitern**
    - Weitere Entitäten erst nach fail-closed Tests ergänzen.
    - Testdateien unter `tests/fixtures/` ergänzen.
 
 
-6. **Bundle-Größe reduzieren**
+5. **Bundle-Größe reduzieren**
    - Three.js-Viewport dynamisch laden oder Vite-Code-Splitting nutzen.
    - Build-Warnungen dokumentieren oder reduzieren.
 
-7. **DWG-Bridge planen**
+6. **DWG-Bridge planen**
    - Realistischen Workflow über LibreDWG, ODA File Converter oder andere Bridge dokumentieren.
    - Keine native DWG-Unterstützung behaupten, solange sie nicht wirklich existiert.
 
-8. **SKP-Bridge planen**
+7. **SKP-Bridge planen**
    - Offizielle SketchUp C API und Lizenzlage prüfen.
    - Linux-Build realistisch bewerten.
    - Adapter-Interface ohne SketchUp-Abhängigkeit testbar halten.
 
-9. **Weitere Werkzeuglogik aus React lösen**
+8. **Weitere Werkzeuglogik aus React lösen**
    - Select, Move, Rotate und weitere Werkzeugaktionen als reine Funktionen testbar machen.
    - React soll möglichst nur Darstellung und Event-Anbindung übernehmen.
 
-10. **Dateiformate erweitern**
+9. **Dateiformate erweitern**
     - `.obj`, `.glb`, `.ifc` oder `.step` nur nach realistischer technischer Prüfung ergänzen.
     - Import/Export nie als fertig markieren, wenn nur ein Teilformat unterstützt wird.
 
-11. **Eigenes Erweiterungsformat planen**
+10. **Eigenes Erweiterungsformat planen**
     - Format wie `.hcad-ext` oder `.hcad-extension.json` prüfen.
     - Manifest, Berechtigungen, Versionen und Kompatibilitätsprüfung definieren.
     - Testbarer Loader ohne SketchUp-Ruby-Abhängigkeit.
@@ -230,6 +224,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Ruby-Konsole / Hermes-CAD-Befehls-DSL** — sichere interne Bedienkonsole für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`; keine Systembefehle, keine SketchUp-Ruby-API und keine `.rb/.rbz` Plugin-Kompatibilität.
 - **Agent-Chat-Brücke** — Hermes oder ein anderer AI Agent kann direkte CAD-Befehle oder einfache Sätze wie „erstelle box …“ und „verschiebe auswahl …“ live gegen dieselbe geprüfte Befehlslogik ausführen.
 - **Auswahlbasierte Agent-Skripte** — Mehrzeilige Agent-Antworten wie `select box_1` gefolgt von einem nackten `delete` werden korrekt auf die aktuelle Auswahl angewendet. Mutierende Befehle ohne explizite Element-ID nutzen die aktuelle Auswahl, wenn eine vorhanden ist; ohne Auswahl bleibt der Befehl fail-closed. Dafür gibt es einen Regressionstest in `tests/cadCommandConsole.test.ts`.
+- **Agent-erstellte Körper als Einzelkomponenten** — `box`- und `extrude`-Befehle der Hermes-CAD-DSL legen den entstehenden Körper automatisch in einer eigenen Komponente ab, damit mehrere agentisch erzeugte Bauteile getrennt auswählbar, verschiebbar und später zuschnitt-/Stücklisten-fähig bleiben.
 
 ## Sicherheits- und Realismusregeln
 

@@ -235,6 +235,12 @@ export class SketchModel {
     const component: Component = { id: nextId('component'), name, entityIds: [...entityIds] };
     this.components.set(component.id, component);
     for (const id of entityIds) {
+      for (const existing of [...this.components.values()]) {
+        if (existing.id === component.id || !existing.entityIds.includes(id)) continue;
+        const remainingIds = existing.entityIds.filter((entityId) => entityId !== id);
+        if (remainingIds.length === 0) this.components.delete(existing.id);
+        else this.components.set(existing.id, { ...existing, entityIds: remainingIds });
+      }
       const entity = this.requireEntity(id);
       this.entities.set(id, { ...entity, componentId: component.id } as Entity);
     }
