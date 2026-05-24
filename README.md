@@ -77,7 +77,7 @@ Vorhanden im Code:
 - `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
 - DXF-Export-Grundlage in der UI, DXF-Dateiimport in der UI mit Importbericht, fail-closed Einheitenprüfung, einfacher DXF-LINE-Import und begrenzter DXF-LWPOLYLINE-Rechteckimport
 - ASCII-STL-Export für Boxkörper und ASCII-STL-Referenzmesh-Import ohne editierbare Solid-Konvertierung
-- Ruby-Konsole als sichere Hermes-CAD-Befehls-DSL für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`
+- Ruby-Konsole als sichere Hermes-CAD-Befehls-DSL für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`; agentisch per `box`/`extrude` erstellte Körper werden automatisch als eigene Komponenten geführt
 - Hermes-Agent-Bridge über die gleiche CAD-App-Adresse (`/hermes-cad/agent`): die Browser-App spricht nicht direkt mit einem API-Key, sondern mit der Bridge des PCs, der die CAD-Seite ausliefert. Dadurch kann Marios denselben CAD-Host auch von seinem zweiten PC nutzen; die eigentliche Bridge bleibt auf dem Host lokal an `127.0.0.1:8766` gebunden.
 - lokale Vitest-Tests plus Production-Build über `npm run check`
 - GitHub Actions CI für Pull Requests und zentrale Branches
@@ -126,7 +126,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 
 ### Ruby-Konsole und lokaler Hermes-Agent
 
-Die Ruby-Konsole ist keine SketchUp-Ruby-API und lädt keine `.rb`/`.rbz` Plugins. Sie ist eine sichere Hermes-CAD-Befehls-DSL, die absichtlich nur die vorhandenen Modellfunktionen ausführt und immer in Millimeter arbeitet.
+Die Ruby-Konsole ist keine SketchUp-Ruby-API und lädt keine `.rb`/`.rbz` Plugins. Sie ist eine sichere Hermes-CAD-Befehls-DSL, die absichtlich nur die vorhandenen Modellfunktionen ausführt und immer in Millimeter arbeitet. Körper, die über `box` oder `extrude` entstehen, werden automatisch in eine eigene Komponente gelegt; mehrere agentisch erzeugte Bauteile bleiben dadurch getrennt auswählbar, verschiebbar und später für Zuschnitt-/Stücklisten-Metadaten vorbereitet.
 
 Beispiele:
 

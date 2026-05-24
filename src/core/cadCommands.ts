@@ -125,7 +125,8 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
   if (command === 'box') {
     const n = numbers(tokens, 6);
     const entity = model.createBox(vec(n[0], n[1], n[2]), n[3], n[4], n[5]);
-    return { selectedId: entity.id, message: `Körper erstellt: ${entity.id}` };
+    const component = model.createComponent(`Körper ${entity.id}`, [entity.id]);
+    return { selectedId: entity.id, message: `Körper erstellt: ${entity.id}; Komponente erstellt: ${component.id}` };
   }
 
   if (command === 'move') {
@@ -160,7 +161,8 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
     const id = resolveEntityId(tokens[0], selectedId);
     const height = numberToken(tokens[1], 'Extrusionshöhe');
     const entity = model.extrudeFaceToBox(id, height);
-    return { selectedId: entity.id, message: `Fläche extrudiert: ${entity.id}` };
+    const component = model.createComponent(`Körper ${entity.id}`, [entity.id]);
+    return { selectedId: entity.id, message: `Fläche extrudiert: ${entity.id}; Komponente erstellt: ${component.id}` };
   }
 
   if (command === 'delete') {
