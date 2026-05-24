@@ -20,9 +20,11 @@ export type SnapPointKind = 'endpoint' | 'midpoint';
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
 export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: SnapPointKind })>;
 export type FaceSelection = Readonly<{ entityId: EntityId; face: BoxFaceName }>;
+export type ViewportEntityAction = 'entityInfo' | 'erase' | 'hide' | 'makeGroup' | 'makeComponent' | 'area';
 export type ViewportContextMenuCommand =
   | Readonly<{ type: 'mouseAction'; action: MouseAction }>
-  | Readonly<{ type: 'openWindow'; windowId: FloatingWindowId }>;
+  | Readonly<{ type: 'openWindow'; windowId: FloatingWindowId }>
+  | Readonly<{ type: 'entityAction'; action: ViewportEntityAction }>;
 export type ViewportContextMenuItem = Readonly<{ label: string; command: ViewportContextMenuCommand }>;
 
 export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
@@ -38,6 +40,12 @@ export function buildViewportContextMenuItems(input: { selectedEntityType?: Enti
   if (!input.selectedEntityType) return items;
 
   items.push(
+    { label: 'Entity Info', command: { type: 'entityAction', action: 'entityInfo' } },
+    { label: 'Erase', command: { type: 'entityAction', action: 'erase' } },
+    { label: 'Hide', command: { type: 'entityAction', action: 'hide' } },
+    { label: 'Make Group', command: { type: 'entityAction', action: 'makeGroup' } },
+    { label: 'Make Component', command: { type: 'entityAction', action: 'makeComponent' } },
+    { label: 'Area', command: { type: 'entityAction', action: 'area' } },
     { label: 'Auswahl verschieben', command: { type: 'openWindow', windowId: 'move' } },
     { label: 'Auswahl drehen', command: { type: 'openWindow', windowId: 'rotate' } },
     { label: 'Inspektor öffnen', command: { type: 'openWindow', windowId: 'inspector' } }
@@ -105,6 +113,10 @@ export function cursorBadgeForTool(tool: ToolName): CursorBadge {
     tape: { arrow: '↖', symbol: '↔', label: 'Maßband' }
   };
   return badges[tool];
+}
+
+export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' {
+  return kind === 'endpoint' ? 'Endpoint' : 'Midpoint';
 }
 
 export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: Vec3): string | undefined {

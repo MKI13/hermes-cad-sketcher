@@ -66,6 +66,7 @@ export function createModelGroup(model: SketchModel, selectedId?: string): THREE
   const group = new THREE.Group();
   group.name = 'sketch-model';
   for (const entity of model.allEntities()) {
+    if (entity.hidden) continue;
     const object = entityToObject(entity);
     object.userData.entityId = entity.id;
     object.userData.entityType = entity.type;

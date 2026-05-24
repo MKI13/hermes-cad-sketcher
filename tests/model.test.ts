@@ -16,6 +16,18 @@ describe('SketchModel geometry tools', () => {
     expect(face.vertices).toEqual([vec(10, 20, 0), vec(1010, 20, 0), vec(1010, 520, 0), vec(10, 520, 0)]);
   });
 
+  it('stores SketchUp-like material and hidden state on selected entities', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
+
+    const painted = model.applyMaterial(face.id, { name: 'Holz Eiche', color: '#b45309' });
+    const hidden = model.hideEntity(face.id);
+
+    expect(painted.material).toEqual({ name: 'Holz Eiche', color: '#b45309' });
+    expect(hidden.hidden).toBe(true);
+    expect(model.snapshot().entities[0]).toMatchObject({ material: { name: 'Holz Eiche', color: '#b45309' }, hidden: true });
+  });
+
   it('keeps the first rectangle corner fixed when width or depth points back toward an axis', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(500, 700, 0), -400, -500);

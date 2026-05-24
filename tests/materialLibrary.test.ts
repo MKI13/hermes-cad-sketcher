@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMaterialLibrary, categoryFromMaterialPath, isMaterialImageFile } from '../src/ui/materialLibrary';
+import { buildDefaultMaterialSwatches, buildMaterialLibrary, categoryFromMaterialPath, isMaterialImageFile } from '../src/ui/materialLibrary';
 
 type TestFile = Readonly<{ name: string; type: string; webkitRelativePath?: string }>;
 
@@ -34,5 +34,13 @@ describe('material library folder import', () => {
   it('falls back to the chosen folder name when images are directly inside the material folder', () => {
     expect(categoryFromMaterialPath('RAL/yellow.jpg')).toBe('RAL');
     expect(categoryFromMaterialPath('oak.jpg')).toBe('Eigener Ordner');
+  });
+
+  it('provides SketchUp-like default wood and dark material swatches that can be applied to a selection', () => {
+    const swatches = buildDefaultMaterialSwatches();
+
+    expect(swatches.map((swatch) => swatch.name)).toContain('Holz warm');
+    expect(swatches.map((swatch) => swatch.name)).toContain('Dunkel');
+    expect(swatches.every((swatch) => swatch.color.startsWith('#'))).toBe(true);
   });
 });

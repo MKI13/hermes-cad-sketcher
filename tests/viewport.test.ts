@@ -54,6 +54,21 @@ describe('interactive Three.js viewport foundation', () => {
     expect(group.children.map((child) => child.userData.entityId)).toEqual([box.id, line.id]);
   });
 
+  it('skips hidden entities and renders applied material colors like the Materials tray', () => {
+    const model = new SketchModel();
+    const painted = model.createRectangle(vec(0, 0, 0), 1000, 500);
+    const hidden = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+    model.applyMaterial(painted.id, { name: 'Holz', color: '#b45309' });
+    model.hideEntity(hidden.id);
+
+    const group = createModelGroup(model);
+
+    expect(group.children.map((child) => child.userData.entityId)).toEqual([painted.id]);
+    const mesh = group.children[0] as THREE.Mesh;
+    expect(mesh).toBeInstanceOf(THREE.Mesh);
+    expect((mesh.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('b45309');
+  });
+
   it('renders STL reference meshes as transparent wireframe mesh geometry', () => {
     const model = new SketchModel();
     const mesh = importAsciiStl(`solid ref

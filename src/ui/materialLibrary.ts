@@ -17,7 +17,28 @@ export type MaterialLibrary = Readonly<{
   entries: MaterialLibraryEntry[];
 }>;
 
+export type MaterialSwatch = Readonly<{
+  name: string;
+  color: string;
+  category: string;
+}>;
+
 const MATERIAL_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg']);
+
+const DEFAULT_MATERIAL_SWATCHES: MaterialSwatch[] = [
+  { name: 'Holz warm', color: '#b45309', category: 'Holz' },
+  { name: 'Holz hell', color: '#d97706', category: 'Holz' },
+  { name: 'Eiche hell', color: '#f59e0b', category: 'Holz' },
+  { name: 'Birke', color: '#fde68a', category: 'Holz' },
+  { name: 'Nussbaum', color: '#78350f', category: 'Holz' },
+  { name: 'Kanten dunkel', color: '#92400e', category: 'Holz' },
+  { name: 'Grau', color: '#a8a29e', category: 'Neutral' },
+  { name: 'Dunkel', color: '#111827', category: 'Neutral' }
+];
+
+export function buildDefaultMaterialSwatches(): MaterialSwatch[] {
+  return DEFAULT_MATERIAL_SWATCHES.map((swatch) => ({ ...swatch }));
+}
 
 export function isMaterialImageFile(file: MaterialFileLike): boolean {
   if (file.type?.startsWith('image/')) return true;

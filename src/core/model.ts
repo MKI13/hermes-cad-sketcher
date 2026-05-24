@@ -36,13 +36,14 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 export type EntityId = string;
 export type ComponentId = string;
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
+export type MaterialAssignment = { name: string; color: string; previewUrl?: string };
 
-type CadMetadata = { layer?: string };
+type CadMetadata = { layer?: string; hidden?: boolean; material?: MaterialAssignment };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
 export type EdgeEntity = CadMetadata & { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
 export type FaceEntity = CadMetadata & { id: EntityId; type: 'face'; vertices: Vec3[]; componentId?: ComponentId };
-export type ReferenceMeshEntity = {
+export type ReferenceMeshEntity = CadMetadata & {
   id: EntityId;
   type: 'referenceMesh';
   name: string;
@@ -52,7 +53,7 @@ export type ReferenceMeshEntity = {
   componentId?: ComponentId;
 };
 export type BoxFaceName = 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
-export type BoxEntity = {
+export type BoxEntity = CadMetadata & {
   id: EntityId;
   type: 'box';
   origin: Vec3;
@@ -228,6 +229,33 @@ export class SketchModel {
       else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
     }
     return true;
+  }
+
+  hideEntity(id: EntityId): Entity {
+    const entity = this.requireEntity(id);
+    const hidden = { ...entity, hidden: true } as Entity;
+    this.entities.set(id, hidden);
+    return hidden;
+  }
+
+  showAllEntities(): number {
+    let changed = 0;
+    for (const [id, entity] of this.entities.entries()) {
+      if (entity.hidden) {
+        this.entities.set(id, { ...entity, hidden: false } as Entity);
+        changed += 1;
+      }
+    }
+    return changed;
+  }
+
+  applyMaterial(id: EntityId, material: MaterialAssignment): Entity {
+    if (!material.name.trim()) throw new Error('Material braucht einen Namen.');
+    if (!/^#[0-9a-f]{6}$/i.test(material.color)) throw new Error('Materialfarbe muss als #RRGGBB angegeben werden.');
+    const entity = this.requireEntity(id);
+    const painted = { ...entity, material: { ...material, name: material.name.trim() } } as Entity;
+    this.entities.set(id, painted);
+    return painted;
   }
 
   createComponent(name: string, entityIds: EntityId[]): Component {

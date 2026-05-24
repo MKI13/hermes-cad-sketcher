@@ -11,6 +11,7 @@ import {
   formatActiveMeasurement,
   formatDraftMeasurement,
   formatEntityMeasurement,
+  snapCueLabel,
   zoomOrbitTowardPoint
 } from '../src/ui/viewportInteractionHelpers';
 import { createOrbitCameraState } from '../src/ui/viewportController';
@@ -91,6 +92,11 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(formatActiveMeasurement({ hovered: formatEntityMeasurement(face), selected: formatEntityMeasurement(edge), last: 'noch keine Messung' })).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
   });
 
+  it('uses SketchUp-style inference labels for endpoint and midpoint cues without forcing snapping', () => {
+    expect(snapCueLabel('endpoint')).toBe('Endpoint');
+    expect(snapCueLabel('midpoint')).toBe('Midpoint');
+  });
+
   it('builds a right-click workspace menu with general drawing tools and selected-model editing functions', () => {
     const emptyMenu = buildViewportContextMenuItems({ selectedEntityType: undefined });
     expect(emptyMenu.map((item) => item.label)).toEqual([
@@ -103,6 +109,12 @@ describe('SketchUp-like viewport interaction helpers', () => {
     ]);
 
     const boxMenu = buildViewportContextMenuItems({ selectedEntityType: 'box' });
+    expect(boxMenu.map((item) => item.label)).toContain('Entity Info');
+    expect(boxMenu.map((item) => item.label)).toContain('Erase');
+    expect(boxMenu.map((item) => item.label)).toContain('Hide');
+    expect(boxMenu.map((item) => item.label)).toContain('Make Group');
+    expect(boxMenu.map((item) => item.label)).toContain('Make Component');
+    expect(boxMenu.map((item) => item.label)).toContain('Area');
     expect(boxMenu.map((item) => item.label)).toContain('Auswahl verschieben');
     expect(boxMenu.map((item) => item.label)).toContain('Auswahl drehen');
     expect(boxMenu.map((item) => item.label)).toContain('Körperhöhe ziehen');

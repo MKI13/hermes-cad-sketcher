@@ -54,12 +54,14 @@ Vorhanden im Code:
 - linke Maustaste führt die Standardaktion des aktiven Werkzeugs aus: Auswahl anklicken, Linien/Körperpunkte setzen, Körperflächen auswählen und anschließend ziehen
 - Mausrad-Zoom im 3D-Arbeitsbereich: der Punkt unter der Maus wird als Zoom-Fokus verwendet
 - anpassbare Mausbelegung pro Browser-Nutzer: standardmäßig linke Taste = Werkzeugaktion, mittlere Taste = Ansicht drehen, rechte Taste = Arbeitsflächen-Kontextmenü, Mausrad = Zoom; zusätzliche Browser-Maustasten, z. B. Logitech-G604-Seitentasten, können auf Werkzeugwahl, Undo/Redo oder Löschen gelegt werden
-- Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
+- Linien, Rechtecke und Körper liefern Fangpunkte an Anfang, Ende und Mitte; SketchUp-artige `Endpoint`-/`Midpoint`-Hinweise erscheinen als Tooltip, ohne das stufenlose Zeichnen ungefragt zu rastern
 - normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
 - Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben: positive Richtungen durchgezogen, negative Richtungen gestrichelt
 - stufenloses Zeichnen ohne automatische Raster-Rundung; Fang-/Rasterlogik darf den ersten Klick und den Mausendpunkt nicht ungefragt verschieben
 - Zeichenebenen für Grundfläche X/Y, vertikale rot-blaue X/Z-Fläche und vertikale grün-blaue Y/Z-Fläche
 - rechte Default-Tray-Maßmaske für exakte Rechteckmaße: Breite und Tiefe/Höhe in mm eingeben, Richtung wird vor der Bestätigung über die Maus gewählt
+- rechte Default-Tray-Materialien mit Holz-/Dunkel-Farbfeldern und lokal importierbaren Bildtexturen; ausgewählte Flächen/Körper können direkt per Farbfeld Material bekommen
+- SketchUp-artiges Rechtsklick-Menü für ausgewählte Elemente mit Entity Info, Erase, Hide, Make Group, Make Component und Area sowie vorhandenen Bearbeiten-Fenstern
 - Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²
 - AI-Chat als eigenes Fenster, standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert
 - Zeichnen direkt auf dem Millimeter-Raster:
@@ -112,6 +114,8 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - Push/Pull: Box auswählen, ΔH in mm eingeben und anwenden.
 - Auswahlmaße bearbeiten: Box auswählen, Breite/Tiefe/Höhe direkt in mm setzen.
 - Fläche extrudieren: axis-aligned Rechteck/Fläche auswählen, positive Höhe eingeben und zu einem Boxkörper extrudieren.
+- Rechtsklick auf eine Auswahl: `Entity Info`, `Erase`, `Hide`, `Make Group`, `Make Component` oder `Area` wie in SketchUp-nahen Workflows nutzen.
+- Materialien: In der rechten Default Tray ein Farbfeld oder importiertes Bildmaterial anklicken, um es auf die aktuelle Auswahl anzuwenden.
 - Rückgängig/Wiederholen: Modelländerungen mit den Schaltflächen `Rückgängig` und `Wiederholen` reversibel machen.
 - Auswahl löschen: Button `Auswahl löschen` oder Delete/Backspace.
 

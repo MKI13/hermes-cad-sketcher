@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bot, Box, Component, Copy, Download, FolderOpen, GripVertical, MessageSquare, Move3D, Play, Redo2, Ruler, RotateCw, Save, Square, Slash, Trash2, Undo2, Upload } from 'lucide-react';
-import { SketchModel, type BoxFaceName, type DrawingPlane, type ToolName } from './core/model';
+import { SketchModel, type BoxFaceName, type DrawingPlane, type MaterialAssignment, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
@@ -25,8 +25,8 @@ import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type Work
 import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, type WorkbenchMenu } from './ui/workbenchLayout';
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
-import { buildMaterialLibrary, type MaterialLibrary, type MaterialLibraryEntry } from './ui/materialLibrary';
-import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand } from './ui/viewportInteractionHelpers';
+import { buildDefaultMaterialSwatches, buildMaterialLibrary, type MaterialLibrary, type MaterialLibraryEntry, type MaterialSwatch } from './ui/materialLibrary';
+import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
 import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
 
@@ -158,7 +158,7 @@ export default function App() {
   const shortcutSummary = DEFAULT_TOOLBAR_ORDER
     .map((toolId) => `${getToolShortcut(toolId)} ${shortcutSummaryLabels[toolId]}`)
     .join(' · ');
-  const materialSwatches = ['#d97706', '#f59e0b', '#fbbf24', '#92400e', '#b45309', '#fde68a', '#ca8a04', '#78350f', '#a16207', '#eab308', '#fef3c7', '#d6d3d1', '#854d0e', '#facc15', '#c2410c', '#fcd34d', '#a8a29e', '#d97706', '#b45309', '#fde047'];
+  const materialSwatches = buildDefaultMaterialSwatches();
   const visibleMaterialCategory = selectedMaterialCategory ?? materialLibrary?.categories[0];
   const visibleMaterialEntries = materialLibrary?.entries.filter((entry) => !visibleMaterialCategory || entry.category === visibleMaterialCategory) ?? [];
   const mouseBindingPanel = (
@@ -472,6 +472,74 @@ export default function App() {
       : 'Der gewählte Materialordner enthält keine unterstützten Bilddateien.');
   }
 
+  function applyMaterialToSelection(material: MaterialAssignment) {
+    if (!selectedId) {
+      setProjectStatus('Bitte erst eine Fläche oder einen Körper auswählen, dann Material anwenden.');
+      return;
+    }
+    mutate((m) => {
+      m.applyMaterial(selectedId, material);
+    });
+    setProjectStatus(`Material angewendet: ${material.name}`);
+  }
+
+  function materialFromImageEntry(entry: BrowserMaterialEntry): MaterialAssignment {
+    return { name: entry.name, color: '#b45309', previewUrl: entry.previewUrl };
+  }
+
+  function materialFromSwatch(swatch: MaterialSwatch): MaterialAssignment {
+    return { name: swatch.name, color: swatch.color };
+  }
+
+  function hideSelectedEntity() {
+    if (!selectedId) return;
+    mutate((m) => {
+      m.hideEntity(selectedId);
+      setSelectedId(undefined);
+    });
+    setProjectStatus('Auswahl ausgeblendet.');
+  }
+
+  function makeSelectedComponent(prefix: 'Gruppe' | 'Komponente') {
+    if (!selectedId) return;
+    mutate((m) => {
+      const component = m.createComponent(`${prefix} aus Auswahl`, [selectedId]);
+      setSelectedId(component.entityIds[0]);
+    });
+    setProjectStatus(`${prefix} aus Auswahl erstellt.`);
+  }
+
+  function reportSelectedArea() {
+    if (!selected) return;
+    setProjectStatus(formatEntityMeasurement(selected));
+    setLiveMeasurement(formatEntityMeasurement(selected));
+  }
+
+  function handleEntityContextAction(action: ViewportEntityAction) {
+    if (action === 'entityInfo') {
+      openFloatingWindow('inspector');
+      setProjectStatus('Entity Info geöffnet.');
+      return;
+    }
+    if (action === 'erase') {
+      deleteSelectedEntity();
+      return;
+    }
+    if (action === 'hide') {
+      hideSelectedEntity();
+      return;
+    }
+    if (action === 'makeGroup') {
+      makeSelectedComponent('Gruppe');
+      return;
+    }
+    if (action === 'makeComponent') {
+      makeSelectedComponent('Komponente');
+      return;
+    }
+    if (action === 'area') reportSelectedArea();
+  }
+
   function handleMouseBindingAction(action: MouseAction) {
     const nextTool = toolFromMouseAction(action);
     if (nextTool) {
@@ -493,6 +561,10 @@ export default function App() {
   function handleViewportContextMenuCommand(command: ViewportContextMenuCommand) {
     if (command.type === 'mouseAction') {
       handleMouseBindingAction(command.action);
+      return;
+    }
+    if (command.type === 'entityAction') {
+      handleEntityContextAction(command.action);
       return;
     }
     openFloatingWindow(command.windowId);
@@ -857,6 +929,7 @@ export default function App() {
               <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
               <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
               <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
+              <div><dt>Material</dt><dd>{selected?.material?.name ?? 'Standard'}</dd></div>
             </dl>
           </details>
           <details className="tray-section" open>
@@ -888,6 +961,7 @@ export default function App() {
           <details className="tray-section"><summary>Instructor</summary><p>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p></details>
           <details className="tray-section materials-section" open>
             <summary>Materials</summary>
+            <p>Auswahl mit Material belegen: erst Fläche oder Körper auswählen, dann Farbfeld anklicken.</p>
             <div className="materials-toolbar" aria-label="Material-Auswahl">
               <span>Materialordner: {materialLibrary?.rootLabel ?? 'Standard-Farbfelder'}</span>
               <label className="material-folder-button">
@@ -925,14 +999,17 @@ export default function App() {
                   aria-label={`Material ${entry.name}`}
                   title={`${entry.category} / ${entry.name}`}
                   style={entry.previewUrl ? { backgroundImage: `url(${entry.previewUrl})` } : undefined}
+                  onClick={() => applyMaterialToSelection(materialFromImageEntry(entry))}
                 />
-              )) : materialSwatches.map((color, index) => (
+              )) : materialSwatches.map((swatch, index) => (
                 <button
-                  key={`${color}-${index}`}
+                  key={`${swatch.color}-${index}`}
                   type="button"
                   className="material-swatch"
-                  aria-label={`Materialfeld ${index + 1}`}
-                  style={{ backgroundColor: color }}
+                  aria-label={`Material ${swatch.name}`}
+                  title={`${swatch.category} / ${swatch.name}`}
+                  style={{ backgroundColor: swatch.color }}
+                  onClick={() => applyMaterialToSelection(materialFromSwatch(swatch))}
                 />
               ))}
             </div>

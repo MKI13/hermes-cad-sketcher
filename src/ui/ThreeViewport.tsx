@@ -15,7 +15,7 @@ import {
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createWorkspaceGrid, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createWorkspaceGrid, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -39,6 +39,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 28, y: 28 });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
+  const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
   const cursorBadge = cursorBadgeForTool(activeTool);
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
@@ -258,6 +259,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       }
       toolStateRef.current = cancelToolState(toolStateRef.current);
       updateDrawingPreview();
+      setSnapCue(undefined);
       updateMeasurementPreview();
       const selection = pickSelectionAtPointer(event);
       onSelectRef.current?.(selection.entityId, selection.faceSelection);
@@ -309,6 +311,12 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         drawingPlaneRef.current
       );
       const groundPoint = rawGroundPoint;
+      if (rawGroundPoint) {
+        const snap = snapPointToModel(rawGroundPoint, model);
+        setSnapCue(snap.snapped ? { x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 18, label: snapCueLabel(snap.kind) } : undefined);
+      } else {
+        setSnapCue(undefined);
+      }
       updateDrawingPreview(groundPoint);
       const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
       const draftMeasurement = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
@@ -342,6 +350,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       event.preventDefault();
       toolStateRef.current = cancelToolState(toolStateRef.current);
       updateDrawingPreview();
+      setSnapCue(undefined);
       onMeasurementPreviewRef.current?.(undefined);
       const selection = pickSelectionAtPointer(event);
       const contextSelectedId = selection.entityId ?? selectedIdRef.current;
@@ -359,6 +368,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         toolStateRef.current = cancelToolState(toolStateRef.current);
         setContextMenu(undefined);
         updateDrawingPreview();
+        setSnapCue(undefined);
         onMeasurementPreviewRef.current?.(undefined);
       }
     };
@@ -425,6 +435,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       >
         <span className="cursor-arrow">↖</span>
       </div>
+      {snapCue && <div className="snap-cue" aria-label={`Fanghinweis ${snapCue.label}`} style={{ left: snapCue.x, top: snapCue.y }}>{snapCue.label}</div>}
       <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Escape: Aktion abbrechen.</div>
     </div>
   );
