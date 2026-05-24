@@ -87,6 +87,9 @@ describe('App controls', () => {
     expect(markup).toContain('Shadows');
     expect(markup).toContain('Scenes');
     expect(markup).toContain('Materials');
+    expect(markup).toContain('Ordner vom PC wählen');
+    expect(markup).toContain('accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"');
+    expect(markup).toContain('Materialordner: Standard-Farbfelder');
     expect(markup).toContain('class="material-swatch"');
   });
 

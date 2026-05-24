@@ -25,6 +25,7 @@ import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type Work
 import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, type WorkbenchMenu } from './ui/workbenchLayout';
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
+import { buildMaterialLibrary, type MaterialLibrary, type MaterialLibraryEntry } from './ui/materialLibrary';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand } from './ui/viewportInteractionHelpers';
 import { ThreeViewport } from './ui/ThreeViewport';
 import './styles.css';
@@ -60,6 +61,9 @@ type FloatingWindowDrag = {
   offsetX: number;
   offsetY: number;
 };
+
+type BrowserMaterialEntry = MaterialLibraryEntry & { previewUrl?: string };
+type BrowserMaterialLibrary = Omit<MaterialLibrary, 'entries'> & { entries: BrowserMaterialEntry[] };
 
 function loadToolbarOrder(): ToolName[] {
   if (typeof window === 'undefined') return DEFAULT_TOOLBAR_ORDER;
@@ -119,6 +123,8 @@ export default function App() {
   const [agentChatLog, setAgentChatLog] = useState('Agent-Chat bereit.');
   const [agentChatWindowOpen, setAgentChatWindowOpen] = useState(false);
   const [rightTrayOpen, setRightTrayOpen] = useState(true);
+  const [materialLibrary, setMaterialLibrary] = useState<BrowserMaterialLibrary | undefined>();
+  const [selectedMaterialCategory, setSelectedMaterialCategory] = useState<string | undefined>();
   const [agentBridgeStatus, setAgentBridgeStatus] = useState('Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus · noch nicht verbunden');
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
@@ -143,6 +149,8 @@ export default function App() {
     .map((toolId) => `${getToolShortcut(toolId)} ${shortcutSummaryLabels[toolId]}`)
     .join(' · ');
   const materialSwatches = ['#d97706', '#f59e0b', '#fbbf24', '#92400e', '#b45309', '#fde68a', '#ca8a04', '#78350f', '#a16207', '#eab308', '#fef3c7', '#d6d3d1', '#854d0e', '#facc15', '#c2410c', '#fcd34d', '#a8a29e', '#d97706', '#b45309', '#fde047'];
+  const visibleMaterialCategory = selectedMaterialCategory ?? materialLibrary?.categories[0];
+  const visibleMaterialEntries = materialLibrary?.entries.filter((entry) => !visibleMaterialCategory || entry.category === visibleMaterialCategory) ?? [];
   const mouseBindingPanel = (
     <details className="mouse-bindings-panel" aria-label="Mausbelegung pro Nutzer" data-mouse-bindings={summarizeMouseBindings(mouseBindings)}>
       <summary>
@@ -435,6 +443,23 @@ export default function App() {
   function resetMouseBindings() {
     setMouseBindings(sanitizeMouseBindings({}));
     setProjectStatus('Mausbelegung auf Standard zurückgesetzt');
+  }
+
+  function openMaterialFolder(files: FileList | null) {
+    const selectedFiles = Array.from(files ?? []);
+    const parsed = buildMaterialLibrary(selectedFiles);
+    const nextLibrary: BrowserMaterialLibrary = {
+      ...parsed,
+      entries: parsed.entries.map((entry) => {
+        const sourceFile = selectedFiles.find((file) => (file.webkitRelativePath || file.name) === entry.relativePath);
+        return { ...entry, previewUrl: sourceFile ? URL.createObjectURL(sourceFile) : undefined };
+      })
+    };
+    setMaterialLibrary(nextLibrary);
+    setSelectedMaterialCategory(nextLibrary.categories[0]);
+    setProjectStatus(nextLibrary.entries.length > 0
+      ? `Materialordner geladen: ${nextLibrary.rootLabel} · ${nextLibrary.entries.length} Bilder`
+      : 'Der gewählte Materialordner enthält keine unterstützten Bilddateien.');
   }
 
   function handleMouseBindingAction(action: MouseAction) {
@@ -833,11 +858,44 @@ export default function App() {
           <details className="tray-section materials-section" open>
             <summary>Materials</summary>
             <div className="materials-toolbar" aria-label="Material-Auswahl">
-              <span>Holz / warme Muster</span>
-              <button type="button" onClick={() => openFloatingWindow('inspector')}>Details</button>
+              <span>Materialordner: {materialLibrary?.rootLabel ?? 'Standard-Farbfelder'}</span>
+              <label className="material-folder-button">
+                Ordner vom PC wählen
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"
+                  onChange={(event) => {
+                    openMaterialFolder(event.currentTarget.files);
+                    event.currentTarget.value = '';
+                  }}
+                  {...{ webkitdirectory: '', directory: '' }}
+                />
+              </label>
             </div>
+            {materialLibrary && materialLibrary.categories.length > 0 && (
+              <select
+                className="material-category-select"
+                aria-label="Material-Kategorie"
+                value={visibleMaterialCategory}
+                onChange={(event) => setSelectedMaterialCategory(event.currentTarget.value)}
+              >
+                {materialLibrary.categories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            )}
             <div className="material-grid" aria-label="Material-Farbfelder">
-              {materialSwatches.map((color, index) => (
+              {visibleMaterialEntries.length > 0 ? visibleMaterialEntries.map((entry) => (
+                <button
+                  key={entry.relativePath}
+                  type="button"
+                  className="material-swatch material-image-swatch"
+                  aria-label={`Material ${entry.name}`}
+                  title={`${entry.category} / ${entry.name}`}
+                  style={entry.previewUrl ? { backgroundImage: `url(${entry.previewUrl})` } : undefined}
+                />
+              )) : materialSwatches.map((color, index) => (
                 <button
                   key={`${color}-${index}`}
                   type="button"
