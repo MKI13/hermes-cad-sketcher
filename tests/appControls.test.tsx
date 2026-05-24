@@ -52,11 +52,17 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
-  it('documents left-click as the standard action for current tools', () => {
+  it('documents configurable per-user mouse bindings with left, right and wheel defaults', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Linke Maustaste: Standardaktion des aktiven Werkzeugs');
     expect(markup).toContain('Auswahl: klicken · Linie/Körper: Punkte setzen · Fläche: klicken zum Ziehen');
+    expect(markup).toContain('Mausbelegung pro Nutzer');
+    expect(markup).toContain('Linke Taste');
+    expect(markup).toContain('Rechte Taste');
+    expect(markup).toContain('Mausrad');
+    expect(markup).toContain('Zusatzbutton 11');
+    expect(markup).toContain('data-mouse-bindings="button:0=toolAction;button:2=orbit;wheel=zoom"');
   });
 
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {

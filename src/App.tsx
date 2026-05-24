@@ -20,6 +20,7 @@ import { PushPullPanel, parsePushPullDelta } from './ui/PushPullPanel';
 import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { shouldDeleteSelectionFromKey } from './ui/selectionControls';
 import { DEFAULT_TOOLBAR_ORDER, getToolShortcut, reorderToolbar, sanitizeToolbarOrder, toolFromKeyboardEvent } from './ui/toolbarCustomization';
+import { MOUSE_ACTIONS, MOUSE_INPUTS, mouseActionLabel, sanitizeMouseBindings, summarizeMouseBindings, toolFromMouseAction, type MouseAction, type MouseInputId } from './ui/mouseBindings';
 import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type WorkspaceDock } from './ui/workspaceDock';
 import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, type WorkbenchMenu } from './ui/workbenchLayout';
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
@@ -41,6 +42,7 @@ const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
 
 const TOOLBAR_STORAGE_KEY = 'hermes-cad-toolbar-order';
 const WORKSPACE_DOCK_STORAGE_KEY = 'hermes-cad-workspace-dock';
+const MOUSE_BINDINGS_STORAGE_KEY = 'hermes-cad-mouse-bindings';
 
 type FloatingWindowState = {
   open: boolean;
@@ -73,6 +75,15 @@ function loadWorkspaceDock(): WorkspaceDock {
   return sanitizeWorkspaceDock(window.localStorage.getItem(WORKSPACE_DOCK_STORAGE_KEY));
 }
 
+function loadMouseBindings(): Record<MouseInputId, MouseAction> {
+  if (typeof window === 'undefined') return sanitizeMouseBindings({});
+  try {
+    return sanitizeMouseBindings(JSON.parse(window.localStorage.getItem(MOUSE_BINDINGS_STORAGE_KEY) ?? '{}'));
+  } catch {
+    return sanitizeMouseBindings({});
+  }
+}
+
 export default function App() {
   const [initialModel] = useState(() => {
     const m = new SketchModel();
@@ -87,6 +98,7 @@ export default function App() {
   const [activeMenu, setActiveMenu] = useState<WorkbenchMenu | undefined>();
   const [workspaceDock, setWorkspaceDock] = useState<WorkspaceDock>(loadWorkspaceDock);
   const [toolbarOrder, setToolbarOrder] = useState<ToolName[]>(loadToolbarOrder);
+  const [mouseBindings, setMouseBindings] = useState<Record<MouseInputId, MouseAction>>(loadMouseBindings);
   const [draggedTool, setDraggedTool] = useState<ToolName | undefined>();
   const [selectedId, setSelectedId] = useState<string | undefined>(model.allEntities()[0]?.id);
   const [selectedBoxFace, setSelectedBoxFace] = useState<FaceSelection | undefined>();
@@ -131,6 +143,33 @@ export default function App() {
   const shortcutSummary = DEFAULT_TOOLBAR_ORDER
     .map((toolId) => `${getToolShortcut(toolId)} ${shortcutSummaryLabels[toolId]}`)
     .join(' · ');
+  const mouseBindingPanel = (
+    <details className="mouse-bindings-panel" aria-label="Mausbelegung pro Nutzer" data-mouse-bindings={summarizeMouseBindings(mouseBindings)}>
+      <summary>
+        <strong>Mausbelegung pro Nutzer</strong>
+        <span>Standard: links Werkzeug, rechts Ansicht, Rad Zoom</span>
+      </summary>
+      <p>Standard: Linke Taste nutzt das aktive Werkzeug, rechte Taste dreht die Ansicht, Mausrad zoomt. Zusatzbuttons, zum Beispiel bei der Logitech G604, kann jeder Nutzer selbst belegen.</p>
+      <div className="mouse-bindings-grid">
+        {MOUSE_INPUTS.map((input) => (
+          <label key={input.id}>
+            <span>{input.label}</span>
+            <small>{input.browserHint}</small>
+            <select
+              aria-label={`${input.label} Funktion`}
+              value={mouseBindings[input.id]}
+              onChange={(event) => updateMouseBinding(input.id, event.currentTarget.value as MouseAction)}
+            >
+              {MOUSE_ACTIONS.filter((action) => input.id === 'wheel' ? action === 'none' || action === 'zoom' : action !== 'zoom').map((action) => (
+                <option key={action} value={action}>{mouseActionLabel(action)}</option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      <button type="button" onClick={resetMouseBindings}>Standard wiederherstellen</button>
+    </details>
+  );
 
   useEffect(() => {
     if (selected?.type === 'box') setSelectedDimensions(boxDimensionsToInput(selected));
@@ -389,6 +428,33 @@ export default function App() {
     });
   }
 
+  function updateMouseBinding(input: MouseInputId, action: MouseAction) {
+    setMouseBindings((current) => sanitizeMouseBindings({ ...current, [input]: action }));
+  }
+
+  function resetMouseBindings() {
+    setMouseBindings(sanitizeMouseBindings({}));
+    setProjectStatus('Mausbelegung auf Standard zurückgesetzt');
+  }
+
+  function handleMouseBindingAction(action: MouseAction) {
+    const nextTool = toolFromMouseAction(action);
+    if (nextTool) {
+      setTool(nextTool);
+      setProjectStatus(`Werkzeug per Maus gewählt: ${tools.find((item) => item.id === nextTool)?.label ?? nextTool}`);
+      return;
+    }
+    if (action === 'undo') {
+      undoModelChange();
+      return;
+    }
+    if (action === 'redo') {
+      redoModelChange();
+      return;
+    }
+    if (action === 'delete') deleteSelectedEntity();
+  }
+
   function defaultFloatingWindow(id: FloatingWindowId): FloatingWindowState {
     const index = ['history', 'move', 'rotate', 'pushPull', 'dimensions', 'extrude', 'inspector', 'boxDimensions', 'rubyConsole', 'hermesAgent'].indexOf(id);
     return { open: true, minimized: false, maximized: false, left: 120 + (index % 4) * 34, top: 150 + (index % 5) * 28, width: id === 'hermesAgent' ? 460 : 380, height: id === 'hermesAgent' ? 430 : 360 };
@@ -449,6 +515,11 @@ export default function App() {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(TOOLBAR_STORAGE_KEY, JSON.stringify(toolbarOrder));
   }, [toolbarOrder]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(MOUSE_BINDINGS_STORAGE_KEY, JSON.stringify(mouseBindings));
+  }, [mouseBindings]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -831,6 +902,7 @@ export default function App() {
           </button>
         </div>
         <p className="shortcut-hint">Shortcuts: {shortcutSummary} · Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.</p>
+        {mouseBindingPanel}
         <p className="agent-policy-note">Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p>
         {activeMenuPanel}
         <p className="research-note">SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p>
@@ -866,10 +938,12 @@ export default function App() {
             onMeasure={measureFromViewport}
             onMove={moveFromViewport}
             onMeasurementPreview={setLiveMeasurement}
+            mouseBindings={mouseBindings}
+            onMouseBindingAction={handleMouseBindingAction}
           />
           <div className="model-card compact">
             <strong>Interaktiver 3D-Viewport</strong>
-            <span>Mausrad: Zoom auf den Punkt unter der Maus.</span>
+            <span>Mausbelegung pro Nutzer: links Werkzeugaktion, rechts Ansicht drehen, Rad Zoom; Zusatzbuttons sind frei belegbar.</span>
             <span>Linie/Rechteck/Maßband: zwei Klicks auf das Raster.</span>
             <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
             <span>Körper: ein Klick auf das Raster.</span>

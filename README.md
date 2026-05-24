@@ -53,6 +53,7 @@ Vorhanden im Code:
 - seitliche Arbeitsleiste als reine Icon-Leiste für schnelle Werkzeugwahl; ausführliche Eingabe- und Dateifunktionen sitzen oben im passenden Menübereich oder in externen Fenstern
 - linke Maustaste führt die Standardaktion des aktiven Werkzeugs aus: Auswahl anklicken, Linien/Körperpunkte setzen, Körperflächen auswählen und anschließend ziehen
 - Mausrad-Zoom im 3D-Arbeitsbereich: der Punkt unter der Maus wird als Zoom-Fokus verwendet
+- anpassbare Mausbelegung pro Browser-Nutzer: standardmäßig linke Taste = Werkzeugaktion, rechte Taste = Ansicht drehen, Mausrad = Zoom; zusätzliche Browser-Maustasten, z. B. Logitech-G604-Seitentasten, können auf Werkzeugwahl, Undo/Redo oder Löschen gelegt werden
 - Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
 - normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
 - Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben
@@ -110,6 +111,13 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - Fläche extrudieren: axis-aligned Rechteck/Fläche auswählen, positive Höhe eingeben und zu einem Boxkörper extrudieren.
 - Rückgängig/Wiederholen: Modelländerungen mit den Schaltflächen `Rückgängig` und `Wiederholen` reversibel machen.
 - Auswahl löschen: Button `Auswahl löschen` oder Delete/Backspace.
+
+### Mausbelegung
+
+- Im Bereich `Mausbelegung pro Nutzer` kann jeder Browser-Nutzer seine eigene Maus speichern.
+- Standard bleibt bewusst einfach: linke Taste = aktive Werkzeugaktion, rechte Taste = Ansicht drehen, Mausrad = Zoom.
+- Zusatzbuttons, die der Browser als Button 3 bis 11 meldet, können z. B. Werkzeuge wählen, Rückgängig/Wiederholen auslösen oder die Auswahl löschen.
+- Bei Mäusen wie Logitech G604 müssen Tasten, die der Browser nicht als Maustaste meldet, in der Maussoftware eventuell zuerst als normale Maustaste oder Tastaturkürzel konfiguriert werden.
 
 ### Messen
 
