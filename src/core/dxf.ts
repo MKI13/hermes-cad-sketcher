@@ -26,7 +26,8 @@ export type DxfSkippedEntity = { entityType: string; reason: string };
 export type DxfUnitStatus =
   | { kind: 'millimeters'; insunits: 4; message: string }
   | { kind: 'missing'; message: string }
-  | { kind: 'unsupported'; insunits: number; message: string };
+  | { kind: 'unsupported'; insunits: number; message: string }
+  | { kind: 'malformed'; message: string };
 export type DxfImportReport = { model: SketchModel; importedEntities: number; skippedEntities: DxfSkippedEntity[]; unitStatus: DxfUnitStatus };
 
 const unsupportedDxfEntityReason = 'DXF entity type is not supported by the current MVP importer.';
@@ -43,7 +44,7 @@ export function importDxfWithReport(text: string): DxfImportReport {
   const skippedEntities: DxfSkippedEntity[] = [];
   const tokens = text.split(/\r?\n/).map((s) => s.trim());
   const unitStatus = readDxfUnitStatus(tokens);
-  if (unitStatus.kind === 'unsupported') {
+  if (unitStatus.kind === 'unsupported' || unitStatus.kind === 'malformed') {
     return { model, importedEntities, skippedEntities: [{ entityType: 'DXF', reason: unitStatus.message }], unitStatus };
   }
   let inEntitiesSection = false;
@@ -111,7 +112,11 @@ function readDxfUnitStatus(tokens: string[]): DxfUnitStatus {
       continue;
     }
     if (inHeaderSection && code === '9' && value === '$INSUNITS') {
+      const valueCode = tokens[i + 2];
       const rawInsunits = tokens[i + 3];
+      if (valueCode !== '70' || rawInsunits === undefined || !/^\d+$/.test(rawInsunits)) {
+        return { kind: 'malformed', message: 'Malformed DXF units: $INSUNITS must use group code 70 with integer value 4 for millimeters.' };
+      }
       const insunits = Number(rawInsunits);
       if (insunits === 4) return { kind: 'millimeters', insunits: 4, message: 'DXF units: millimeters ($INSUNITS=4).' };
       return { kind: 'unsupported', insunits, message: `Unsupported DXF units: $INSUNITS=${rawInsunits}. Only millimeters ($INSUNITS=4) are imported.` };
