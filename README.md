@@ -66,7 +66,7 @@ Vorhanden im Code:
 - Verschieben per Maus über Start-/Zielpunkt
 - präzises Verschieben per ΔX/ΔY/ΔZ in mm
 - präzises Drehen um die Z-Achse in Grad
-- präzises Push/Pull für Boxhöhe per ΔH in mm
+- präzises Push/Pull für Boxhöhe und ausgewählte Boxseiten per ΔH in mm
 - direkte Bearbeitung der Maße ausgewählter Boxkörper
 - Extrusion ausgewählter axis-aligned Rechteckflächen zu Boxkörpern
 - Löschen der Auswahl per Button oder Tastatur
@@ -105,7 +105,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - `Verschieben`: Objekt auswählen, Werkzeug aktivieren, Start- und Zielpunkt auf dem Raster klicken.
 - Präzises Verschieben: ΔX/ΔY/ΔZ in mm eingeben und anwenden.
 - Präzises Drehen: Winkel in Grad eingeben und anwenden.
-- Push/Pull: Box auswählen, ΔH in mm eingeben und anwenden.
+- Push/Pull: Box oder eine ihrer sichtbaren Seiten auswählen, ΔH in mm eingeben und anwenden. Bei Seitenflächen ändert sich die passende Breite/Tiefe entlang der lokalen Face-Richtung.
 - Auswahlmaße bearbeiten: Box auswählen, Breite/Tiefe/Höhe direkt in mm setzen.
 - Fläche extrudieren: axis-aligned Rechteck/Fläche auswählen, positive Höhe eingeben und zu einem Boxkörper extrudieren.
 - Rückgängig/Wiederholen: Modelländerungen mit den Schaltflächen `Rückgängig` und `Wiederholen` reversibel machen.
@@ -192,7 +192,7 @@ Noch nicht fertig oder nur teilweise vorhanden:
 
 - freie Flächenbearbeitung wie in einem vollständigen CAD-System
 - beliebig rotierte oder freie Flächenextrusion; aktuell ist nur axis-aligned Rechteck-zu-Box-Extrusion implementiert
-- Push/Pull aus beliebigen Rechtecken oder Flächen in Breite/Tiefe/Höhe
+- Push/Pull für beliebige freie Flächen und komplexe Körperfaces; aktuell sind Boxseiten und axis-aligned Rechteck-zu-Box-Extrusion abgedeckt
 - vollständiger DXF-Import; aktuell nur einfacher LINE-Import und begrenzte geschlossene, achsenparallele Vierpunkt-LWPOLYLINE-Rechtecke
 - editierbarer STL-Import; aktuell kann ASCII-STL nur als nicht editierbares Referenzmesh geladen werden
 - Binary-STL-Import

@@ -303,24 +303,38 @@ export class SketchModel {
 
 function pushPullBoxFaceSnapshot(entity: BoxEntity, face: BoxFaceName, delta: number): BoxEntity {
   if (!Number.isFinite(delta)) throw new Error('Push/Pull braucht eine positive Höhe.');
+  const previousCenter = boxLocalCenter(entity);
   const next = { ...entity };
   if (face === 'top') next.height += delta;
   if (face === 'bottom') {
     next.origin = add(next.origin, vec(0, 0, -delta));
     next.height += delta;
   }
-  if (face === 'right') next.width += delta;
-  if (face === 'left') {
-    next.origin = add(next.origin, vec(-delta, 0, 0));
-    next.width += delta;
-  }
-  if (face === 'front') next.depth += delta;
-  if (face === 'back') {
-    next.origin = add(next.origin, vec(0, -delta, 0));
-    next.depth += delta;
-  }
+  if (face === 'right' || face === 'left') next.width += delta;
+  if (face === 'front' || face === 'back') next.depth += delta;
   assertPositiveBoxDimensions(next.width, next.depth, next.height);
+  const centerShift = pushPullCenterShift(entity.rotationZ, face, delta);
+  if (centerShift) {
+    const nextCenter = add(previousCenter, centerShift);
+    next.origin = vec(nextCenter.x - next.width / 2, nextCenter.y - next.depth / 2, next.origin.z);
+  }
   return next;
+}
+
+function boxLocalCenter(entity: BoxEntity): Vec3 {
+  return add(entity.origin, vec(entity.width / 2, entity.depth / 2, entity.height / 2));
+}
+
+function pushPullCenterShift(rotationZ: number, face: BoxFaceName, delta: number): Vec3 | undefined {
+  if (face === 'right') return localOffset(rotationZ, delta / 2, 0);
+  if (face === 'left') return localOffset(rotationZ, -delta / 2, 0);
+  if (face === 'front') return localOffset(rotationZ, 0, delta / 2);
+  if (face === 'back') return localOffset(rotationZ, 0, -delta / 2);
+  return undefined;
+}
+
+function localOffset(rotationZ: number, x: number, y: number): Vec3 {
+  return rotateAroundZ(vec(x, y, 0), rotationZ, vec(0, 0, 0));
 }
 
 function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Vec3, Vec3] {
@@ -376,17 +390,22 @@ export function entityPoints(entity: Entity): Vec3[] {
   if (entity.type === 'edge') return [entity.start, entity.end];
   if (entity.type === 'face') return entity.vertices;
   if (entity.type === 'referenceMesh') return entity.triangles.flatMap((triangle) => triangle.vertices);
-  const { origin, width, depth, height } = entity;
+  return boxCornerPoints(entity);
+}
+
+function boxCornerPoints(entity: BoxEntity): Vec3[] {
+  const { origin, width, depth, height, rotationZ } = entity;
+  const center = add(origin, vec(width / 2, depth / 2, 0));
   return [
-    origin,
-    add(origin, vec(width, 0, 0)),
-    add(origin, vec(width, depth, 0)),
-    add(origin, vec(0, depth, 0)),
-    add(origin, vec(0, 0, height)),
-    add(origin, vec(width, 0, height)),
-    add(origin, vec(width, depth, height)),
-    add(origin, vec(0, depth, height))
-  ];
+    vec(-width / 2, -depth / 2, 0),
+    vec(width / 2, -depth / 2, 0),
+    vec(width / 2, depth / 2, 0),
+    vec(-width / 2, depth / 2, 0),
+    vec(-width / 2, -depth / 2, height),
+    vec(width / 2, -depth / 2, height),
+    vec(width / 2, depth / 2, height),
+    vec(-width / 2, depth / 2, height)
+  ].map((point) => add(center, rotateAroundZ(point, rotationZ, vec(0, 0, 0))));
 }
 
 export function entityBoundingBox(entity: Entity) {
