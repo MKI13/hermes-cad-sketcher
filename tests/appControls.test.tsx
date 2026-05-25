@@ -65,6 +65,9 @@ describe('App controls', () => {
     expect(markup).toContain('class="measurement-field viewport-measurement-field"');
     expect(markup).toContain('Maß');
     expect(markup).toContain('Aktuell');
+    expect(markup).toContain('aria-label="Aktive Maße direkt eingeben"');
+    expect(markup).toContain('Direktmaß');
+    expect(markup).toContain('Übernehmen');
     expect(markup).toContain('mm');
     expect(markup).toContain('Fläche: keine Körperfläche');
     expect(markup).toContain('Werkzeuge setzen Punkte oder wählen Flächen.');

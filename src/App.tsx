@@ -8,6 +8,7 @@ import { exportDxf, importDxfWithReport } from './core/dxf';
 import { exportAsciiStl, importAsciiStl } from './core/stl';
 import { createHistory, pushHistory, redoHistory, undoHistory, type ModelHistory } from './core/history';
 import { runAgentChatCommand, runCadConsoleScript } from './core/cadCommands';
+import { applyMeasurementInputTransaction } from './core/measurementApplication';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
@@ -95,6 +96,7 @@ export default function App() {
   const [selectedBoxFace, setSelectedBoxFace] = useState<FaceSelection | undefined>();
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
   const [liveMeasurement, setLiveMeasurement] = useState<string | undefined>();
+  const [measurementInput, setMeasurementInput] = useState('');
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
   const [selectedDimensions, setSelectedDimensions] = useState<DimensionInput>(() => {
@@ -271,6 +273,33 @@ export default function App() {
     const measured = formatTapeMeasurement(model, start, end);
     setLastMeasurement(measured);
     setLiveMeasurement(`Maßband: ${measured}`);
+  }
+
+  function applyMeasurementInput() {
+    if (tool !== 'rectangle' && tool !== 'box') {
+      setProjectStatus('Aktive Maßeingabe ist nur für Rechteck und Körper aktiv.');
+      return;
+    }
+    let measurement: string | undefined;
+    const applied = applyMeasurementInputTransaction(model, {
+      tool,
+      rawInput: measurementInput,
+      selectedId,
+      defaultOrigin: vec(0, 0, 0)
+    }, (nextModel, result) => {
+      const entity = nextModel.getEntity(result.entityId);
+      setModel(nextModel);
+      setHistory((current) => pushHistory(current, nextModel.snapshot()));
+      setSelectedId(result.entityId);
+      if (entity?.type === 'box') setSelectedDimensions(boxDimensionsToInput(entity));
+      measurement = entity ? formatEntityMeasurement(entity) : undefined;
+    });
+    if (!applied.ok) {
+      setProjectStatus(applied.error);
+      return;
+    }
+    setLiveMeasurement(measurement);
+    setProjectStatus(`Maße ${applied.action === 'created' ? 'direkt erstellt' : 'live geändert'}`);
   }
 
   function handleViewportSelect(entityId: string | undefined, faceSelection?: FaceSelection) {
@@ -882,6 +911,19 @@ export default function App() {
             <strong>Maß</strong>
             <span>Aktuell</span>
             <output>{activeMeasurement}</output>
+            <label>
+              <span>Direktmaß</span>
+              <input
+                aria-label="Aktive Maße direkt eingeben"
+                value={measurementInput}
+                placeholder={tool === 'box' ? '600,400,720' : '1200,600'}
+                onChange={(event) => setMeasurementInput(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') applyMeasurementInput();
+                }}
+              />
+            </label>
+            <button type="button" onClick={applyMeasurementInput}>Übernehmen</button>
             <small>mm · m²</small>
           </section>
         </div>

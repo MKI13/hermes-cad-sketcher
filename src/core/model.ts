@@ -128,6 +128,22 @@ export class SketchModel {
     return entity;
   }
 
+
+  resizeRectangleFace(id: EntityId, width: number, depth: number): FaceEntity {
+    if (!isPositiveFinite(width) || !isPositiveFinite(depth)) throw new Error('Ein Rechteck braucht positive Breite und Tiefe.');
+    const entity = this.requireEntity(id);
+    if (entity.type !== 'face') throw new Error('Rechteckmaße brauchen eine ausgewählte Fläche.');
+    if (!isAxisAlignedRectangleFace(entity.vertices)) throw new Error('Rechteckmaße unterstützen im MVP nur axis-aligned Rechteckflächen.');
+    const box = bbox(entity.vertices);
+    const origin = vec(box.min.x, box.min.y, box.min.z);
+    const updated: FaceEntity = {
+      ...entity,
+      vertices: [origin, add(origin, vec(width, 0, 0)), add(origin, vec(width, depth, 0)), add(origin, vec(0, depth, 0))]
+    };
+    this.entities.set(id, updated);
+    return updated;
+  }
+
   extrudeFaceToBox(id: EntityId, height: number): BoxEntity {
     if (!isPositiveFinite(height)) throw new Error('Extrusion braucht eine positive Höhe.');
     const entity = this.requireEntity(id);
