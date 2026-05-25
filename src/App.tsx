@@ -1345,7 +1345,7 @@ export default function App() {
             <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
             <span>Körper: ein Klick auf das Raster.</span>
             <span>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</span>
-            <span>Aktuelle Elemente: {model.allEntities().length}</span>
+            <span>Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
           <MeasurementBox
