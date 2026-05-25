@@ -62,12 +62,12 @@ describe('App controls', () => {
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('class="measurement-field"');
-    expect(markup).toContain('Einheitenfeld');
-    expect(markup).toContain('Aktuelles Maß');
+    expect(markup).toContain('class="measurement-field viewport-measurement-field"');
+    expect(markup).toContain('Maß');
+    expect(markup).toContain('Aktuell');
     expect(markup).toContain('mm');
     expect(markup).toContain('Fläche: keine Körperfläche');
-    expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
+    expect(markup).toContain('Werkzeuge setzen Punkte oder wählen Flächen.');
   });
 
   it('renders the initial viewport loading boundary without the heavy Three.js cursor layer', () => {
@@ -77,6 +77,20 @@ describe('App controls', () => {
     expect(markup).not.toContain('class="cursor-arrow"');
     expect(markup).not.toContain('class="cursor-symbol"');
     expect(markup).not.toContain('Mauszeiger: Pfeil mit Auswahl Symbol');
+  });
+
+  it('renders a compact viewport help card and unit field with stable hook classes for mobile visual QA', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('class="model-card compact viewport-help-card"');
+    expect(markup).toContain('Interaktiver 3D-Viewport');
+    expect(markup).toContain('Ziehen: Orbit/Pan · Rad: Zoom');
+    expect(markup).toContain('Werkzeuge setzen Punkte oder wählen Flächen.');
+    expect(markup).toContain('Elemente: ');
+    expect(markup).not.toContain('Mausrad: Zoom auf den Punkt unter der Maus.');
+    expect(markup).not.toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
+    expect(markup).toContain('class="measurement-field viewport-measurement-field"');
+    expect(markup).toContain('Maß');
   });
 
   it('renders a research-backed classic CAD workbench bar without copying protected branding', () => {

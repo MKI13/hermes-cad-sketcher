@@ -408,16 +408,16 @@ async function runDxfLoadSmoke(cdp) {
       while (performance.now() < deadline) {
         await afterFrame();
         lastText = text();
-        if (lastText.includes('DXF geladen: 2 importiert, 0 übersprungen') && lastText.includes('Aktuelle Elemente: 2')) return lastText;
+        if (lastText.includes('DXF geladen: 2 importiert, 0 übersprungen') && lastText.includes('Elemente: 2')) return lastText;
       }
       return lastText;
     };
     const settledText = await waitForDxfImportStatus();
     if (!settledText.includes('DXF geladen: 2 importiert, 0 übersprungen')) failures.push('DXF import status did not report 2 imported / 0 skipped');
     if (!settledText.includes('DXF units: millimeters ($INSUNITS=4).')) failures.push('DXF import status did not report millimeter INSUNITS handling');
-    if (!settledText.includes('Aktuelle Elemente: 2')) failures.push('DXF import did not show expected entity count');
+    if (!settledText.includes('Elemente: 2')) failures.push('DXF import did not show expected entity count');
     if (!settledText.includes('Auswahl: edge_')) failures.push('DXF import did not select the first imported line');
-    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 2') };
+    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Elemente: 2') };
   })()`);
   if (!result?.ok) throw new Error(`DXF load smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
   return result;
@@ -475,18 +475,18 @@ endsolid reference_part
       while (performance.now() < deadline) {
         await afterFrame();
         lastText = text();
-        if (lastText.includes('STL-Referenzmesh geladen: 2 Dreiecke') && lastText.includes('Aktuelle Elemente: 3')) return lastText;
+        if (lastText.includes('STL-Referenzmesh geladen: 2 Dreiecke') && lastText.includes('Elemente: 3')) return lastText;
       }
       return lastText;
     };
     const settledText = await waitForStlImportStatus();
     if (!settledText.includes('STL-Referenzmesh geladen: 2 Dreiecke')) failures.push('STL reference import status did not report 2 triangles');
     if (!settledText.includes('nicht als editierbarer Körper importiert')) failures.push('STL reference import did not state non-editable body boundary');
-    if (!settledText.includes('Aktuelle Elemente: 3')) failures.push('STL reference import did not append an entity to the model');
+    if (!settledText.includes('Elemente: 3')) failures.push('STL reference import did not append an entity to the model');
     if (!settledText.includes('Auswahl: mesh_')) failures.push('STL reference import did not select the mesh entity');
     if (!settledText.includes('STL-Referenzmesh')) failures.push('Inspector did not show STL reference mesh title');
     if (!settledText.includes('Dreiecke') || !settledText.includes('2')) failures.push('Inspector did not show triangle count');
-    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Aktuelle Elemente: 3') };
+    return { ok: failures.length === 0, failures, statusText: Array.from(document.querySelectorAll('.statusbar span')).find((node) => node.textContent.startsWith('Projekt:'))?.textContent ?? '', entityCountVisible: settledText.includes('Elemente: 3') };
   })()`);
   if (!result?.ok) throw new Error(`STL reference load smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
   return result;
@@ -582,7 +582,7 @@ async function main() {
       clickByText('button', 'Auswahl');
       await afterFrame();
       if (!text().includes('Werkzeug: select')) failures.push('Select tool click did not update statusbar');
-      if (!before.includes('Aktuelle Elemente: 2')) failures.push('Initial model count was not visible');
+      if (!before.includes('Elemente: 2')) failures.push('Initial model count was not visible');
       return { ok: failures.length === 0, failures, canvasCount: document.querySelectorAll('canvas').length, webglFallback: text().includes('3D-Viewport nicht verfügbar') };
     })()`);
     if (!result?.ok) throw new Error(`Browser smoke failed: ${JSON.stringify(result?.failures ?? result)}`);

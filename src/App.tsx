@@ -872,21 +872,17 @@ export default function App() {
               onMeasurementPreview={setLiveMeasurement}
             />
           </React.Suspense>
-          <div className="model-card compact">
+          <div className="model-card compact viewport-help-card">
             <strong>Interaktiver 3D-Viewport</strong>
-            <span>Mausrad: Zoom auf den Punkt unter der Maus.</span>
-            <span>Linie/Rechteck/Maßband: zwei Klicks auf das Raster.</span>
-            <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
-            <span>Körper: ein Klick auf das Raster.</span>
-            <span>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</span>
-            <span>Aktuelle Elemente: {model.allEntities().length}</span>
-            <span>Komponenten: {model.allComponents().length}</span>
+            <span>Ziehen: Orbit/Pan · Rad: Zoom</span>
+            <span>Werkzeuge setzen Punkte oder wählen Flächen.</span>
+            <span>Elemente: {model.allEntities().length} · Komponenten: {model.allComponents().length}</span>
           </div>
-          <section className="measurement-field" aria-label="Einheitenfeld">
-            <strong>Einheitenfeld</strong>
-            <span>Aktuelles Maß</span>
+          <section className="measurement-field viewport-measurement-field" aria-label="Einheitenfeld">
+            <strong>Maß</strong>
+            <span>Aktuell</span>
             <output>{activeMeasurement}</output>
-            <small>mm · m² bei Flächen</small>
+            <small>mm · m²</small>
           </section>
         </div>
         <footer className="statusbar">

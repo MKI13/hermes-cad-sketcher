@@ -22,7 +22,7 @@ describe('browser smoke visual contract', () => {
     expect(source).toContain('DXF units: millimeters ($INSUNITS=4).');
     expect(source).toContain('waitForDxfImportStatus');
     expect(source).toContain('core file/import/export controls visible after opening the Datei menu');
-    expect(source).toContain('Aktuelle Elemente: 2');
+    expect(source).toContain('Elemente: 2');
     expect(source).toContain('dxf load workflow imports supported synthetic fixture');
     expect(source).toContain('aboveTheFold');
     expect(source).toContain('documentVerticalOverflow');

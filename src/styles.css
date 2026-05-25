@@ -85,10 +85,10 @@ button { font: inherit; }
 .cursor-tool-badge { position: absolute; z-index: 5; display: inline-flex; align-items: center; gap: 2px; pointer-events: none; color: #0f172a; filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.45)); }
 .cursor-arrow { font-size: 24px; line-height: 1; color: #020617; }
 .cursor-symbol { display: none; }
-.measurement-field { position: absolute; right: 18px; bottom: 18px; z-index: 4; min-width: min(320px, calc(100% - 36px)); max-width: 460px; border: 1px solid rgba(251, 191, 36, 0.9); background: rgba(15, 23, 42, 0.92); color: #f8fafc; border-radius: 14px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; box-shadow: 0 18px 50px rgba(15, 23, 42, 0.36); }
+.measurement-field { position: absolute; right: 18px; bottom: 18px; z-index: 4; min-width: min(260px, calc(100% - 36px)); max-width: min(390px, calc(100% - 36px)); border: 1px solid rgba(251, 191, 36, 0.9); background: rgba(15, 23, 42, 0.9); color: #f8fafc; border-radius: 14px; padding: 8px 10px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; box-shadow: 0 14px 38px rgba(15, 23, 42, 0.3); }
 .measurement-field strong { color: #fbbf24; }
-.measurement-field span, .measurement-field small { color: #cbd5e1; font-size: 12px; }
-.measurement-field output { grid-column: 2; font-weight: 800; text-align: right; }
+.measurement-field span, .measurement-field small { color: #cbd5e1; font-size: 11px; }
+.measurement-field output { grid-column: 2; font-weight: 800; text-align: right; overflow-wrap: anywhere; }
 .viewport-help { position: absolute; left: 16px; bottom: 16px; z-index: 2; background: rgba(15, 23, 42, 0.78); color: #e2e8f0; border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 999px; padding: 8px 12px; font-size: 13px; pointer-events: none; }
 .viewport-error { position: absolute; left: 24px; top: 24px; right: 24px; z-index: 3; display: flex; flex-direction: column; gap: 6px; max-width: 360px; background: rgba(127, 29, 29, 0.9); color: #fee2e2; border: 1px solid rgba(252, 165, 165, 0.6); border-radius: 14px; padding: 14px 16px; box-shadow: 0 18px 45px #0f172a33; overflow-wrap: anywhere; }
 .model-card { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); border: 1px solid #cbd5e1; box-shadow: 0 20px 60px #0f172a33; border-radius: 18px; padding: 26px; display: flex; flex-direction: column; gap: 12px; min-width: 340px; pointer-events: none; }
@@ -125,7 +125,11 @@ button { font: inherit; }
   .workspace { min-height: 620px; }
   .viewport-help { left: 12px; right: 12px; bottom: 12px; border-radius: 14px; }
   .viewport-error { left: 12px; right: 12px; top: 12px; max-width: none; }
-  .model-card.compact { top: 12px; right: 12px; left: 12px; width: auto; min-width: 0; box-sizing: border-box; }
+  .model-card.compact { top: 10px; right: 10px; left: auto; width: min(260px, calc(100% - 20px)); padding: 8px 10px; gap: 4px; font-size: 11px; border-radius: 12px; }
+  .model-card.compact strong { font-size: 14px; }
+  .model-card.compact span:nth-of-type(2) { display: none; }
+  .measurement-field { left: 10px; right: 10px; bottom: 10px; min-width: 0; max-width: none; padding: 7px 9px; border-radius: 12px; font-size: 12px; }
+  .measurement-field span, .measurement-field small { font-size: 10px; }
   .statusbar { gap: 8px; font-size: 13px; }
   .statusbar span { overflow-wrap: anywhere; }
   .ai-chat-window { left: 12px; right: 12px; bottom: 12px; width: auto; }
