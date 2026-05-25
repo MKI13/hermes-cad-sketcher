@@ -493,13 +493,28 @@ endsolid reference_part
 }
 
 async function main() {
-  const preview = startProcess('npm', ['run', 'preview', '--', '--host', '127.0.0.1', '--port', String(previewPort), '--strictPort']);
+  const previewHost = '127.0.0.1';
+  const previewArgs = ['run', 'preview', '--', '--host', previewHost, '--port', String(previewPort), '--strictPort'];
+  let preview = startProcess('npm', previewArgs);
   const chromiumDataDir = await mkdtemp(path.join(tmpdir(), 'hermes-cad-smoke-chrome-'));
   let chromium;
   let protocol;
   attachExitCleanup([preview]);
   try {
-    await waitForHttp(previewUrl, 30_000, () => preview.exitCode === null && preview.signalCode === null);
+    try {
+      await waitForHttp(previewUrl, 30_000, () => preview.exitCode === null && preview.signalCode === null);
+    } catch (error) {
+      if (preview.exitCode !== null || preview.signalCode !== null) {
+        const fallbackArgs = ['exec', 'vite', '--', 'preview', '--host', previewHost, '--port', String(previewPort), '--strictPort'];
+        const fallbackPreview = startProcess('npx', fallbackArgs);
+        attachExitCleanup([fallbackPreview]);
+        await stopProcess(preview);
+        preview = fallbackPreview;
+        await waitForHttp(previewUrl, 30_000, () => preview.exitCode === null && preview.signalCode === null);
+      } else {
+        throw error;
+      }
+    }
 
     const debugPort = await getFreePort();
     chromium = startProcess(chromiumExecutable, [
@@ -515,6 +530,8 @@ async function main() {
       '--disable-sync',
       '--no-first-run',
       '--no-default-browser-check',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
       'about:blank'
     ]);
     attachExitCleanup([chromium]);
