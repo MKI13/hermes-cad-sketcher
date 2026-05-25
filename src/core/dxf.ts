@@ -233,13 +233,13 @@ function polyline(out: string[], vertices: Vec3[], layer = '0'): void {
   }
 }
 
-export function supportedCadFormats(): Record<string, 'mvp' | 'planned' | 'external-bridge'> {
+export function supportedCadFormats(): Record<string, 'mvp' | 'planned' | 'external-bridge' | 'unsupported'> {
   return {
     dxf: 'mvp',
     stl: 'mvp',
     skp: 'external-bridge',
     dwg: 'external-bridge',
-    rb: 'planned',
-    rbz: 'planned'
+    rb: 'unsupported',
+    rbz: 'unsupported'
   };
 }

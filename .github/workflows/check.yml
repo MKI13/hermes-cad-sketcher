@@ -26,3 +26,12 @@ jobs:
 
       - name: Run tests and production build
         run: npm run check
+
+      - name: Locate Chrome for browser smoke
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+
+      - name: Run browser smoke against production preview
+        run: npm run smoke:browser
+        env:
+          CHROMIUM_PATH: ${{ steps.chrome.outputs.chrome-path }}

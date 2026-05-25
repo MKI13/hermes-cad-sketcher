@@ -375,5 +375,7 @@ endsolid collinear_vertices
     expect(supportedCadFormats().stl).toBe('mvp');
     expect(supportedCadFormats().dwg).toBe('external-bridge');
     expect(supportedCadFormats().skp).toBe('external-bridge');
+    expect(supportedCadFormats().rb).toBe('unsupported');
+    expect(supportedCadFormats().rbz).toBe('unsupported');
   });
 });
