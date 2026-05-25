@@ -1,126 +1,46 @@
 # CAD Kernel and Existing Project Evaluation
 
-> Purpose: choose the professional path before implementing deeper production CAD geometry. This is a first-pass research packet based on current public search snippets and project fit. Do not adopt or copy code until license and architecture are verified directly from upstream source files.
+> Purpose: choose the professional path before implementing deeper production CAD geometry. This is a decision packet, not approval to install a large kernel dependency or fork another CAD app.
 
 ## Recommendation
 
-Use the current Hermes CAD Sketcher app as the product/UI/document base and evaluate OpenCascade/OpenCascade.js as the likely geometry-kernel adapter for advanced solids and future STEP-like exchange.
+Recommended path: keep Hermes CAD Sketcher as the product/UI/document application and prepare an isolated OpenCascade.js / Open CASCADE Technology adapter spike after the command/document seams are stable.
 
-Do not immediately fork/adopt Chili3D or OpenGeometry as the main app. Treat them as reference implementations until a deeper license/API/build review proves adoption is better.
+Why: OpenCascade is the most credible open-source B-Rep CAD kernel path with browser/WASM bindings, while the current TypeScript model is valuable as the local-first document/app layer. Chili3D and OpenGeometry are useful references, but neither should replace the app today: Chili3D is AGPL and app-shaped, OpenGeometry is promising but less proven for this specific product path.
 
-Short version:
+Do not do yet:
+- do not add OpenCascade.js, OpenGeometry, Chili3D, SolveSpace, or libfive as a dependency in this issue;
+- do not fork or copy Chili3D/OpenGeometry UI/code;
+- do not promise native DWG/SKP/STEP/IFC support;
+- do not rewrite project files around kernel-native topology before a migration plan exists.
 
-1. Keep current app.
-2. Add production architecture seams: inspection, commands/history, document migrations.
-3. Spike an isolated kernel adapter around OpenCascade.js/OpenCascade after the command/document layer exists.
-4. Use Chili3D/OpenGeometry for architectural comparison, not wholesale replacement yet.
+## Proof spike plan
 
-## Why not keep custom geometry only?
+1. Create an isolated kernel-spike branch and adapter module, e.g. `src/core/kernel/openCascadeAdapter.ts`, behind a tiny interface. No React imports and no project-file schema change in the first spike.
+2. Prove one operation only: create a rectangle profile, extrude it to a solid, tessellate it for Three.js, and report dimensions/bounding box in millimeters.
+3. Measure and record bundle/runtime impact with `npm run build` before/after.
+4. Add structured failure tests: missing WASM, invalid profile, zero/negative height, failed tessellation.
+5. Stop condition: if install/build/bundle complexity or LGPL/redistribution obligations cannot be made clear in one spike, keep current model for v1 and defer kernel adoption.
 
-The current custom TypeScript model is good for early entities, IDs, units, save/load, and UI workflows. It is not enough for production CAD solids because robust face operations, booleans, fillets/chamfers, watertight topology, STEP/IGES-like exchange, and exact B-Rep behavior are hard to implement correctly from scratch.
+## Sources checked
 
-Keep it as the application/document layer, but do not pretend it is a production CAD kernel.
+- Open CASCADE Technology licensing page: OCCT 6.7.0+ is LGPL 2.1 with an additional exception.
+- OpenCascade.js official project page / repository: OpenCascade CAD library ported to JavaScript/WebAssembly via Emscripten; GitHub API reports LGPL-2.1 license and last push 2023-08-15 for `donalffons/opencascade.js`.
+- Chili3D repository: browser-based TypeScript CAD app using OpenCascade/WASM and Three.js; GitHub API reports AGPL-3.0, ~4554 stars, pushed 2026-05-19.
+- OpenGeometry repository: browser-native Rust/WASM/Three.js CAD kernel; GitHub API reports MPL-2.0, ~376 stars, pushed 2026-05-05.
+- libfive README: library/stdlib/Python bindings MPL-2.0, Guile/Studio GPL-2-or-later; implicit solid modeling approach.
+- SolveSpace repository/site: parametric 2D/3D CAD and constraint solver reference; GitHub API reports GPL-3.0, ~3978 stars, pushed 2026-05-21.
 
-## Candidates
+## Candidate matrix
 
-### 1. OpenCascade Technology / OpenCascade.js
-
-**What it appears to offer:**
-- Full-scale open-source 3D geometry/CAD kernel.
-- Surface and solid modeling.
-- CAD data exchange foundations.
-- JavaScript/WebAssembly bindings through OpenCascade.js.
-- Browser/cloud-capable CAD kernel path.
-
-**Fit:** High.
-
-**Pros:**
-- Most credible path for serious solid modeling.
-- Existing browser/WASM route.
-- Known CAD-kernel lineage used by real CAD systems.
-- Better future support for advanced operations and file exchange than custom TypeScript geometry.
-
-**Cons / risks:**
-- Large dependency and bundle/runtime complexity.
-- API complexity.
-- Requires careful adapter design.
-- License/build details must be verified directly before adoption.
-- Integrating B-Rep topology with current simple entity model is non-trivial.
-
-**Decision:** Leading kernel-dependency candidate. Do an isolated spike, not an immediate app rewrite.
-
-### 2. Chili3D
-
-**What it appears to offer:**
-- Open-source browser-based 3D CAD application built with TypeScript.
-- Uses OpenCascade compiled to WebAssembly and Three.js.
-- Existing commands/operations/UI architecture may be instructive.
-
-**Fit:** Medium as reference; unknown as base.
-
-**Pros:**
-- Similar browser CAD direction.
-- Likely useful architecture examples for command system, WASM kernel integration, and UI patterns.
-- May already solve parts of the kernel integration problem.
-
-**Cons / risks:**
-- Adopting/forking would likely replace much of current app identity and architecture.
-- License, maturity, build, and complexity must be verified.
-- Could be overkill or mismatched for EF-Sinn/Marios measured-sketch workflow.
-- Copying UI patterns too closely risks losing product identity.
-
-**Decision:** Reference/adoption candidate only. Do not copy code without direct license review.
-
-### 3. OpenGeometry
-
-**What it appears to offer:**
-- Browser-native CAD kernel direction, Rust/WASM plus TypeScript/Three.js-friendly layer according to search snippets.
-
-**Fit:** Medium/unknown.
-
-**Pros:**
-- Browser-native focus may fit current stack.
-- Rust/WASM could be attractive for performance and packaging.
-
-**Cons / risks:**
-- Maturity, license, API, and ecosystem are less clear from first-pass search.
-- Need direct repository review before trusting it for production path.
-
-**Decision:** Evaluate in kernel spike shortlist, but behind OpenCascade.js unless research proves stronger fit.
-
-### 4. libfive
-
-**What it appears to offer:**
-- Solid modeling kernel for implicit/f-rep modeling.
-- Useful for script/code-driven CAD concepts.
-
-**Fit:** Low/medium.
-
-**Pros:**
-- Interesting modeling approach.
-- Could inspire future procedural/agent-driven modeling.
-
-**Cons / risks:**
-- Less direct fit for SketchUp-like direct manipulation and standard B-Rep CAD exchange.
-- Browser integration path likely more work.
-
-**Decision:** Reference only for procedural modeling ideas.
-
-### 5. SolveSpace / constraint references
-
-**What it appears to offer:**
-- Constraint/parametric CAD ideas and sketch solver references.
-
-**Fit:** Reference only for now.
-
-**Pros:**
-- Useful inspiration for constraints, dimensions, sketches.
-
-**Cons / risks:**
-- Not a direct browser TypeScript kernel solution for this app.
-- Constraint solving should come after document/command/kernel seams.
-
-**Decision:** Reference only.
+| Candidate | License / compatibility | Activity / maturity signal | Browser/Linux fit | Solids / booleans / constraints | Exchange fit | Testability / bundle risk | SketchUp-like direct modeling fit | Decision |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| OpenCascade / OpenCascade.js | OCCT LGPL-2.1 with OCCT exception; OpenCascade.js LGPL-2.1. Needs redistribution notice review before shipping. | OCCT is mature CAD-kernel lineage. `donalffons/opencascade.js` appears less recently pushed, so package freshness must be checked. | Best browser route among mature B-Rep kernels via WASM; Linux-friendly for source builds. | Strong B-Rep solids, booleans, topology; constraints need separate sketch solver. | Best candidate for STEP/IGES-style future work; DXF/STL still need explicit adapters. | High complexity and bundle/WASM cost; adapter isolation required. | Good for robust push/pull-like solids if hidden behind app-specific commands. | Leading kernel dependency candidate; spike only. |
+| Chili3D | AGPL-3.0. Strong copyleft makes code adoption/forking a major product/license decision. | Active browser CAD app; large community signal. | Excellent reference for React/TypeScript/Three.js + OCCT/WASM patterns. | Rich existing modeling tools including booleans/extrude/revolve and snapping. | Likely instructive but app-specific. | Very high adoption complexity; copying code/UI risks identity drift. | Product direction overlaps but should remain reference to avoid becoming a fork. | Reference only for architecture/UI/kernel integration ideas. |
+| OpenGeometry | MPL-2.0, more permissive/file-level copyleft than GPL/AGPL. | Promising but smaller/newer ecosystem than OCCT/Chili3D. | Designed for browser-native Rust/WASM + Three.js CAD apps. | Claims CAD-kernel focus; depth of robust B-Rep/booleans/constraints needs direct spike proof. | Unknown until tested with fixtures. | Medium/high risk: newer kernel, docs/API maturity need validation. | Potentially good long-term if API is simpler than OCCT. | Secondary spike candidate after OpenCascade.js, or parallel research if OCCT blocks. |
+| libfive | Core library MPL-2.0; Guile/Studio GPL-2-or-later. | Established research/procedural modeling project. | Linux-first; browser integration likely custom/expensive. | Strong implicit/F-rep modeling; not the direct B-Rep face-editing model. | Poor fit for standard CAD exchange and direct editable faces. | Integration complexity and different modeling paradigm. | Better for procedural/agent-generated solids than direct SketchUp-like face operations. | Reference only for future procedural/implicit modeling. |
+| SolveSpace / constraint references | GPL-3.0 for the app. Constraint solver extraction has licensing/integration implications. | Mature parametric CAD and constraint reference. | Native app, not browser TypeScript stack. | Strong sketch constraints and parametric ideas, not a drop-in web kernel. | Not the primary exchange strategy. | GPL and native integration make direct adoption risky. | Useful for future constraint behavior, not immediate direct modeling. | Reference only for constraint design. |
+| Current custom TypeScript model | Own project code; easiest to test and migrate. | Active in this repo and already covered by Vitest. | Perfect fit for current browser app. | Good for simple entities; not enough for robust production solids/booleans/topology. | Good for `.hcad.json`, limited DXF/STL subsets only. | Low bundle risk and high testability. | Good app/document layer, inadequate production kernel. | Keep as document/app layer; do not stretch into full CAD kernel. |
 
 ## Architecture recommendation
 
@@ -136,28 +56,39 @@ export interface GeometryKernelAdapter {
 }
 ```
 
-Do not expose OpenCascade types directly in React components or project files. Keep kernel-specific IDs/topology behind an adapter and migration layer.
+Rules for the adapter:
+- React components and `.hcad.json` project files must not expose raw OpenCascade/OpenGeometry objects.
+- Kernel-specific topology IDs need a migration strategy before persistence.
+- Every operation returns structured `{ ok, value?, error? }` results; kernel exceptions must not reach UI event handlers.
+- Current millimeter units remain the document truth; any kernel unit scaling must be explicit and tested.
 
 ## Immediate implementation decision
 
-Implement selected-entity inspection using the current model first. This is useful immediately and gives a stable API shape for future kernel-backed inspection.
-
-Then implement command/history. After those seams exist, run a separate kernel spike.
+Keep implementing product-value slices that are useful with or without a kernel: command/history, inspection, file-format honesty, browser smoke, snapping, and precise dimensions. Do not start advanced freeform solids until the OpenCascade.js spike has proven install/build, bundle cost, tessellation, error handling, and license obligations.
 
 ## Kernel spike acceptance criteria
 
-A future OpenCascade.js/OpenCascade spike should prove all of this before adoption:
+A future OpenCascade.js/OpenCascade spike must prove all of this before adoption:
 
-1. Install/build works reproducibly on this repo.
-2. Bundle/runtime cost is measured.
+1. Install/build works reproducibly on this repo with Node 20+.
+2. Bundle/runtime cost is measured and documented.
 3. A simple rectangle extrudes into a solid.
 4. Solid tessellation renders in Three.js.
-5. Dimensions/bounding box can be inspected.
+5. Dimensions/bounding box can be inspected in millimeters.
 6. Save/load has a clear representation strategy.
 7. Errors are structured and do not crash the app.
 8. License and redistribution terms are documented.
 9. The spike is isolated and removable.
 
+## Stop conditions
+
+Stop and ask before:
+- adding any kernel dependency to `package.json`;
+- copying code or UI from Chili3D/OpenGeometry;
+- changing project-file persistence around kernel topology;
+- claiming production STEP/DWG/SKP/IFC support;
+- adding GPL/AGPL-derived code to the project.
+
 ## Current final call
 
-Best professional path: keep Hermes CAD Sketcher, harden its app architecture, and plan an OpenCascade.js kernel adapter spike after selected-entity inspector and command/history are in place.
+Best professional path: keep Hermes CAD Sketcher, harden its app architecture, and run a small OpenCascade.js adapter spike only after the current command/document seams are stable. Use Chili3D, OpenGeometry, libfive, and SolveSpace as references, not as adoption targets today.
