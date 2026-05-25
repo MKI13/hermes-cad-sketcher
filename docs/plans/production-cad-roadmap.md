@@ -293,7 +293,7 @@ Do not claim “production CAD” after the current PR. The professional next mo
 
 1. finish/monitor PR #4;
 2. keep the production requirements and kernel evaluation current as implementation evidence changes;
-3. implement undo/redo command architecture next;
-4. make the kernel decision before implementing deeper face/solid operations.
+3. finish wiring the command architecture through more UI mutation paths;
+4. run the OpenCascade.js adapter spike before implementing deeper freeform face/solid operations.
 
 Rationale: the app is now a credible measured browser prototype, but production CAD depends more on kernel/architecture/QA/file-format discipline than on another UI button.
