@@ -19,6 +19,11 @@ describe('agent-friendly contribution surface', () => {
     expect(contributing).toContain('Issues');
     expect(contributing).toContain('Acceptance Criteria');
     expect(contributing).toContain('Agenten');
+    expect(contributing).toContain('Claim before coding');
+    expect(contributing).toContain('claimed');
+    expect(contributing).toContain('Claimed by <agent/person> at <UTC time>');
+    expect(contributing).toContain('Do not start code changes before the claim comment is visible');
+    expect(contributing).toContain('release the claim');
   });
 
   it('keeps the agent plan list split into done, partially implemented, and still-open work', async () => {

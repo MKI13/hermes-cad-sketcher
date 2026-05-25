@@ -51,6 +51,26 @@ Agenten should work from issues or a clearly scoped task. Good issues include:
 
 When multiple agents work together, use Issues for coordination instead of silently stacking unrelated changes. If a task is blocked by product decisions, file-format uncertainty, browser QA, or review feedback, open or update an Issue with the blocker and the exact evidence.
 
+### Claim before coding
+
+Before an agent starts implementation work, it must claim exactly one GitHub Issue in the repository so another agent does not pick the same task.
+
+Required claim workflow:
+
+1. Read the whole Issue, linked comments, and acceptance criteria.
+2. Add a visible Issue comment before changing code:
+
+   ```md
+   Claimed by <agent/person> at <UTC time>. I am starting work on branch `agent/issue-<number>-short-name`.
+   ```
+
+3. Add the `claimed` label when permissions allow it.
+4. Work only on that Issue's scope. If a second task is discovered, create or update a separate Issue instead of silently expanding the branch.
+5. If the work is paused, blocked, or abandoned, comment with the current state and release the claim by removing the `claimed` label when possible.
+6. Before asking for merge or repository landing, comment with the proof bundle: branch, changed files, exact test commands/results, browser-smoke status for UI changes, known risks, and rollback notes.
+
+Do not start code changes before the claim comment is visible in the repository.
+
 ## CAD and file-format honesty
 
 - Millimeter remain the base unit. Any new model operation must preserve Millimeter semantics.
