@@ -530,6 +530,8 @@ async function main() {
       '--disable-sync',
       '--no-first-run',
       '--no-default-browser-check',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
       'about:blank'
     ]);
     attachExitCleanup([chromium]);
