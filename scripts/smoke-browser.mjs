@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, execFileSync } from 'node:child_process';
+import { access } from 'node:fs/promises';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -8,7 +9,15 @@ import net from 'node:net';
 
 const previewPort = Number(process.env.SMOKE_PREVIEW_PORT ?? 4173);
 const previewUrl = `http://127.0.0.1:${previewPort}`;
-const chromiumExecutable = process.env.CHROMIUM_PATH ?? '/snap/bin/chromium';
+const browserCandidates = [
+  process.env.CHROMIUM_PATH,
+  '/usr/bin/brave-browser',
+  '/usr/bin/brave-browser-stable',
+  '/usr/bin/brave',
+  '/snap/bin/chromium',
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser'
+].filter(Boolean);
 const visualEvidenceDir = process.env.SMOKE_VISUAL_DIR ?? path.join(process.cwd(), 'tmp', 'visual-smoke');
 const supportedDxfFixture = `0
 SECTION
@@ -105,6 +114,20 @@ function startProcess(command, args) {
   child.stdout.on('data', (chunk) => { if (process.env.SMOKE_VERBOSE) process.stderr.write(chunk); });
   child.stderr.on('data', (chunk) => { if (process.env.SMOKE_VERBOSE) process.stderr.write(chunk); });
   return child;
+}
+
+async function findBrowserExecutable() {
+  for (const candidate of browserCandidates) {
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      // Try the next Brave/Chromium candidate.
+    }
+  }
+  throw new Error(
+    `No Brave or Chromium browser found. Install brave-browser or chromium, or set CHROMIUM_PATH=/path/to/brave-or-chromium before running scripts/smoke-browser.mjs. Checked: ${browserCandidates.join(', ')}`
+  );
 }
 
 function childPids(pid) {
@@ -517,7 +540,8 @@ async function main() {
     }
 
     const debugPort = await getFreePort();
-    chromium = startProcess(chromiumExecutable, [
+    const browserExecutable = await findBrowserExecutable();
+    chromium = startProcess(browserExecutable, [
       '--headless=new',
       `--remote-debugging-address=127.0.0.1`,
       `--remote-debugging-port=${debugPort}`,
