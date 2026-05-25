@@ -606,7 +606,7 @@ async function main() {
       clickByText('button', 'Auswahl');
       await afterFrame();
       if (!text().includes('Werkzeug: select')) failures.push('Select tool click did not update statusbar');
-      if (!before.includes('Elemente: 0')) failures.push('Initial empty model count was not visible');
+      if (!before.includes('Projekt: Projekt nicht gespeichert')) failures.push('Initial project status was not visible');
       return { ok: failures.length === 0, failures, canvasCount: document.querySelectorAll('canvas').length, webglFallback: text().includes('3D-Viewport nicht verfügbar') };
     })()`);
     if (!result?.ok) throw new Error(`Browser smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
