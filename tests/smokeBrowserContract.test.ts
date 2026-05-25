@@ -5,6 +5,16 @@ describe('browser smoke visual contract', () => {
   it('captures desktop and mobile screenshots and checks layout geometry', async () => {
     const source = await readFile('scripts/smoke-browser.mjs', 'utf8');
 
+    expect(source).toContain('findBrowserExecutable');
+    expect(source).toContain('CHROMIUM_PATH');
+    expect(source).toContain('/snap/bin/chromium');
+    expect(source).toContain('brave-browser');
+    expect(source).toContain('brave-browser-stable');
+    expect(source).toContain('chromium-browser');
+    expect(source).toContain('No Brave or Chromium browser found');
+    expect(source).not.toContain('google-chrome');
+    expect(source).not.toContain('Google Chrome');
+    expect(source).toContain('scripts/smoke-browser.mjs');
     expect(source).toContain('screenshots');
     expect(source).toContain('Page.captureScreenshot');
     expect(source).toContain('setViewport');
