@@ -11,7 +11,7 @@ import { runAgentChatCommand, runCadConsoleScript } from './core/cadCommands';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
-import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS, parseRectangleDimensionMask, type RectangleDimensionMask } from './ui/drawingController';
+import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS, parseRectangleDimensionMask, updateRectangleDimensionMaskValue, type RectangleDimensionKey, type RectangleDimensionMask } from './ui/drawingController';
 import { SelectedDimensionsPanel, boxDimensionsToInput, parseSelectedBoxDimensions, type DimensionInput } from './ui/SelectedDimensionsPanel';
 import { FaceExtrudePanel, parseExtrudeHeight, validateExtrudableFace } from './ui/FaceExtrudePanel';
 import { MovePanel, parseMoveDelta, type MoveDeltaInput } from './ui/MovePanel';
@@ -157,6 +157,12 @@ export default function App() {
     xz: drawingPlaneAppearance('xz').label,
     yz: drawingPlaneAppearance('yz').label
   };
+
+  function handleRectangleDimensionMaskChange(key: RectangleDimensionKey, event: React.ChangeEvent<HTMLInputElement>) {
+    const rawValue = event.currentTarget.value;
+    setRectangleDimensionMask((current) => updateRectangleDimensionMaskValue(current, key, rawValue));
+  }
+
   const activeDrawingPlaneAppearance = drawingPlaneAppearance(drawingPlane);
   const orderedTools = toolbarOrder.map((id) => tools.find((item) => item.id === id)).filter((item): item is (typeof tools)[number] => Boolean(item));
   const shortcutSummaryLabels: Record<ToolName, string> = {
@@ -972,8 +978,8 @@ export default function App() {
               genaue Rechteck-Maßmaske verwenden
             </label>
             <div className="dimension-grid">
-              <label><span>Breite mm</span><input aria-label="Rechteck Breite mm" value={rectangleDimensionMask.width} onChange={(event) => setRectangleDimensionMask((current) => ({ ...current, width: event.currentTarget.value }))} /></label>
-              <label><span>Tiefe/Höhe mm</span><input aria-label="Rechteck Tiefe oder Höhe mm" value={rectangleDimensionMask.depth} onChange={(event) => setRectangleDimensionMask((current) => ({ ...current, depth: event.currentTarget.value }))} /></label>
+              <label><span>Breite mm</span><input aria-label="Rechteck Breite mm" value={rectangleDimensionMask.width} onChange={(event) => handleRectangleDimensionMaskChange('width', event)} /></label>
+              <label><span>Tiefe/Höhe mm</span><input aria-label="Rechteck Tiefe oder Höhe mm" value={rectangleDimensionMask.depth} onChange={(event) => handleRectangleDimensionMaskChange('depth', event)} /></label>
             </div>
             <small>{useRectangleDimensionMask ? (rectangleMaskResult.ok ? `Aktiv: ${rectangleMaskResult.width} mm × ${rectangleMaskResult.depth} mm, Richtung kommt von der Maus.` : rectangleMaskResult.error) : 'Aus: zweite Mausklick-Position bestimmt die Größe frei.'}</small>
           </details>

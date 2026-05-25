@@ -486,6 +486,47 @@ async function runDxfLoadSmoke(cdp) {
   return result;
 }
 
+async function runRectangleDimensionMaskInputSmoke(cdp) {
+  await waitForApp(cdp);
+  const setup = await evaluate(cdp, `(() => {
+    const failures = [];
+    const widthInput = document.querySelector('[aria-label="Rechteck Breite mm"]');
+    const depthInput = document.querySelector('[aria-label="Rechteck Tiefe oder Höhe mm"]');
+    const checkbox = Array.from(document.querySelectorAll('input[type="checkbox"]')).find((node) => node.closest('label')?.textContent?.includes('genaue Rechteck-Maßmaske'));
+    if (!widthInput) failures.push('Missing rectangle width input');
+    if (!depthInput) failures.push('Missing rectangle depth/height input');
+    if (!checkbox) failures.push('Missing rectangle dimension-mask checkbox');
+    if (failures.length > 0) return { ok: false, failures };
+    if (!checkbox.checked) checkbox.click();
+    widthInput.focus();
+    widthInput.select();
+    return { ok: true, failures: [], before: widthInput.value };
+  })()`);
+  if (!setup?.ok) throw new Error(`Rectangle dimension-mask input smoke setup failed: ${JSON.stringify(setup?.failures ?? setup)}`);
+
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 });
+  for (const digit of ['1', '2', '0', '0']) {
+    await cdp.send('Input.dispatchKeyEvent', { type: 'char', key: digit, text: digit, unmodifiedText: digit });
+  }
+
+  const result = await evaluate(cdp, `(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const width = document.querySelector('[aria-label="Rechteck Breite mm"]')?.value;
+    const depth = document.querySelector('[aria-label="Rechteck Tiefe oder Höhe mm"]')?.value;
+    const text = document.body.innerText;
+    const failures = [];
+    if (width !== '1200') failures.push('Rectangle width input did not accept typed value');
+    if (depth !== '500') failures.push('Rectangle depth/height input changed unexpectedly');
+    if (!text.includes('Hermes CAD Sketcher')) failures.push('App root disappeared after rectangle input edit');
+    if (!text.includes('Aktiv: 1200 mm × 500 mm')) failures.push('Rectangle dimension status did not update after input edit');
+    if (document.querySelector('vite-error-overlay')) failures.push('Vite error overlay appeared after rectangle input edit');
+    return { ok: failures.length === 0, failures, width, depth };
+  })()`);
+  if (!result?.ok) throw new Error(`Rectangle dimension-mask input smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
+  return result;
+}
+
 async function runStlReferenceLoadSmoke(cdp) {
   await waitForApp(cdp);
   const result = await evaluate(cdp, `(async () => {
@@ -611,6 +652,7 @@ async function main() {
     if (!result?.ok) throw new Error(`Browser smoke failed: ${JSON.stringify(result?.failures ?? result)}`);
 
     const visualEvidence = await runVisualChecks(protocol);
+    const rectangleDimensionMaskInput = await runRectangleDimensionMaskInputSmoke(protocol);
     const dxfLoad = await runDxfLoadSmoke(protocol);
     const stlReferenceLoad = await runStlReferenceLoadSmoke(protocol);
 
@@ -631,6 +673,7 @@ async function main() {
       ok: true,
       url: previewUrl,
       rendering: result.webglFallback ? 'webgl-fallback' : 'webgl-canvas',
+      rectangleDimensionMaskInput,
       dxfLoad,
       stlReferenceLoad,
       visualEvidence,
@@ -639,6 +682,7 @@ async function main() {
         'no unexpected console/runtime errors',
         'core controls visible',
         'tool button interaction updates statusbar',
+        'rectangle dimension-mask input accepts deletion and typing without crashing',
         'dxf load workflow imports supported synthetic fixture',
         'stl reference load workflow imports supported synthetic ASCII fixture as non-editable mesh',
         'desktop visual geometry has no horizontal overflow',

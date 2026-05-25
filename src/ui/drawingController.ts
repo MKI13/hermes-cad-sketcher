@@ -22,6 +22,8 @@ export type RectangleDimensionMask = {
   depth: string;
 };
 
+export type RectangleDimensionKey = keyof RectangleDimensionMask;
+
 export type RectangleDimensions = {
   width: number;
   depth: number;
@@ -59,6 +61,10 @@ export function createRectangleDraft(first: Vec3, second: Vec3, plane: DrawingPl
     return { ok: false, error: 'Ein Rechteck braucht positive Breite und Tiefe.' };
   }
   return { ok: true, origin: cloneVec(first), width, depth, plane };
+}
+
+export function updateRectangleDimensionMaskValue(mask: RectangleDimensionMask, key: RectangleDimensionKey, rawValue: string): RectangleDimensionMask {
+  return { ...mask, [key]: rawValue };
 }
 
 export function parseRectangleDimensionMask(mask: RectangleDimensionMask): DrawingDraftResult<RectangleDimensions> {

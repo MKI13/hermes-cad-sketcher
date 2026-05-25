@@ -5,7 +5,8 @@ import {
   createLineDraft,
   createRectangleDraft,
   parseRectangleDimensionMask,
-  secondPointForRectangleDimensions
+  secondPointForRectangleDimensions,
+  updateRectangleDimensionMaskValue
 } from '../src/ui/drawingController';
 
 describe('drawing controller geometry helpers', () => {
@@ -54,6 +55,12 @@ describe('drawing controller geometry helpers', () => {
       expect(secondPointForRectangleDimensions(vec(500, 700, 0), vec(100, 1200, 0), parsed, 'xy')).toEqual(vec(-700, 1300, 0));
       expect(secondPointForRectangleDimensions(vec(0, 0, 100), vec(50, 0, -20), parsed, 'xz')).toEqual(vec(1200, 0, -500));
     }
+  });
+
+  it('updates rectangle dimension mask values from a captured input string', () => {
+    expect(updateRectangleDimensionMaskValue({ width: '1000', depth: '500' }, 'width', '')).toEqual({ width: '', depth: '500' });
+    expect(updateRectangleDimensionMaskValue({ width: '', depth: '500' }, 'width', '1200')).toEqual({ width: '1200', depth: '500' });
+    expect(updateRectangleDimensionMaskValue({ width: '1200', depth: '500' }, 'depth', '650')).toEqual({ width: '1200', depth: '650' });
   });
 
   it('rejects rectangle drafts without area', () => {
