@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
-import { type SketchModel } from '../core/model';
+import { type DrawingPlane, type SketchModel } from '../core/model';
 import { entityToObject } from './sceneAdapter';
 
 export type OrbitCameraState = Readonly<{
@@ -66,6 +66,7 @@ export function createModelGroup(model: SketchModel, selectedId?: string): THREE
   const group = new THREE.Group();
   group.name = 'sketch-model';
   for (const entity of model.allEntities()) {
+    if (entity.hidden) continue;
     const object = entityToObject(entity);
     object.userData.entityId = entity.id;
     object.userData.entityType = entity.type;
@@ -135,17 +136,31 @@ export function snapToGrid(point: Vec3, gridSize = 50): Vec3 {
   };
 }
 
-export function screenPointToGround(point: ScreenPoint, camera: THREE.PerspectiveCamera, gridSize = 50): Vec3 | undefined {
+export function screenPointToGround(point: ScreenPoint, camera: THREE.PerspectiveCamera, _gridSize = 50): Vec3 | undefined {
+  return screenPointToDrawingPlane(point, camera, 'xy');
+}
+
+export function screenPointToDrawingPlane(point: ScreenPoint, camera: THREE.PerspectiveCamera, plane: DrawingPlane): Vec3 | undefined {
   const width = Math.max(1, point.width);
   const height = Math.max(1, point.height);
   const pointer = new THREE.Vector2((point.x / width) * 2 - 1, -(point.y / height) * 2 + 1);
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(pointer, camera);
-  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const groundPlane = threePlaneForDrawingPlane(plane);
   const hit = new THREE.Vector3();
   const hasHit = raycaster.ray.intersectPlane(groundPlane, hit);
   if (!hasHit) return undefined;
-  return snapToGrid({ x: hit.x, y: hit.z, z: 0 }, gridSize);
+  return threePointToCadPoint(hit);
+}
+
+function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
+  if (plane === 'xz') return new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  if (plane === 'yz') return new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+  return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+}
+
+function threePointToCadPoint(point: THREE.Vector3): Vec3 {
+  return { x: point.x, y: point.z, z: point.y };
 }
 
 function clamp(value: number, min: number, max: number): number {

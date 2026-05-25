@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Iso Ansicht</title>
+  <desc id="desc">Isometrische Ansicht</desc>
+  <polygon points="24,9.299999999999999 36.6,16.65 24,24 11.399999999999999,16.65" fill="currentColor" opacity="0.28"/>
+<polygon points="11.399999999999999,16.65 24,24 24,38.7 11.399999999999999,31.35" fill="currentColor" opacity="0.28"/>
+<polygon points="36.6,16.65 24,24 24,38.7 36.6,31.35" fill="currentColor" opacity="0.28"/>
+<polygon points="24,9.299999999999999 36.6,16.65 36.6,31.35 24,38.7 11.399999999999999,31.35 11.399999999999999,16.65" fill="none"/>
+  <text x="24" y="45" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6.5" font-weight="800" fill="currentColor" stroke="none" >ISO</text>
+</svg>

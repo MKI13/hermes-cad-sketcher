@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">DXF</title>
+  <desc id="desc">DXF-Datei</desc>
+  <path d="M12 8 H29 L36 15 V40 H12 Z" fill="currentColor" opacity="0.08"/>
+  <path d="M12 8 H29 L36 15 V40 H12 Z" />
+  <line x1="29" y1="8" x2="29" y2="15" />
+  <line x1="29" y1="15" x2="36" y2="15" />
+  <text x="24" y="31" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="8" font-weight="800" fill="currentColor" stroke="none" >DXF</text>
+</svg>

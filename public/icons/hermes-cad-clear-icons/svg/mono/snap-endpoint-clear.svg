@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Endpunkt-Fang</title>
+  <desc id="desc">Snap auf Linien-Endpunkt</desc>
+  <line x1="12" y1="34" x2="36" y2="14" />
+  <circle cx="12" cy="34" r="5" fill="currentColor" opacity="0.25"/>
+  <circle cx="36" cy="14" r="3" />
+  <text x="12" y="44" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6" font-weight="800" fill="currentColor" stroke="none" >END</text>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Maße ändern</title>
+  <desc id="desc">Boxmaße direkt bearbeiten</desc>
+  <polygon points="23,9.1 33.2,15.05 23,21 12.8,15.05" fill="#ea580c" opacity="0.28"/>
+<polygon points="12.8,15.05 23,21 23,32.9 12.8,26.95" fill="#ea580c" opacity="0.28"/>
+<polygon points="33.2,15.05 23,21 23,32.9 33.2,26.95" fill="#ea580c" opacity="0.28"/>
+<polygon points="23,9.1 33.2,15.05 33.2,26.95 23,32.9 12.8,26.95 12.8,15.05" fill="none"/>
+  <line x1="8" y1="41" x2="38" y2="41" /><polygon points="8,41 11.8,43.09 11.8,38.91" fill="#ea580c" stroke="none"/><polygon points="38,41 34.2,43.09 34.2,38.91" fill="#ea580c" stroke="none"/>
+  <line x1="41" y1="13" x2="41" y2="32" /><polygon points="41,13 38.91,16.8 43.09,16.8" fill="#ea580c" stroke="none"/><polygon points="41,32 38.91,28.2 43.09,28.2" fill="#ea580c" stroke="none"/>
+  <text x="24" y="45" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6" font-weight="800" fill="#ea580c" stroke="none" >mm</text>
+</svg>

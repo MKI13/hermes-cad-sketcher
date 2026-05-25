@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Drehen</title>
+  <desc id="desc">Drehwerkzeug</desc>
+  <path d="M34 15 A15 15 0 1 0 38 30" />
+  <polygon points="38,30 33.02034415901006,28.743555530357703 36.394456021125556,25.12169562943229" fill="#ea580c" stroke="none"/>
+  <circle cx="24" cy="24" r="6" fill="#ea580c" opacity="0.18"/>
+  <line x1="24" y1="24" x2="34" y2="18" />
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Agent Chat</title>
+  <desc id="desc">Chat-Fenster mit Hermes</desc>
+  <path d="M9 12 H39 V31 H25 L16 39 V31 H9 Z" fill="currentColor" opacity="0.12"/>
+  <path d="M9 12 H39 V31 H25 L16 39 V31 H9 Z" />
+  <circle cx="18" cy="22" r="2" fill="currentColor" stroke="none"/>
+  <circle cx="24" cy="22" r="2" fill="currentColor" stroke="none"/>
+  <circle cx="30" cy="22" r="2" fill="currentColor" stroke="none"/>
+</svg>

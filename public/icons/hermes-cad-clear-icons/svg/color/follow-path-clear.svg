@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Folgepfad</title>
+  <desc id="desc">Profil entlang Pfad</desc>
+  <path d="M10 35 C14 12 28 12 38 28" />
+  <polygon points="38,28 32.92415071873455,28.781907330747732 34.621494865639036,24.132012402153205" fill="#ea580c" stroke="none"/>
+  <rect x="8" y="28" width="8" height="8" rx="1" fill="#ea580c" opacity="0.22"/>
+  <line x1="12" y1="28" x2="12" y2="36" />
+  <circle cx="24" cy="20" r="2" fill="#ea580c" stroke="none"/>
+</svg>

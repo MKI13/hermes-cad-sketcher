@@ -1,4 +1,5 @@
 import { distance, type Vec3, vec } from '../core/geometry';
+import { type DrawingPlane } from '../core/model';
 
 export type DrawingDraftResult<T> =
   | ({ ok: true } & T)
@@ -11,6 +12,19 @@ export type LineDraft = {
 
 export type RectangleDraft = {
   origin: Vec3;
+  width: number;
+  depth: number;
+  plane: DrawingPlane;
+};
+
+export type RectangleDimensionMask = {
+  width: string;
+  depth: string;
+};
+
+export type RectangleDimensionKey = keyof RectangleDimensionMask;
+
+export type RectangleDimensions = {
   width: number;
   depth: number;
 };
@@ -41,15 +55,44 @@ export function createLineDraft(start: Vec3, end: Vec3): DrawingDraftResult<Line
   return { ok: true, start: cloneVec(start), end: cloneVec(end) };
 }
 
-export function createRectangleDraft(first: Vec3, second: Vec3): DrawingDraftResult<RectangleDraft> {
-  const minX = Math.min(first.x, second.x);
-  const minY = Math.min(first.y, second.y);
-  const width = Math.abs(second.x - first.x);
-  const depth = Math.abs(second.y - first.y);
-  if (width <= 0 || depth <= 0) {
+export function createRectangleDraft(first: Vec3, second: Vec3, plane: DrawingPlane = 'xy'): DrawingDraftResult<RectangleDraft> {
+  const { width, depth } = rectangleDeltas(first, second, plane);
+  if (!Number.isFinite(width) || !Number.isFinite(depth) || width === 0 || depth === 0) {
     return { ok: false, error: 'Ein Rechteck braucht positive Breite und Tiefe.' };
   }
-  return { ok: true, origin: vec(minX, minY, 0), width, depth };
+  return { ok: true, origin: cloneVec(first), width, depth, plane };
+}
+
+export function updateRectangleDimensionMaskValue(mask: RectangleDimensionMask, key: RectangleDimensionKey, rawValue: string): RectangleDimensionMask {
+  return { ...mask, [key]: rawValue };
+}
+
+export function parseRectangleDimensionMask(mask: RectangleDimensionMask): DrawingDraftResult<RectangleDimensions> {
+  const width = Number(mask.width.replace(',', '.'));
+  const depth = Number(mask.depth.replace(',', '.'));
+  if (!Number.isFinite(width) || !Number.isFinite(depth) || width <= 0 || depth <= 0) {
+    return { ok: false, error: 'Die Maßmaske braucht positive Breite und Tiefe/Höhe in Millimeter.' };
+  }
+  return { ok: true, width, depth };
+}
+
+export function secondPointForRectangleDimensions(first: Vec3, pointer: Vec3, dimensions: RectangleDimensions, plane: DrawingPlane): Vec3 {
+  const direction = rectangleDeltas(first, pointer, plane);
+  const width = signedDimension(dimensions.width, direction.width);
+  const depth = signedDimension(dimensions.depth, direction.depth);
+  if (plane === 'xz') return vec(first.x + width, first.y, first.z + depth);
+  if (plane === 'yz') return vec(first.x, first.y + width, first.z + depth);
+  return vec(first.x + width, first.y + depth, first.z);
+}
+
+function rectangleDeltas(first: Vec3, second: Vec3, plane: DrawingPlane): RectangleDimensions {
+  if (plane === 'xz') return { width: second.x - first.x, depth: second.z - first.z };
+  if (plane === 'yz') return { width: second.y - first.y, depth: second.z - first.z };
+  return { width: second.x - first.x, depth: second.y - first.y };
+}
+
+function signedDimension(size: number, direction: number): number {
+  return direction < 0 ? -size : size;
 }
 
 export function createBoxDraft(

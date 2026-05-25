@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#059669" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Linie</title>
+  <desc id="desc">Linie mit Start- und Endpunkt</desc>
+  <line x1="10" y1="36" x2="38" y2="12" />
+  <circle cx="10" cy="36" r="4" fill="#059669" opacity="0.30"/>
+  <circle cx="38" cy="12" r="4" fill="#059669" opacity="0.30"/>
+  <text x="13" y="15" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="7" font-weight="800" fill="#059669" stroke="none" >1</text>
+  <text x="35" y="39" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="7" font-weight="800" fill="#059669" stroke="none" >2</text>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Layer</title>
+  <desc id="desc">Gestapelte Layer</desc>
+  <polygon points="24,9 39,17 24,25 9,17" fill="currentColor" opacity="0.14"/>
+  <polygon points="24,18 39,26 24,34 9,26" fill="currentColor" opacity="0.12"/>
+  <polygon points="24,27 39,35 24,43 9,35" fill="currentColor" opacity="0.10"/>
+</svg>

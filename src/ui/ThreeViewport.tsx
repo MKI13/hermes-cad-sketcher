@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
-import { type SketchModel, type ToolName } from '../core/model';
+import { type DrawingPlane, type SketchModel, type ToolName } from '../core/model';
 import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick, type ToolCommand, type ToolPreview, type ToolState } from '../core/toolState';
+import { secondPointForRectangleDimensions, type RectangleDimensions } from './drawingController';
 import {
   applyOrbitToCamera,
   createModelGroup,
@@ -10,10 +11,11 @@ import {
   disposeObjectTree,
   getEntityIdFromObject,
   orbitCameraDrag,
-  screenPointToGround,
+  screenPointToDrawingPlane,
   type OrbitCameraState
 } from './viewportController';
-import { createOriginGuideGroup, cursorBadgeForTool, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapPointToModel, zoomOrbitTowardPoint, type FaceSelection } from './viewportInteractionHelpers';
+import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
+import { createOriginGuideGroup, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -21,17 +23,23 @@ type ThreeViewportProps = {
   selectedId?: string;
   onSelect?: (entityId: string | undefined, faceSelection?: FaceSelection) => void;
   onCreateLine?: (start: Vec3, end: Vec3) => void;
-  onCreateRectangle?: (first: Vec3, second: Vec3) => void;
+  onCreateRectangle?: (first: Vec3, second: Vec3, plane: DrawingPlane) => void;
   onCreateBox?: (origin: Vec3) => void;
   onMeasure?: (start: Vec3, end: Vec3) => void;
   onMove?: (entityId: string, delta: Vec3) => void;
   onMeasurementPreview?: (message: string | undefined) => void;
+  mouseBindings?: MouseBindings;
+  onMouseBindingAction?: (action: MouseAction) => void;
+  onContextMenuCommand?: (command: ViewportContextMenuCommand) => void;
+  drawingPlane?: DrawingPlane;
+  rectangleDimensions?: RectangleDimensions;
 };
 
-export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 28, y: 28 });
-  const cursorBadge = cursorBadgeForTool(activeTool);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
+  const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
       ? 'WebGL konnte in diesem Browser nicht gestartet werden.'
@@ -49,6 +57,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const onMeasureRef = useRef(onMeasure);
   const onMoveRef = useRef(onMove);
   const onMeasurementPreviewRef = useRef(onMeasurementPreview);
+  const mouseBindingsRef = useRef<MouseBindings>({});
+  const onMouseBindingActionRef = useRef(onMouseBindingAction);
+  const onContextMenuCommandRef = useRef(onContextMenuCommand);
+  const drawingPlaneRef = useRef<DrawingPlane>(drawingPlane);
+  const rectangleDimensionsRef = useRef<RectangleDimensions | undefined>(rectangleDimensions);
   activeToolRef.current = activeTool;
   selectedIdRef.current = selectedId;
   onSelectRef.current = onSelect;
@@ -58,6 +71,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   onMeasureRef.current = onMeasure;
   onMoveRef.current = onMove;
   onMeasurementPreviewRef.current = onMeasurementPreview;
+  mouseBindingsRef.current = (mouseBindings ?? {}) as MouseBindings;
+  onMouseBindingActionRef.current = onMouseBindingAction;
+  onContextMenuCommandRef.current = onContextMenuCommand;
+  drawingPlaneRef.current = drawingPlane;
+  rectangleDimensionsRef.current = rectangleDimensions;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -84,9 +102,9 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     sun.position.set(3000, 5000, 2500);
     scene.add(sun);
 
-    const grid = new THREE.GridHelper(6000, 60, 0x64748b, 0xcbd5e1);
+    const grid = createWorkspaceGrid();
     scene.add(grid);
-    const originGuides = createOriginGuideGroup(3200);
+    const originGuides = createOriginGuideGroup(10000);
     scene.add(originGuides);
 
     const modelGroup = createModelGroup(model, selectedId);
@@ -113,7 +131,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const executeCommand = (command?: ToolCommand) => {
       if (!command) return;
       if (command.type === 'createLine') onCreateLineRef.current?.(command.start, command.end);
-      if (command.type === 'createRectangle') onCreateRectangleRef.current?.(command.first, command.second);
+      if (command.type === 'createRectangle') onCreateRectangleRef.current?.(command.first, command.second, command.plane);
       if (command.type === 'createBox') onCreateBoxRef.current?.(command.origin);
       if (command.type === 'measureDistance') onMeasureRef.current?.(command.start, command.end);
       if (command.type === 'moveEntity') onMoveRef.current?.(command.entityId, command.delta);
@@ -121,12 +139,17 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const toPreviewVector = (point: Vec3) => new THREE.Vector3(point.x, point.z + 3, point.y);
 
-    const rectanglePreviewCorners = (first: Vec3, second: Vec3): Vec3[] => [
-      first,
-      { x: second.x, y: first.y, z: first.z },
-      second,
-      { x: first.x, y: second.y, z: second.z }
-    ];
+    const rectanglePreviewCorners = (first: Vec3, second: Vec3, plane: DrawingPlane): Vec3[] => {
+      if (plane === 'xz') return [first, { x: second.x, y: first.y, z: first.z }, second, { x: first.x, y: first.y, z: second.z }];
+      if (plane === 'yz') return [first, { x: first.x, y: second.y, z: first.z }, second, { x: first.x, y: first.y, z: second.z }];
+      return [first, { x: second.x, y: first.y, z: first.z }, second, { x: first.x, y: second.y, z: second.z }];
+    };
+
+    const previewColor = (plane: DrawingPlane) => {
+      if (plane === 'xz') return 0xdc2626;
+      if (plane === 'yz') return 0x2563eb;
+      return 0x16a34a;
+    };
 
     const createPreviewObject = (preview: ToolPreview): THREE.Object3D => {
       if (preview.type === 'linePreview') {
@@ -134,14 +157,15 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9 }));
       }
 
-      const corners = rectanglePreviewCorners(preview.first, preview.second);
+      const corners = rectanglePreviewCorners(preview.first, preview.second, preview.plane);
+      const color = previewColor(preview.plane);
       const group = new THREE.Group();
       group.name = 'drawing-preview';
       const fillGeometry = new THREE.BufferGeometry().setFromPoints([toPreviewVector(corners[0]), toPreviewVector(corners[1]), toPreviewVector(corners[2]), toPreviewVector(corners[0]), toPreviewVector(corners[2]), toPreviewVector(corners[3])]);
       fillGeometry.setIndex([0, 1, 2, 3, 4, 5]);
-      group.add(new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({ color: 0x2563eb, side: THREE.DoubleSide, transparent: true, opacity: 0.16 })));
+      group.add(new THREE.Mesh(fillGeometry, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.16 })));
       const outlineGeometry = new THREE.BufferGeometry().setFromPoints([...corners.map(toPreviewVector), toPreviewVector(corners[0])]);
-      group.add(new THREE.Line(outlineGeometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.95 })));
+      group.add(new THREE.Line(outlineGeometry, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 })));
       return group;
     };
 
@@ -161,9 +185,17 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       previewObject = undefined;
     };
 
+    const rectangleAwarePoint = (point: Vec3): Vec3 => {
+      const dimensions = rectangleDimensionsRef.current;
+      const state = toolStateRef.current;
+      if (!dimensions || activeToolRef.current !== 'rectangle' || state.mode !== 'drawing' || state.tool !== 'rectangle') return point;
+      return secondPointForRectangleDimensions(state.pendingPoint, point, dimensions, state.plane);
+    };
+
     const updateDrawingPreview = (groundPoint?: Vec3) => {
       clearDrawingPreview();
-      const preview = groundPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
+      const preview = previewPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       if (preview) {
         previewObject = createPreviewObject(preview);
         scene.add(previewObject);
@@ -172,7 +204,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const updateMeasurementPreview = (groundPoint?: Vec3) => {
-      const draft = groundPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
+      const draft = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       if (draft) {
         onMeasurementPreviewRef.current?.(draft);
         return;
@@ -191,44 +224,66 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       return entity ? formatEntityMeasurement(entity) : undefined;
     };
 
+    const pickSelectionAtPointer = (event: PointerEvent | MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObjects(modelGroup.children, true)[0];
+      const entityId = getEntityIdFromObject(hit?.object);
+      return { entityId, faceSelection: getFaceSelectionFromObject(hit?.object) };
+    };
+
+    const performActiveToolAction = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const rawGroundPoint = screenPointToDrawingPlane(
+        { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
+        camera,
+        drawingPlaneRef.current
+      );
+      const groundPoint = rawGroundPoint ? rectangleAwarePoint(rawGroundPoint) : undefined;
+      const usesGroundPoint =
+        activeToolRef.current === 'line' ||
+        activeToolRef.current === 'rectangle' ||
+        activeToolRef.current === 'box' ||
+        activeToolRef.current === 'tape' ||
+        (activeToolRef.current === 'move' && selectedIdRef.current !== undefined);
+      if (groundPoint && usesGroundPoint) {
+        const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current, drawingPlaneRef.current);
+        toolStateRef.current = step.state;
+        executeCommand(step.command);
+        updateDrawingPreview(groundPoint);
+        updateMeasurementPreview(groundPoint);
+        return;
+      }
+      toolStateRef.current = cancelToolState(toolStateRef.current);
+      updateDrawingPreview();
+      setSnapCue(undefined);
+      updateMeasurementPreview();
+      const selection = pickSelectionAtPointer(event);
+      onSelectRef.current?.(selection.entityId, selection.faceSelection);
+    };
+
     const pointerDown = (event: PointerEvent) => {
-      if (event.button === 2) {
+      if (event.button !== 2) setContextMenu(undefined);
+      const action = resolveMouseInputAction(mouseBindingsRef.current, event.button);
+      if (action === 'orbit') {
         dragRef.current = { x: event.clientX, y: event.clientY };
         renderer.domElement.setPointerCapture(event.pointerId);
         event.preventDefault();
         return;
       }
-      if (event.button === 0) {
-        const rect = renderer.domElement.getBoundingClientRect();
-        const rawGroundPoint = screenPointToGround(
-          { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
-          camera,
-          50
-        );
-        const groundPoint = rawGroundPoint ? snapPointToModel(rawGroundPoint, model).point : undefined;
-        const usesGroundPoint =
-          activeToolRef.current === 'line' ||
-          activeToolRef.current === 'rectangle' ||
-          activeToolRef.current === 'box' ||
-          activeToolRef.current === 'tape' ||
-          (activeToolRef.current === 'move' && selectedIdRef.current !== undefined);
-        if (groundPoint && usesGroundPoint) {
-          const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current);
-          toolStateRef.current = step.state;
-          executeCommand(step.command);
-          updateDrawingPreview(groundPoint);
-          updateMeasurementPreview(groundPoint);
-          return;
-        }
-        toolStateRef.current = cancelToolState(toolStateRef.current);
-        updateDrawingPreview();
-        updateMeasurementPreview();
-        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(pointer, camera);
-        const hit = raycaster.intersectObjects(modelGroup.children, true)[0];
-        const faceSelection = getFaceSelectionFromObject(hit?.object);
-        onSelectRef.current?.(getEntityIdFromObject(hit?.object), faceSelection);
+      if (action === 'contextMenu') {
+        return;
+      }
+      if (action === 'toolAction') {
+        event.preventDefault();
+        performActiveToolAction(event);
+        return;
+      }
+      if (action !== 'none') {
+        event.preventDefault();
+        onMouseBindingActionRef.current?.(action);
       }
     };
 
@@ -249,25 +304,33 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return;
       }
 
-      const rawGroundPoint = screenPointToGround(
+      const rawGroundPoint = screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
-        50
+        drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? snapPointToModel(rawGroundPoint, model).point : undefined;
+      const groundPoint = rawGroundPoint;
+      if (rawGroundPoint) {
+        const snap = snapPointToModel(rawGroundPoint, model);
+        setSnapCue(snap.snapped ? { x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 18, label: snapCueLabel(snap.kind) } : undefined);
+      } else {
+        setSnapCue(undefined);
+      }
       updateDrawingPreview(groundPoint);
-      const draftMeasurement = groundPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, groundPoint) : undefined;
+      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
+      const draftMeasurement = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       onMeasurementPreviewRef.current?.(draftMeasurement ?? (activeToolRef.current === 'tape' ? pickMeasurementAtPointer(event) : undefined));
     };
 
     const wheel = (event: WheelEvent) => {
+      if (resolveWheelAction(mouseBindingsRef.current) !== 'zoom') return;
       const rect = renderer.domElement.getBoundingClientRect();
-      const rawGroundPoint = screenPointToGround(
+      const rawGroundPoint = screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
-        50
+        drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? snapPointToModel(rawGroundPoint, model).point : undefined;
+      const groundPoint = rawGroundPoint;
       if (!groundPoint) return;
       event.preventDefault();
       orbitRef.current = zoomOrbitTowardPoint(orbitRef.current, groundPoint, event.deltaY);
@@ -282,11 +345,29 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       }
     };
 
-    const contextMenu = (event: MouseEvent) => event.preventDefault();
+    const contextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+      toolStateRef.current = cancelToolState(toolStateRef.current);
+      updateDrawingPreview();
+      setSnapCue(undefined);
+      onMeasurementPreviewRef.current?.(undefined);
+      const selection = pickSelectionAtPointer(event);
+      const contextSelectedId = selection.entityId ?? selectedIdRef.current;
+      if (selection.entityId) onSelectRef.current?.(selection.entityId, selection.faceSelection);
+      const selectedEntityType = contextSelectedId ? model.getEntity(contextSelectedId)?.type : undefined;
+      const hostRect = host.getBoundingClientRect();
+      setContextMenu({
+        x: Math.max(8, Math.min(event.clientX - hostRect.left, hostRect.width - 230)),
+        y: Math.max(8, Math.min(event.clientY - hostRect.top, hostRect.height - 260)),
+        items: buildViewportContextMenuItems({ selectedEntityType })
+      });
+    };
     const keyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         toolStateRef.current = cancelToolState(toolStateRef.current);
+        setContextMenu(undefined);
         updateDrawingPreview();
+        setSnapCue(undefined);
         onMeasurementPreviewRef.current?.(undefined);
       }
     };
@@ -320,9 +401,32 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
   }, [model, selectedId]);
 
+  function runContextMenuCommand(command: ViewportContextMenuCommand) {
+    setContextMenu(undefined);
+    if (command.type === 'mouseAction') {
+      onMouseBindingActionRef.current?.(command.action);
+      return;
+    }
+    onContextMenuCommandRef.current?.(command);
+  }
+
   return (
     <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool}>
       {viewportError && <div className="viewport-error"><strong>3D-Viewport nicht verfügbar</strong><span>{viewportError}</span></div>}
+      {contextMenu && (
+        <section
+          className="viewport-context-menu"
+          aria-label="Arbeitsflächen-Kontextmenü"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <strong>Arbeitsfläche bearbeiten</strong>
+          {contextMenu.items.map((item) => (
+            <button key={item.label} type="button" onClick={() => runContextMenuCommand(item.command)}>
+              {item.label}
+            </button>
+          ))}
+        </section>
+      )}
       <div
         className="cursor-tool-badge cursor-arrow-only"
         aria-label="Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol"
@@ -330,7 +434,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       >
         <span className="cursor-arrow">↖</span>
       </div>
-      <div className="viewport-help">3D-Arbeitsfläche: Mausrad zoomt am Mauspunkt. Rechts ziehen dreht die Ansicht. Linie/Rechteck/Maßband/Move: zwei Linksklicks. Escape: Aktion abbrechen.</div>
+      {snapCue && <div className="snap-cue" aria-label={`Fanghinweis ${snapCue.label}`} style={{ left: snapCue.x, top: snapCue.y }}>{snapCue.label}</div>}
+      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Escape: Aktion abbrechen.</div>
     </div>
   );
 }

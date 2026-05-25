@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#0284c7" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Hand/Pan</title>
+  <desc id="desc">Pan/Hand-Werkzeug</desc>
+  <path d="M16 24 V14 Q16 11 19 11 Q22 11 22 14 V22 V12 Q22 9 25 9 Q28 9 28 12 V22 V15 Q28 12 31 12 Q34 12 34 15 V29 Q34 39 25 39 H22 Q16 39 12 31 L10 27 Q9 24 12 22 Q14 21 16 24 Z" fill="#0284c7" opacity="0.18"/>
+  <path d="M16 24 V14 Q16 11 19 11 Q22 11 22 14 V22 V12 Q22 9 25 9 Q28 9 28 12 V22 V15 Q28 12 31 12 Q34 12 34 15 V29 Q34 39 25 39 H22 Q16 39 12 31 L10 27 Q9 24 12 22 Q14 21 16 24 Z" />
+</svg>

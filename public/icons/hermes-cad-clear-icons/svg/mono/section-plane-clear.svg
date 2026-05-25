@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Schnittfläche</title>
+  <desc id="desc">Schnitt-/Section-Plane</desc>
+  <polygon points="24,13.1 34.2,19.05 24,25 13.8,19.05" fill="none"/>
+<polygon points="13.8,19.05 24,25 24,36.9 13.8,30.95" fill="none"/>
+<polygon points="34.2,19.05 24,25 24,36.9 34.2,30.95" fill="none"/>
+<polygon points="24,13.1 34.2,19.05 34.2,30.95 24,36.9 13.8,30.95 13.8,19.05" fill="none"/>
+  <polygon points="10,15 38,8 38,36 10,43" fill="currentColor" opacity="0.18" stroke-dasharray="4 3"/>
+  <text x="24" y="13" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6" font-weight="800" fill="currentColor" stroke="none" >CUT</text>
+</svg>

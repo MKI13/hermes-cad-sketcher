@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Versatz</title>
+  <desc id="desc">Versatz/Offset einer Kontur</desc>
+  <rect x="9" y="12" width="30" height="24" rx="3" />
+  <rect x="16" y="18" width="16" height="12" rx="2" stroke-dasharray="2 3" fill="#ea580c" opacity="0.12"/>
+  <line x1="16" y1="18" x2="11" y2="13" />
+  <polygon points="11,13 15.923105393638334,14.462415222544255 12.401312297323653,17.940844952573347" fill="#ea580c" stroke="none"/>
+  <line x1="32" y1="30" x2="37" y2="35" />
+  <polygon points="37,35 32.06027251642374,33.594753620178544 35.54150564146576,30.07573160701777" fill="#ea580c" stroke="none"/>
+</svg>

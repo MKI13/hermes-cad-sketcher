@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Gruppe</title>
+  <desc id="desc">Gruppe/Container</desc>
+  <rect x="8" y="9" width="32" height="30" rx="3" stroke-dasharray="4 4"/>
+  <circle cx="18" cy="22" r="5" fill="currentColor" opacity="0.18"/>
+  <rect x="25" y="17" width="8" height="12" rx="1" fill="currentColor" opacity="0.16"/>
+  <line x1="8" y1="16" x2="8" y2="9" />
+  <line x1="15" y1="9" x2="8" y2="9" />
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Radierer</title>
+  <desc id="desc">Radierer/Löschen</desc>
+  <path d="M14 31 L27 18 Q29 16 31 18 L38 25 Q40 27 38 29 L28 39 L16 39 L10 33 Z" fill="currentColor" opacity="0.20"/>
+  <path d="M14 31 L27 18 Q29 16 31 18 L38 25 Q40 27 38 29 L28 39 L16 39 L10 33 Z" />
+  <line x1="22" y1="23" x2="34" y2="35" />
+  <line x1="10" y1="40" x2="39" y2="40" />
+  <path d="M10 12 L17 19" />
+  <path d="M17 12 L10 19" />
+</svg>

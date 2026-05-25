@@ -3,17 +3,21 @@ import { type BoxEntity, type BoxFaceName, type Entity } from '../core/model';
 
 type FaceSpec = Readonly<{ name: BoxFaceName; points: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3] }>;
 
+function cadPointToThree(point: { x: number; y: number; z: number }): THREE.Vector3 {
+  return new THREE.Vector3(point.x, point.z, point.y);
+}
+
 export function entityToObject(entity: Entity): THREE.Object3D {
+  const materialColor = entity.material?.color;
   if (entity.type === 'edge') {
     const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(entity.start.x, entity.start.z, entity.start.y), new THREE.Vector3(entity.end.x, entity.end.z, entity.end.y)]);
-    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x0f172a }));
+    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: materialColor ?? 0x0f172a }));
   }
   if (entity.type === 'face') {
-    const shape = new THREE.Shape(entity.vertices.map((v) => new THREE.Vector2(v.x, v.y)));
-    const geometry = new THREE.ShapeGeometry(shape);
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x7dd3fc, side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
-    mesh.rotation.x = -Math.PI / 2;
-    return mesh;
+    const geometry = new THREE.BufferGeometry().setFromPoints(entity.vertices.map(cadPointToThree));
+    geometry.setIndex([0, 1, 2, 0, 2, 3]);
+    geometry.computeVertexNormals();
+    return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: materialColor ?? 0x7dd3fc, side: THREE.DoubleSide, transparent: true, opacity: materialColor ? 0.92 : 0.55, roughness: 0.74, metalness: 0.03 }));
   }
   if (entity.type === 'referenceMesh') {
     const positions: number[] = [];
@@ -62,7 +66,7 @@ function boxToLineBuiltObject(entity: BoxEntity): THREE.Group {
     { name: 'bottom', points: [p.lbb, p.rbb, p.rbf, p.lbf] }
   ];
 
-  for (const face of faces) group.add(createFaceMesh(face));
+  for (const face of faces) group.add(createFaceMesh(face, entity.material?.color));
 
   const edgePoints = [
     p.lbf, p.rbf, p.rbf, p.rbb, p.rbb, p.lbb, p.lbb, p.lbf,
@@ -78,13 +82,13 @@ function boxToLineBuiltObject(entity: BoxEntity): THREE.Group {
   return group;
 }
 
-function createFaceMesh(face: FaceSpec): THREE.Mesh {
+function createFaceMesh(face: FaceSpec, materialColor?: string): THREE.Mesh {
   const geometry = new THREE.BufferGeometry().setFromPoints([face.points[0], face.points[1], face.points[2], face.points[3]]);
   geometry.setIndex([0, 1, 2, 0, 2, 3]);
   geometry.computeVertexNormals();
   const mesh = new THREE.Mesh(
     geometry,
-    new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.7, metalness: 0.05, side: THREE.DoubleSide, transparent: true, opacity: 0.62 })
+    new THREE.MeshStandardMaterial({ color: materialColor ?? 0xf59e0b, roughness: 0.7, metalness: 0.05, side: THREE.DoubleSide, transparent: true, opacity: materialColor ? 0.9 : 0.62 })
   );
   mesh.userData.boxFace = face.name;
   return mesh;

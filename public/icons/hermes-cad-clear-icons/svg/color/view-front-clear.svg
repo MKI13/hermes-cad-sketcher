@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#0284c7" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Ansicht vorne</title>
+  <desc id="desc">Front View</desc>
+  <rect x="10" y="13" width="28" height="22" rx="3" fill="#0284c7" opacity="0.12"/>
+  <circle cx="24" cy="24" r="6" />
+  <circle cx="24" cy="24" r="2.2" fill="#0284c7" stroke="none"/>
+  <text x="24" y="44" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.8" font-weight="800" fill="#0284c7" stroke="none" >FRONT</text>
+</svg>

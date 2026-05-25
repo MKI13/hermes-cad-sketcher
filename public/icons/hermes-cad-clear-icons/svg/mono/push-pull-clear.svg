@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Push/Pull</title>
+  <desc id="desc">Fläche ziehen/extrudieren</desc>
+  <polygon points="13,25 35,25 35,36 13,36" fill="currentColor" opacity="0.18"/>
+  <polygon points="13,25 24,16 35,25" fill="currentColor" opacity="0.10"/>
+  <line x1="24" y1="32" x2="24" y2="8" />
+  <polygon points="24,8 26.475,12.5 21.525,12.5" fill="currentColor" stroke="none"/>
+  <text x="24" y="45" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6" font-weight="800" fill="currentColor" stroke="none" >PULL</text>
+</svg>

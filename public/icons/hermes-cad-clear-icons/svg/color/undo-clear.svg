@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#64748b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Rückgängig</title>
+  <desc id="desc">Undo/Rückgängig</desc>
+  <path d="M18 15 L9 24 L18 33" />
+  <path d="M10 24 H29 Q39 24 39 34 Q39 39 35 41" />
+  <text x="24" y="12" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.5" font-weight="800" fill="#64748b" stroke="none" >UNDO</text>
+</svg>

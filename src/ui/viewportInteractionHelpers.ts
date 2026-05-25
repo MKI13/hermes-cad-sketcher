@@ -2,22 +2,63 @@ import * as THREE from 'three';
 import { distance, type Vec3, vec } from '../core/geometry';
 import { entityBoundingBox, formatMillimeters, type BoxFaceName, type Entity, type EntityId, type SketchModel, type ToolName } from '../core/model';
 import { type ToolState } from '../core/toolState';
+import { type MouseAction } from './mouseBindings';
 import { type OrbitCameraState } from './viewportController';
+import { type FloatingWindowId } from './workspaceMenuRouting';
 
 const MIN_ZOOM_RADIUS = 150;
 const MAX_ZOOM_RADIUS = 100000;
 const WHEEL_STEP_FACTOR = 0.85;
 
-export type CursorBadge = Readonly<{
-  arrow: '↖';
-  symbol: string;
-  label: string;
-}>;
-
 export type SnapPointKind = 'endpoint' | 'midpoint';
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
 export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: SnapPointKind })>;
 export type FaceSelection = Readonly<{ entityId: EntityId; face: BoxFaceName }>;
+export type ViewportEntityAction = 'entityInfo' | 'erase' | 'hide' | 'makeGroup' | 'makeComponent' | 'area';
+export type ViewportContextMenuCommand =
+  | Readonly<{ type: 'mouseAction'; action: MouseAction }>
+  | Readonly<{ type: 'openWindow'; windowId: FloatingWindowId }>
+  | Readonly<{ type: 'entityAction'; action: ViewportEntityAction }>;
+export type ViewportContextMenuItem = Readonly<{ label: string; command: ViewportContextMenuCommand }>;
+
+export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
+  const items: ViewportContextMenuItem[] = [
+    { label: 'Auswahl-Werkzeug', command: { type: 'mouseAction', action: 'tool:select' } },
+    { label: 'Linie zeichnen', command: { type: 'mouseAction', action: 'tool:line' } },
+    { label: 'Rechteck zeichnen', command: { type: 'mouseAction', action: 'tool:rectangle' } },
+    { label: 'Körper setzen', command: { type: 'mouseAction', action: 'tool:box' } },
+    { label: 'Maßband', command: { type: 'mouseAction', action: 'tool:tape' } },
+    { label: 'Verlauf und Auswahl', command: { type: 'openWindow', windowId: 'history' } }
+  ];
+
+  if (!input.selectedEntityType) return items;
+
+  items.push(
+    { label: 'Entity Info', command: { type: 'entityAction', action: 'entityInfo' } },
+    { label: 'Erase', command: { type: 'entityAction', action: 'erase' } },
+    { label: 'Hide', command: { type: 'entityAction', action: 'hide' } },
+    { label: 'Make Group', command: { type: 'entityAction', action: 'makeGroup' } },
+    { label: 'Make Component', command: { type: 'entityAction', action: 'makeComponent' } },
+    { label: 'Area', command: { type: 'entityAction', action: 'area' } },
+    { label: 'Auswahl verschieben', command: { type: 'openWindow', windowId: 'move' } },
+    { label: 'Auswahl drehen', command: { type: 'openWindow', windowId: 'rotate' } },
+    { label: 'Inspektor öffnen', command: { type: 'openWindow', windowId: 'inspector' } }
+  );
+
+  if (input.selectedEntityType === 'box') {
+    items.push(
+      { label: 'Körperhöhe ziehen', command: { type: 'openWindow', windowId: 'pushPull' } },
+      { label: 'Körpermaße bearbeiten', command: { type: 'openWindow', windowId: 'dimensions' } }
+    );
+  }
+
+  if (input.selectedEntityType === 'face') {
+    items.push({ label: 'Fläche extrudieren', command: { type: 'openWindow', windowId: 'extrude' } });
+  }
+
+  items.push({ label: 'Auswahl löschen', command: { type: 'mouseAction', action: 'delete' } });
+  return items;
+}
 
 export function zoomOrbitTowardPoint(state: OrbitCameraState, focus: Vec3, wheelDeltaY: number): OrbitCameraState {
   const zoomSteps = Math.max(1, Math.min(6, Math.abs(wheelDeltaY) / 120));
@@ -35,30 +76,27 @@ export function zoomOrbitTowardPoint(state: OrbitCameraState, focus: Vec3, wheel
   };
 }
 
+export function createWorkspaceGrid(size = 20000, divisions = 200): THREE.GridHelper {
+  const grid = new THREE.GridHelper(size, divisions, 0x64748b, 0xcbd5e1);
+  grid.userData.size = size;
+  grid.userData.divisions = divisions;
+  return grid;
+}
+
 export function createOriginGuideGroup(length = 3000): THREE.Group {
   const group = new THREE.Group();
   group.name = 'origin-guides';
-  group.add(createAxisLine('x-red', [new THREE.Vector3(-length, 2, 0), new THREE.Vector3(length, 2, 0)], 0xdc2626));
-  group.add(createAxisLine('y-green', [new THREE.Vector3(0, 2, -length), new THREE.Vector3(0, 2, length)], 0x16a34a));
-  group.add(createAxisLine('z-blue', [new THREE.Vector3(0, -length, 0), new THREE.Vector3(0, length, 0)], 0x2563eb));
-  const origin = new THREE.Mesh(new THREE.SphereGeometry(Math.max(18, length * 0.012), 16, 12), new THREE.MeshBasicMaterial({ color: 0xf8fafc }));
-  origin.userData.axis = 'origin';
-  group.add(origin);
+  group.add(createAxisLine('x-positive', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(length, 2, 0)], 0xdc2626, 'solid'));
+  group.add(createAxisLine('x-negative', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(-length, 2, 0)], 0xdc2626, 'dashed'));
+  group.add(createAxisLine('y-positive', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 2, length)], 0x16a34a, 'solid'));
+  group.add(createAxisLine('y-negative', [new THREE.Vector3(0, 2, 0), new THREE.Vector3(0, 2, -length)], 0x16a34a, 'dashed'));
+  group.add(createAxisLine('z-positive', [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, length, 0)], 0x2563eb, 'solid'));
+  group.add(createAxisLine('z-negative', [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -length, 0)], 0x2563eb, 'dashed'));
   return group;
 }
 
-export function cursorBadgeForTool(tool: ToolName): CursorBadge {
-  const badges: Record<ToolName, CursorBadge> = {
-    select: { arrow: '↖', symbol: 'V', label: 'Auswahl' },
-    line: { arrow: '↖', symbol: '╱', label: 'Linie' },
-    rectangle: { arrow: '↖', symbol: '▭', label: 'Rechteck' },
-    box: { arrow: '↖', symbol: '◻', label: 'Körper' },
-    move: { arrow: '↖', symbol: '✥', label: 'Verschieben' },
-    pushPull: { arrow: '↖', symbol: '↕', label: 'Push/Pull' },
-    rotate: { arrow: '↖', symbol: '⟳', label: 'Drehen' },
-    tape: { arrow: '↖', symbol: '↔', label: 'Maßband' }
-  };
-  return badges[tool];
+export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' {
+  return kind === 'endpoint' ? 'Endpoint' : 'Midpoint';
 }
 
 export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: Vec3): string | undefined {
@@ -66,8 +104,8 @@ export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: 
     if (tool === 'line') return `Linie: ${formatMillimeters(distance(state.pendingPoint, point))}`;
     if (tool === 'tape') return `Maßband: ${formatMillimeters(distance(state.pendingPoint, point))}`;
     if (tool === 'rectangle') {
-      const width = Math.abs(point.x - state.pendingPoint.x);
-      const depth = Math.abs(point.y - state.pendingPoint.y);
+      const width = Math.abs(state.plane === 'yz' ? point.y - state.pendingPoint.y : point.x - state.pendingPoint.x);
+      const depth = Math.abs(state.plane === 'xy' ? point.y - state.pendingPoint.y : point.z - state.pendingPoint.z);
       return `Rechteck: ${formatMillimeters(width)} × ${formatMillimeters(depth)} · Fläche ${formatSquareMeters(width * depth)}`;
     }
   }
@@ -82,9 +120,10 @@ export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: 
 export function formatEntityMeasurement(entity: Entity): string {
   if (entity.type === 'edge') return `Linie: ${formatMillimeters(distance(entity.start, entity.end))}`;
   if (entity.type === 'face') {
-    const box = entityBoundingBox(entity);
     const area = polygonAreaMm2(entity.vertices);
-    return `Fläche: ${formatSquareMeters(area)} · ${formatMillimeters(box.size.x)} × ${formatMillimeters(box.size.y)}`;
+    const width = entity.vertices.length >= 2 ? distance(entity.vertices[0], entity.vertices[1]) : 0;
+    const depth = entity.vertices.length >= 3 ? distance(entity.vertices[1], entity.vertices[2]) : 0;
+    return `Fläche: ${formatSquareMeters(area)} · ${formatMillimeters(width)} × ${formatMillimeters(depth)}`;
   }
   if (entity.type === 'box') {
     return `Körper: ${formatMillimeters(entity.width)} × ${formatMillimeters(entity.depth)} × ${formatMillimeters(entity.height)}`;
@@ -182,21 +221,30 @@ function isBoxFaceName(value: unknown): value is BoxFaceName {
   return value === 'top' || value === 'bottom' || value === 'front' || value === 'back' || value === 'left' || value === 'right';
 }
 
-function createAxisLine(axis: string, points: [THREE.Vector3, THREE.Vector3], color: number): THREE.Line {
-  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color, linewidth: 2 }));
+function createAxisLine(axis: string, points: [THREE.Vector3, THREE.Vector3], color: number, style: 'solid' | 'dashed'): THREE.Line {
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = style === 'solid'
+    ? new THREE.LineBasicMaterial({ color, linewidth: 2 })
+    : new THREE.LineDashedMaterial({ color, dashSize: 140, gapSize: 90, linewidth: 2 });
+  const line = new THREE.Line(geometry, material);
+  if (style === 'dashed') line.computeLineDistances();
   line.userData.axis = axis;
   return line;
 }
 
 function polygonAreaMm2(vertices: Vec3[]): number {
   if (vertices.length < 3) return 0;
-  let sum = 0;
+  let areaVector = vec(0, 0, 0);
   for (let index = 0; index < vertices.length; index += 1) {
     const current = vertices[index];
     const next = vertices[(index + 1) % vertices.length];
-    sum += current.x * next.y - next.x * current.y;
+    areaVector = vec(
+      areaVector.x + current.y * next.z - current.z * next.y,
+      areaVector.y + current.z * next.x - current.x * next.z,
+      areaVector.z + current.x * next.y - current.y * next.x
+    );
   }
-  return Math.abs(sum / 2);
+  return Math.sqrt(areaVector.x ** 2 + areaVector.y ** 2 + areaVector.z ** 2) / 2;
 }
 
 function formatSquareMeters(squareMillimeters: number): string {

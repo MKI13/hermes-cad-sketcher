@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#0284c7" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Zoom</title>
+  <desc id="desc">Zoom-Lupe</desc>
+  <circle cx="21" cy="21" r="11" fill="#0284c7" opacity="0.12"/>
+  <line x1="29" y1="29" x2="39" y2="39" />
+  <line x1="21" y1="15" x2="21" y2="27" />
+  <line x1="15" y1="21" x2="27" y2="21" />
+</svg>

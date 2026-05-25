@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Körper</title>
+  <desc id="desc">3D-Körper/Kubus</desc>
+  <polygon points="24,8.299999999999999 36.6,15.649999999999999 24,23 11.399999999999999,15.649999999999999" fill="#ea580c" opacity="0.28"/>
+<polygon points="11.399999999999999,15.649999999999999 24,23 24,37.7 11.399999999999999,30.35" fill="#ea580c" opacity="0.28"/>
+<polygon points="36.6,15.649999999999999 24,23 24,37.7 36.6,30.35" fill="#ea580c" opacity="0.28"/>
+<polygon points="24,8.299999999999999 36.6,15.649999999999999 36.6,30.35 24,37.7 11.399999999999999,30.35 11.399999999999999,15.649999999999999" fill="none"/>
+  <text x="24" y="45" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="7" font-weight="800" fill="#ea580c" stroke="none" >3D</text>
+</svg>

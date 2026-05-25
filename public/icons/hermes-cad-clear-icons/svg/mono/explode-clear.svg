@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Explodieren</title>
+  <desc id="desc">Gruppe/Komponente auflösen</desc>
+  <polygon points="24,15.32 31.439999999999998,19.66 24,24 16.560000000000002,19.66" fill="currentColor" opacity="0.28"/>
+<polygon points="16.560000000000002,19.66 24,24 24,32.68 16.560000000000002,28.34" fill="currentColor" opacity="0.28"/>
+<polygon points="31.439999999999998,19.66 24,24 24,32.68 31.439999999999998,28.34" fill="currentColor" opacity="0.28"/>
+<polygon points="24,15.32 31.439999999999998,19.66 31.439999999999998,28.34 24,32.68 16.560000000000002,28.34 16.560000000000002,19.66" fill="none"/>
+  <line x1="24" y1="12" x2="24" y2="5" />
+  <polygon points="24,5 26.475,9.5 21.525,9.5" fill="currentColor" stroke="none"/>
+  <line x1="35" y1="20" x2="43" y2="15" />
+  <polygon points="43,15 40.457290542335606,19.462090722285243 37.86998875912884,15.242094338090691" fill="currentColor" stroke="none"/>
+  <line x1="13" y1="29" x2="5" y2="34" />
+  <polygon points="5,34 7.58013349490214,29.559444162215268 10.131865285418387,33.80104349139156" fill="currentColor" stroke="none"/>
+  <line x1="29" y1="35" x2="35" y2="43" />
+  <polygon points="35,43 30.369222723058826,40.779295874870925 34.39562947176623,37.89996458202471" fill="currentColor" stroke="none"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Alles zeigen</title>
+  <desc id="desc">Zoom Extents / Modell einpassen</desc>
+  <rect x="12" y="12" width="24" height="24" rx="3" stroke-dasharray="3 3"/>
+  <line x1="12" y1="18" x2="12" y2="12" />
+  <line x1="12" y1="12" x2="18" y2="12" />
+  <line x1="36" y1="18" x2="36" y2="12" />
+  <line x1="36" y1="12" x2="30" y2="12" />
+  <line x1="12" y1="30" x2="12" y2="36" />
+  <line x1="12" y1="36" x2="18" y2="36" />
+  <line x1="36" y1="30" x2="36" y2="36" />
+  <line x1="36" y1="36" x2="30" y2="36" />
+  <circle cx="24" cy="24" r="5" fill="currentColor" opacity="0.18"/>
+</svg>

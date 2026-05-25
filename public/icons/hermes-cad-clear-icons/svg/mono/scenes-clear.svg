@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Szenen</title>
+  <desc id="desc">Szenen/Ansichten speichern</desc>
+  <rect x="9" y="10" width="30" height="22" rx="3" fill="currentColor" opacity="0.11"/>
+  <circle cx="18" cy="18" r="3" fill="currentColor" stroke="none"/>
+  <path d="M11 31 L21 22 L28 28 L33 24 L39 31" />
+  <line x1="15" y1="37" x2="33" y2="37" />
+  <line x1="24" y1="32" x2="24" y2="42" />
+</svg>

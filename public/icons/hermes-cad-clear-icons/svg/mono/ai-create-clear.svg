@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">AI erstellt Körper</title>
+  <desc id="desc">AI erzeugt CAD-Objekt</desc>
+  <polygon points="24,17.5 33.0,22.75 24,28 15.0,22.75" fill="currentColor" opacity="0.28"/>
+<polygon points="15.0,22.75 24,28 24,38.5 15.0,33.25" fill="currentColor" opacity="0.28"/>
+<polygon points="33.0,22.75 24,28 24,38.5 33.0,33.25" fill="currentColor" opacity="0.28"/>
+<polygon points="24,17.5 33.0,22.75 33.0,33.25 24,38.5 15.0,33.25 15.0,22.75" fill="none"/>
+  <path d="M10 12 L12 17 L17 19 L12 21 L10 26 L8 21 L3 19 L8 17 Z" fill="currentColor" opacity="0.28"/>
+  <path d="M37 7 L39 12 L44 14 L39 16 L37 21 L35 16 L30 14 L35 12 Z" fill="currentColor" opacity="0.28"/>
+</svg>

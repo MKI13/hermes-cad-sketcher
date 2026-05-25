@@ -12,6 +12,7 @@ import {
   getEntityIdFromObject,
   isSelectedObject,
   snapToGrid,
+  screenPointToDrawingPlane,
   screenPointToGround
 } from '../src/ui/viewportController';
 
@@ -51,6 +52,21 @@ describe('interactive Three.js viewport foundation', () => {
     expect(group).toBeInstanceOf(THREE.Group);
     expect(group.children).toHaveLength(2);
     expect(group.children.map((child) => child.userData.entityId)).toEqual([box.id, line.id]);
+  });
+
+  it('skips hidden entities and renders applied material colors like the Materials tray', () => {
+    const model = new SketchModel();
+    const painted = model.createRectangle(vec(0, 0, 0), 1000, 500);
+    const hidden = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+    model.applyMaterial(painted.id, { name: 'Holz', color: '#b45309' });
+    model.hideEntity(hidden.id);
+
+    const group = createModelGroup(model);
+
+    expect(group.children.map((child) => child.userData.entityId)).toEqual([painted.id]);
+    const mesh = group.children[0] as THREE.Mesh;
+    expect(mesh).toBeInstanceOf(THREE.Mesh);
+    expect((mesh.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('b45309');
   });
 
   it('renders STL reference meshes as transparent wireframe mesh geometry', () => {
@@ -132,13 +148,36 @@ endsolid ref
 
   it('projects the center of the screen onto the millimeter ground plane', () => {
     const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
-    camera.position.set(0, 1000, 1000);
-    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    camera.position.set(123.4, 1000, 1456.7);
+    camera.lookAt(new THREE.Vector3(123.4, 0, 456.7));
     camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
 
     const groundPoint = screenPointToGround({ x: 500, y: 500, width: 1000, height: 1000 }, camera, 50);
 
-    expect(groundPoint).toEqual(vec(0, 0, 0));
+    expect(groundPoint?.x).toBeCloseTo(123.4, 6);
+    expect(groundPoint?.y).toBeCloseTo(456.7, 6);
+    expect(groundPoint?.z).toBeCloseTo(0, 6);
+  });
+
+  it('projects screen points onto vertical red-blue and green-blue drawing planes', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+    camera.position.set(800, 1000, 1200);
+    camera.lookAt(new THREE.Vector3(100, 250, 0));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+
+    const redBluePoint = screenPointToDrawingPlane({ x: 500, y: 500, width: 1000, height: 1000 }, camera, 'xz');
+    expect(redBluePoint?.x).toBeCloseTo(100, 6);
+    expect(redBluePoint?.y).toBeCloseTo(0, 6);
+    expect(redBluePoint?.z).toBeCloseTo(250, 6);
+
+    camera.lookAt(new THREE.Vector3(0, 250, 100));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const greenBluePoint = screenPointToDrawingPlane({ x: 500, y: 500, width: 1000, height: 1000 }, camera, 'yz');
+    expect(greenBluePoint?.x).toBeCloseTo(0, 6);
+    expect(greenBluePoint?.y).toBeCloseTo(100, 6);
+    expect(greenBluePoint?.z).toBeCloseTo(250, 6);
   });
 });

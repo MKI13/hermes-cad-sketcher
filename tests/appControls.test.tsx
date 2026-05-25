@@ -1,9 +1,16 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import App from '../src/App';
+import { readFile } from 'node:fs/promises';
+import App, { createInitialSketchModel } from '../src/App';
 
 describe('App controls', () => {
+  it('starts a new project with an empty model instead of sample furniture geometry', () => {
+    const model = createInitialSketchModel();
+
+    expect(model.allEntities()).toEqual([]);
+  });
+
   it('starts compact and routes workspace expansion through the matching classic menu buttons', () => {
     const markup = renderToStaticMarkup(<App />);
 
@@ -31,10 +38,10 @@ describe('App controls', () => {
     expect(markup).toContain('Zeichnen');
   });
 
-  it('keeps the side rail icon-only and marks the selected tool', () => {
+  it('keeps a SketchUp-like left icon rail and marks the selected tool', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('class="app-shell icon-rail-left"');
+    expect(markup).toContain('class="app-shell icon-rail-left sketchup-surface right-tray-open"');
     expect(markup).toContain('aria-label="Seitliche Icon-Werkzeugleiste"');
     expect(markup).toContain('class="icon-rail-button active"');
     expect(markup).toContain('title="Auswahl · Taste V"');
@@ -52,45 +59,94 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
-  it('documents left-click as the standard action for current tools', () => {
+
+
+  it('renders an active measurement input for exact SketchUp-like dimensions', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="Aktive Maßeingabe"');
+    expect(markup).toContain('placeholder="1200 · 1200,600 · 100,0,0"');
+    expect(markup).toContain('Enter übernimmt das Maß für das aktive Werkzeug');
+  });
+
+  it('documents configurable per-user mouse bindings with left, middle, right and wheel defaults', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('Linke Maustaste: Standardaktion des aktiven Werkzeugs');
     expect(markup).toContain('Auswahl: klicken · Linie/Körper: Punkte setzen · Fläche: klicken zum Ziehen');
+    expect(markup).toContain('Mausbelegung pro Nutzer');
+    expect(markup).toContain('Rechtsklick öffnet das Arbeitsflächen-Kontextmenü');
+    expect(markup).toContain('Linke Taste');
+    expect(markup).toContain('Mittlere Taste');
+    expect(markup).toContain('Rechte Taste');
+    expect(markup).toContain('Mausrad');
+    expect(markup).toContain('Zusatzbutton 11');
+    expect(markup).toContain('data-mouse-bindings="button:0=toolAction;button:1=orbit;button:2=contextMenu;wheel=zoom"');
+  });
+
+  it('renders a SketchUp-like default tray on the right with a collapse arrow and material swatches', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="Rechte Default-Tray-Leiste"');
+    expect(markup).toContain('Default Tray');
+    expect(markup).toContain('aria-label="Rechte Tray-Leiste zuklappen"');
+    expect(markup).toContain('›');
+    expect(markup).toContain('Entity Info');
+    expect(markup).toContain('Components');
+    expect(markup).toContain('Styles');
+    expect(markup).toContain('Tags');
+    expect(markup).toContain('Shadows');
+    expect(markup).toContain('Scenes');
+    expect(markup).toContain('Materials');
+    expect(markup).toContain('Ordner vom PC wählen');
+    expect(markup).toContain('Auswahl mit Material belegen');
+    expect(markup).toContain('Holz warm');
+    expect(markup).toContain('Dunkel');
+    expect(markup).toContain('accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"');
+    expect(markup).toContain('Materialordner: Standard-Farbfelder');
+    expect(markup).toContain('class="material-swatch"');
+  });
+
+  it('shows the active drawing plane with SketchUp-style axis colors', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Zeichenebene');
+    expect(markup).toContain('Grundfläche X/Y');
+    expect(markup).toContain('Aktive Ebene: X rot und Y grün. Extrusion geht entlang Z blau.');
+    expect(markup).toContain('class="drawing-plane-indicator drawing-plane-xy"');
+    expect(markup).toContain('X rot');
+    expect(markup).toContain('Y grün');
   });
 
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('class="measurement-field viewport-measurement-field"');
-    expect(markup).toContain('Maß');
-    expect(markup).toContain('Aktuell');
+    expect(markup).toContain('class="measurement-field measurement-box-active"');
+    expect(markup).toContain('Aktive Maßeingabe');
+    expect(markup).toContain('Aktuelles Maß');
     expect(markup).toContain('mm');
     expect(markup).toContain('Fläche: keine Körperfläche');
-    expect(markup).toContain('Werkzeuge setzen Punkte oder wählen Flächen.');
+    expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
   });
 
-  it('renders the initial viewport loading boundary without the heavy Three.js cursor layer', () => {
+  it('renders a normal viewport arrow without a permanent tool symbol', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('3D-Viewport wird geladen');
-    expect(markup).not.toContain('class="cursor-arrow"');
+    expect(markup).toContain('Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol');
+    expect(markup).toContain('class="cursor-arrow"');
     expect(markup).not.toContain('class="cursor-symbol"');
     expect(markup).not.toContain('Mauszeiger: Pfeil mit Auswahl Symbol');
   });
 
-  it('renders a compact viewport help card and unit field with stable hook classes for mobile visual QA', () => {
-    const markup = renderToStaticMarkup(<App />);
+  it('does not keep stale cursor symbol helper wiring in the viewport source', async () => {
+    const [viewportSource, helperSource] = await Promise.all([
+      readFile('src/ui/ThreeViewport.tsx', 'utf8'),
+      readFile('src/ui/viewportInteractionHelpers.ts', 'utf8')
+    ]);
 
-    expect(markup).toContain('class="model-card compact viewport-help-card"');
-    expect(markup).toContain('Interaktiver 3D-Viewport');
-    expect(markup).toContain('Ziehen: Orbit/Pan · Rad: Zoom');
-    expect(markup).toContain('Werkzeuge setzen Punkte oder wählen Flächen.');
-    expect(markup).toContain('Elemente: ');
-    expect(markup).not.toContain('Mausrad: Zoom auf den Punkt unter der Maus.');
-    expect(markup).not.toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
-    expect(markup).toContain('class="measurement-field viewport-measurement-field"');
-    expect(markup).toContain('Maß');
+    expect(viewportSource).not.toContain('cursorBadgeForTool');
+    expect(helperSource).not.toContain('cursorBadgeForTool');
+    expect(helperSource).not.toContain('type CursorBadge');
   });
 
   it('renders a research-backed classic CAD workbench bar without copying protected branding', () => {
@@ -122,4 +178,14 @@ describe('App controls', () => {
     expect(workflow).toContain('npm run check');
     expect(workflow).toContain('pull_request:');
   });
+
+  it('lets the CAD workspace use the full browser viewport without page-level dead space', async () => {
+    const css = await readFile('src/styles.css', 'utf8');
+
+    expect(css).toContain('height: 100dvh');
+    expect(css).toContain('overflow: hidden');
+    expect(css).toContain('.workspace { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0;');
+    expect(css).toContain('.viewport-placeholder { position: relative; overflow: hidden; min-height: 0;');
+  });
+
 });
