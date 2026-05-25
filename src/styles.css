@@ -154,7 +154,7 @@ button { font: inherit; }
 .tray-section input[type="checkbox"] { margin-right: 5px; }
 .tray-section .dimension-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 0 7px 4px; }
 .tray-section small { display: block; padding: 0 7px 7px; color: #475569; }
-.materials-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 7px 3px; color: #334155; }
+.materials-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; padding: 6px 7px 3px; color: #334155; }
 .material-folder-button { border: 1px solid #94a3b8; border-radius: 3px; background: #ffffff; padding: 2px 6px; cursor: pointer; color: #111827; white-space: nowrap; }
 .material-folder-button input { display: none; }
 .material-category-select { margin: 4px 7px 2px; width: calc(100% - 14px); border: 1px solid #94a3b8; background: #ffffff; color: #111827; padding: 3px 5px; }
