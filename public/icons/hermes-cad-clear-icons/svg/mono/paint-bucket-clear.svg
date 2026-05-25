@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Farbeimer</title>
+  <desc id="desc">Material/Farbe auftragen</desc>
+  <path d="M15 14 L28 27 L18 37 L7 26 Z" fill="currentColor" opacity="0.14"/>
+  <path d="M15 14 L28 27 L18 37 L7 26 Z" />
+  <line x1="19" y1="10" x2="34" y2="25" />
+  <path d="M29 31 Q35 36 35 41 Q29 41 29 36 Z" fill="currentColor" opacity="0.32"/>
+  <line x1="9" y1="26" x2="27" y2="26" />
+</svg>

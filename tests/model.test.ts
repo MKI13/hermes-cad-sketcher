@@ -317,4 +317,20 @@ describe('SketchModel geometry tools', () => {
 
     expect(model.allComponents()).toEqual([]);
   });
+
+  it('resizes an axis-aligned rectangle face from its original corner for live measurements', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 100, 50);
+
+    const updated = model.resizeRectangleFace(face.id, 1200, 600);
+
+    expect(updated.id).toBe(face.id);
+    expect(updated.vertices).toEqual([
+      vec(10, 20, 0),
+      vec(1210, 20, 0),
+      vec(1210, 620, 0),
+      vec(10, 620, 0)
+    ]);
+  });
+
 });

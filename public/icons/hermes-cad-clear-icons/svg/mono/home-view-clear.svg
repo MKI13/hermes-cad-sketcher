@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Home Ansicht</title>
+  <desc id="desc">Startansicht/Home</desc>
+  <path d="M10 25 L24 12 L38 25" />
+  <path d="M14 23 V39 H34 V23" />
+  <rect x="20" y="29" width="8" height="10" rx="1" fill="currentColor" opacity="0.20"/>
+</svg>

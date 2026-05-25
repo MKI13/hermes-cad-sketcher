@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Materialien</title>
+  <desc id="desc">Material-Swatches</desc>
+  <rect x="9" y="10" width="13" height="13" rx="2" fill="#eab308" opacity="0.55"/>
+  <rect x="26" y="10" width="13" height="13" rx="2" fill="#22c55e" opacity="0.55"/>
+  <rect x="9" y="27" width="13" height="13" rx="2" fill="#38bdf8" opacity="0.55"/>
+  <rect x="26" y="27" width="13" height="13" rx="2" fill="#a855f7" opacity="0.55"/>
+</svg>

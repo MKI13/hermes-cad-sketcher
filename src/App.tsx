@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Bot, Box, Component, Copy, Download, FolderOpen, GripVertical, MessageSquare, Move3D, Play, Redo2, Ruler, RotateCw, Save, Square, Slash, Trash2, Undo2, Upload } from 'lucide-react';
 import { SketchModel, type BoxFaceName, type DrawingPlane, type MaterialAssignment, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
+import { parseMeasurementBoxInput } from './core/measurementInput';
+import { applyMeasurementBoxInputToModel } from './core/measurementApplication';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf, importDxfWithReport } from './core/dxf';
 import { exportAsciiStl, importAsciiStl } from './core/stl';
@@ -11,6 +12,7 @@ import { runAgentChatCommand, runCadConsoleScript } from './core/cadCommands';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
+import { MeasurementBox } from './ui/MeasurementBox';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS, parseRectangleDimensionMask, updateRectangleDimensionMaskValue, type RectangleDimensionKey, type RectangleDimensionMask } from './ui/drawingController';
 import { SelectedDimensionsPanel, boxDimensionsToInput, parseSelectedBoxDimensions, type DimensionInput } from './ui/SelectedDimensionsPanel';
 import { FaceExtrudePanel, parseExtrudeHeight, validateExtrudableFace } from './ui/FaceExtrudePanel';
@@ -30,17 +32,20 @@ import { shouldApplyDxfImportReport, statusFromDxfImportReport } from './ui/dxfI
 import { drawingPlaneAppearance } from './ui/drawingPlaneAppearance';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
 import { ThreeViewport } from './ui/ThreeViewport';
+import { HermesIcon, type HermesIconId } from './ui/HermesIcon';
 import './styles.css';
 
+const toolIcon = (id: HermesIconId, label: string) => <HermesIcon id={id} label={label} size={20} />;
+
 const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
-  { id: 'select', label: 'Auswahl', icon: <Component size={18} /> },
-  { id: 'line', label: 'Linie', icon: <Slash size={18} /> },
-  { id: 'rectangle', label: 'Quadrat/Rechteck', icon: <Square size={18} /> },
-  { id: 'box', label: 'Körper', icon: <Box size={18} /> },
-  { id: 'move', label: 'Verschieben', icon: <Move3D size={18} /> },
-  { id: 'pushPull', label: 'Seite ziehen', icon: <Upload size={18} /> },
-  { id: 'rotate', label: 'Drehen', icon: <RotateCw size={18} /> },
-  { id: 'tape', label: 'Maßband', icon: <Ruler size={18} /> }
+  { id: 'select', label: 'Auswahl', icon: toolIcon('select-pointer', 'Auswahl') },
+  { id: 'line', label: 'Linie', icon: toolIcon('line-tool-clear', 'Linie') },
+  { id: 'rectangle', label: 'Quadrat/Rechteck', icon: toolIcon('rectangle-tool-clear', 'Rechteck') },
+  { id: 'box', label: 'Körper', icon: toolIcon('box-cube-clear', 'Körper') },
+  { id: 'move', label: 'Verschieben', icon: toolIcon('move-tool-clear', 'Verschieben') },
+  { id: 'pushPull', label: 'Seite ziehen', icon: toolIcon('push-pull-clear', 'Push/Pull') },
+  { id: 'rotate', label: 'Drehen', icon: toolIcon('rotate-tool-clear', 'Drehen') },
+  { id: 'tape', label: 'Maßband', icon: toolIcon('tape-measure-clear', 'Maßband') }
 ];
 
 const TOOLBAR_STORAGE_KEY = 'hermes-cad-toolbar-order';
@@ -119,6 +124,8 @@ export default function App() {
   const [selectedBoxFace, setSelectedBoxFace] = useState<FaceSelection | undefined>();
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
   const [liveMeasurement, setLiveMeasurement] = useState<string | undefined>();
+  const [measurementBoxValue, setMeasurementBoxValue] = useState('');
+  const [measurementBoxStatus, setMeasurementBoxStatus] = useState('mm · Enter übernimmt das Maß für das aktive Werkzeug');
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
   const [drawingPlane, setDrawingPlane] = useState<DrawingPlane>('xy');
@@ -345,6 +352,123 @@ export default function App() {
     const measured = formatTapeMeasurement(model, start, end);
     setLastMeasurement(measured);
     setLiveMeasurement(`Maßband: ${measured}`);
+  }
+
+  function applyMeasurementBoxInput() {
+    const raw = measurementBoxValue.trim();
+    if (!raw) {
+      setMeasurementBoxStatus('Bitte ein Maß eingeben, z. B. 1200 oder 1200,600.');
+      return;
+    }
+    const parsed = parseMeasurementBoxInput(tool, raw);
+    if (!parsed.ok) {
+      setMeasurementBoxStatus(parsed.error);
+      return;
+    }
+
+    try {
+      if (parsed.kind === 'rectangle') {
+        setRectangleDimensionMask({ width: String(parsed.width), depth: String(parsed.depth) });
+        setUseRectangleDimensionMask(true);
+        setTool('rectangle');
+        let action: 'created' | 'resized' | undefined;
+        mutate((m) => {
+          const applied = applyMeasurementBoxInputToModel(m, {
+            tool: 'rectangle',
+            rawInput: raw,
+            drawingPlane,
+            selectedId,
+            defaultOrigin: vec(0, 0, 0)
+          });
+          if (!applied.ok) throw new Error(applied.error);
+          const updated = m.getEntity(applied.entityId);
+          if (!updated) throw new Error('Rechteck konnte nicht erstellt oder geändert werden.');
+          action = applied.action;
+          setSelectedId(updated.id);
+          setLiveMeasurement(formatEntityMeasurement(updated));
+        });
+        setMeasurementBoxStatus(action === 'resized'
+          ? `Rechteck live geändert: ${parsed.width} × ${parsed.depth} mm.`
+          : `Rechteck direkt erstellt: ${parsed.width} × ${parsed.depth} mm.`);
+        return;
+      }
+
+      if (parsed.kind === 'box') {
+        setBoxDimensions({ width: parsed.width, depth: parsed.depth, height: parsed.height });
+        setTool('box');
+        let action: 'created' | 'resized' | undefined;
+        mutate((m) => {
+          const applied = applyMeasurementBoxInputToModel(m, {
+            tool: 'box',
+            rawInput: raw,
+            drawingPlane,
+            selectedId,
+            defaultOrigin: vec(0, 0, 0)
+          });
+          if (!applied.ok) throw new Error(applied.error);
+          const updated = m.getEntity(applied.entityId);
+          if (!updated || updated.type !== 'box') throw new Error('Körper konnte nicht erstellt oder geändert werden.');
+          action = applied.action;
+          setSelectedId(updated.id);
+          setSelectedDimensions(boxDimensionsToInput(updated));
+          setLiveMeasurement(formatEntityMeasurement(updated));
+        });
+        setMeasurementBoxStatus(action === 'resized'
+          ? `Körper live geändert: ${parsed.width} × ${parsed.depth} × ${parsed.height} mm.`
+          : `Körper direkt erstellt: ${parsed.width} × ${parsed.depth} × ${parsed.height} mm.`);
+        return;
+      }
+
+      if (parsed.kind === 'vector') {
+        setMoveDelta({ x: String(parsed.x), y: String(parsed.y), z: String(parsed.z) });
+        if (!selectedId) {
+          setMeasurementBoxStatus(`Verschiebung vorbereitet: ${parsed.x}, ${parsed.y}, ${parsed.z} mm. Erst Objekt auswählen.`);
+          return;
+        }
+        moveFromViewport(selectedId, vec(parsed.x, parsed.y, parsed.z));
+        setMeasurementBoxStatus(`Verschoben um ${parsed.x}, ${parsed.y}, ${parsed.z} mm.`);
+        return;
+      }
+
+      if (parsed.kind === 'distance') {
+        if (tool === 'line') {
+          if (!selectedId || selected?.type !== 'edge') {
+            setMeasurementBoxStatus(`Linienmaß ${parsed.value} mm vorbereitet. Eine vorhandene Linie auswählen oder neue Linie zeichnen.`);
+            setLiveMeasurement(`Linienmaß: ${parsed.value} mm`);
+            return;
+          }
+          mutate((m) => {
+            const updated = m.resizeLineLength(selectedId, parsed.value);
+            setSelectedId(updated.id);
+            setLiveMeasurement(formatEntityMeasurement(updated));
+          });
+          setMeasurementBoxStatus(`Linie auf ${parsed.value} mm gesetzt.`);
+          return;
+        }
+
+        if (tool === 'pushPull') {
+          setPushPullDeltaHeight(String(parsed.value));
+          if (!selectedId || selected?.type !== 'box') {
+            setMeasurementBoxStatus(`Push/Pull-Distanz ${parsed.value} mm vorbereitet. Erst Körper oder Fläche auswählen.`);
+            return;
+          }
+          mutate((m) => {
+            const face = selectedBoxFace?.entityId === selectedId ? selectedBoxFace.face : 'top';
+            const updated = m.pushPullBoxFace(selectedId, face, parsed.value);
+            setSelectedId(selectedId);
+            setSelectedDimensions(boxDimensionsToInput(updated));
+            setLiveMeasurement(formatEntityMeasurement(updated));
+          });
+          setMeasurementBoxStatus(`Push/Pull um ${parsed.value} mm angewendet.`);
+          return;
+        }
+
+        setMeasurementBoxStatus(`Maß ${parsed.value} mm übernommen. Werkzeug ${tool} nutzt es als Referenz.`);
+        setLiveMeasurement(`Maß: ${parsed.value} mm`);
+      }
+    } catch (error) {
+      setMeasurementBoxStatus(error instanceof Error ? error.message : 'Maß konnte nicht angewendet werden.');
+    }
   }
 
   function handleViewportSelect(entityId: string | undefined, faceSelection?: FaceSelection) {
@@ -746,9 +870,9 @@ export default function App() {
       <section className="function-group file-function-group" aria-label="Datei & Import/Export">
         <strong>Datei &amp; Import/Export</strong>
         <button className="primary" onClick={loadExampleModel}>{getPrimaryActionLabel()}</button>
-        <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
+        <button onClick={saveProjectFile}><HermesIcon id="save-project-clear" label="Projekt speichern" size={18} /> Projekt speichern</button>
         <label className="file-button">
-          <FolderOpen size={18}/> Projekt laden
+          <HermesIcon id="open-project-clear" label="Öffnen" size={18} /> Projekt laden
           <input
             type="file"
             accept=".hcad.json,application/json"
@@ -760,7 +884,7 @@ export default function App() {
           />
         </label>
         <label className="file-button" title="Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.">
-          <FolderOpen size={18}/> DXF laden
+          <HermesIcon id="open-project-clear" label="Öffnen" size={18} /> DXF laden
           <input
             type="file"
             accept=".dxf,application/dxf,text/plain"
@@ -772,7 +896,7 @@ export default function App() {
           />
         </label>
         <label className="file-button" title="Importiert ASCII-STL nur als nicht editierbares Referenzmesh.">
-          <FolderOpen size={18}/> STL-Referenz laden
+          <HermesIcon id="open-project-clear" label="Öffnen" size={18} /> STL-Referenz laden
           <input
             type="file"
             accept=".stl,model/stl,text/plain"
@@ -783,8 +907,8 @@ export default function App() {
             }}
           />
         </label>
-        <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
-        <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
+        <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><HermesIcon id="export-file-clear" label="Export" size={18} /> DXF exportieren</button>
+        <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><HermesIcon id="export-file-clear" label="Export" size={18} /> STL exportieren</button>
         <p className="format-note">Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.</p>
         <p className="format-note">DXF-Einheiten: $INSUNITS=4 wird als Millimeter importiert; fehlende Einheiten werden sichtbar als Millimeter angenommen, andere Einheiten werden abgelehnt.</p>
         <p className="format-note">STL-Import: ASCII-STL wird nur als Referenzmesh geladen, nicht als editierbarer Körper oder validiertes Fertigungsmesh.</p>
@@ -793,16 +917,16 @@ export default function App() {
         <strong>Bearbeiten &amp; Maße</strong>
         <div className="history-controls" aria-label="Verlauf">
           <button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}>
-            <Undo2 size={18}/> Rückgängig
+            <HermesIcon id="undo-clear" label="Rückgängig" size={18} /> Rückgängig
           </button>
           <button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}>
-            <Redo2 size={18}/> Wiederholen
+            <HermesIcon id="redo-clear" label="Wiederholen" size={18} /> Wiederholen
           </button>
         </div>
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
-        <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button>
+        <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button>
         <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId} onClick={deleteSelectedEntity}>
-          <Trash2 size={18}/> Auswahl löschen
+          <HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen
         </button>
         <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
         <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />
@@ -846,7 +970,7 @@ export default function App() {
           </button>
         </section>
         <section className="cad-command-panel" aria-label="Ruby-Konsole">
-          <strong><Play size={16}/> Ruby-Konsole</strong>
+          <strong><HermesIcon id="ruby-console-clear" label="Ruby-Konsole" size={16} /> Ruby-Konsole</strong>
           <p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, delete</p>
           <p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität. Diese Konsole ist eine sichere Hermes-CAD-Befehls-DSL in Millimeter.</p>
           <textarea
@@ -855,11 +979,11 @@ export default function App() {
             onChange={(event) => setRubyConsoleInput(event.currentTarget.value)}
             rows={4}
           />
-          <button type="button" onClick={executeRubyConsole}><Play size={18}/> Ruby-Befehl ausführen</button>
+          <button type="button" onClick={executeRubyConsole}><HermesIcon id="command-play-clear" label="Befehl ausführen" size={18} /> Ruby-Befehl ausführen</button>
           <small>{rubyConsoleLog}</small>
         </section>
         <section className="cad-command-panel" aria-label="Agent-Chat">
-          <strong><Bot size={16}/> Agent-Chat</strong>
+          <strong><HermesIcon id="hermes-agent-clear" label="Hermes Agent" size={16} /> Agent-Chat</strong>
           <p>Hermes antwortet hier wie im Telegram-Chat, bekommt zusätzlich den Zeichnungsmodus und kann bei Bedarf CAD-Befehle ausführen.</p>
           <p>Du kannst normal schreiben, zum Beispiel „Hallo Hermes …“, oder direkte Befehle wie „erstelle box …“ senden.</p>
           <textarea
@@ -868,7 +992,7 @@ export default function App() {
             onChange={(event) => setAgentChatInput(event.currentTarget.value)}
             rows={3}
           />
-          <button type="button" onClick={executeAgentChat}><MessageSquare size={18}/> An Hermes senden</button>
+          <button type="button" onClick={executeAgentChat}><HermesIcon id="agent-chat-clear" label="Agent Chat" size={18} /> An Hermes senden</button>
           <small>{agentChatLog}</small>
         </section>
       </section>
@@ -881,12 +1005,12 @@ export default function App() {
       {activeMenu === 'Datei' && (
         <div className="menu-button-links">
           <button className="primary" onClick={loadExampleModel}>{getPrimaryActionLabel()}</button>
-          <button onClick={saveProjectFile}><Save size={18}/> Projekt speichern</button>
-          <label className="file-button"><FolderOpen size={18}/> Projekt laden<input type="file" accept=".hcad.json,application/json" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openProjectFile(file); event.currentTarget.value = ''; }} /></label>
-          <label className="file-button"><FolderOpen size={18}/> DXF laden<input type="file" accept=".dxf,application/dxf,text/plain" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openDxfFile(file); event.currentTarget.value = ''; }} /></label>
-          <label className="file-button"><FolderOpen size={18}/> STL-Referenz laden<input type="file" accept=".stl,model/stl,text/plain" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openStlFile(file); event.currentTarget.value = ''; }} /></label>
-          <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><Download size={18}/> DXF exportieren</button>
-          <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><Download size={18}/> STL exportieren</button>
+          <button onClick={saveProjectFile}><HermesIcon id="save-project-clear" label="Projekt speichern" size={18} /> Projekt speichern</button>
+          <label className="file-button"><HermesIcon id="open-project-clear" label="Öffnen" size={18} /> Projekt laden<input type="file" accept=".hcad.json,application/json" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openProjectFile(file); event.currentTarget.value = ''; }} /></label>
+          <label className="file-button"><HermesIcon id="open-project-clear" label="Öffnen" size={18} /> DXF laden<input type="file" accept=".dxf,application/dxf,text/plain" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openDxfFile(file); event.currentTarget.value = ''; }} /></label>
+          <label className="file-button"><HermesIcon id="open-project-clear" label="Öffnen" size={18} /> STL-Referenz laden<input type="file" accept=".stl,model/stl,text/plain" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openStlFile(file); event.currentTarget.value = ''; }} /></label>
+          <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><HermesIcon id="export-file-clear" label="Export" size={18} /> DXF exportieren</button>
+          <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><HermesIcon id="export-file-clear" label="Export" size={18} /> STL exportieren</button>
         </div>
       )}
       {activeMenu === 'Bearbeiten' && (
@@ -1050,7 +1174,7 @@ export default function App() {
   );
 
   function renderWindowContent(id: FloatingWindowId) {
-    if (id === 'history') return <><div className="history-controls" aria-label="Verlauf"><button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}><Undo2 size={18}/> Rückgängig</button><button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}><Redo2 size={18}/> Wiederholen</button></div><button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><Copy size={18}/> Komponente duplizieren</button><button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}><Trash2 size={18}/> Auswahl löschen</button></>;
+    if (id === 'history') return <><div className="history-controls" aria-label="Verlauf"><button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}><HermesIcon id="undo-clear" label="Rückgängig" size={18} /> Rückgängig</button><button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}><HermesIcon id="redo-clear" label="Wiederholen" size={18} /> Wiederholen</button></div><button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button><button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}><HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen</button></>;
     if (id === 'move') return <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />;
     if (id === 'rotate') return <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />;
     if (id === 'pushPull') return <PushPullPanel disabled={!selectedId || selected?.type !== 'box'} selectedType={selected?.type} selectedBox={selected?.type === 'box' ? selected : undefined} deltaHeight={pushPullDeltaHeight} onDeltaHeightChange={setPushPullDeltaHeight} onApply={applyPushPullDelta} />;
@@ -1058,8 +1182,8 @@ export default function App() {
     if (id === 'extrude') return <FaceExtrudePanel disabled={!selectedId || selected?.type !== 'face'} selectedType={selected?.type} selectedFace={selected?.type === 'face' ? selected : undefined} height={extrudeHeight} onHeightChange={(height) => { setExtrudeHeight(height); setFaceExtrusionStatus(''); }} onApply={applyFaceExtrusion} statusMessage={faceExtrusionStatus} />;
     if (id === 'inspector') return <InspectorPanel inspection={selectedInspection} />;
     if (id === 'boxDimensions') return <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />;
-    if (id === 'rubyConsole') return <section className="cad-command-panel" aria-label="Ruby-Konsole"><p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, delete</p><p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität.</p><textarea aria-label="Ruby-Konsole CAD-Befehle" value={rubyConsoleInput} onChange={(event) => setRubyConsoleInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={executeRubyConsole}><Play size={18}/> Ruby-Befehl ausführen</button><small>{rubyConsoleLog}</small></section>;
-    return <section className="cad-command-panel" aria-label="Hermes Agent Zeichnungsmodus"><p>Hermes antwortet wie im Telegram-Chat und bekommt zusätzlich Zeichnungsmodus, Modellkontext und Auswahl über die Bridge des CAD-App-Hosts.</p><p>{agentBridgeStatus}</p><textarea aria-label="Nachricht an Hermes" value={agentChatInput} onChange={(event) => setAgentChatInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={() => void executeAgentChat()}><MessageSquare size={18}/> An Hermes senden</button><small>{agentChatLog}</small></section>;
+    if (id === 'rubyConsole') return <section className="cad-command-panel" aria-label="Ruby-Konsole"><p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, delete</p><p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität.</p><textarea aria-label="Ruby-Konsole CAD-Befehle" value={rubyConsoleInput} onChange={(event) => setRubyConsoleInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={executeRubyConsole}><HermesIcon id="command-play-clear" label="Befehl ausführen" size={18} /> Ruby-Befehl ausführen</button><small>{rubyConsoleLog}</small></section>;
+    return <section className="cad-command-panel" aria-label="Hermes Agent Zeichnungsmodus"><p>Hermes antwortet wie im Telegram-Chat und bekommt zusätzlich Zeichnungsmodus, Modellkontext und Auswahl über die Bridge des CAD-App-Hosts.</p><p>{agentBridgeStatus}</p><textarea aria-label="Nachricht an Hermes" value={agentChatInput} onChange={(event) => setAgentChatInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={() => void executeAgentChat()}><HermesIcon id="agent-chat-clear" label="Agent Chat" size={18} /> An Hermes senden</button><small>{agentChatLog}</small></section>;
   }
 
   function renderFloatingWindow(id: FloatingWindowId) {
@@ -1151,7 +1275,7 @@ export default function App() {
                 }}
                 onDragEnd={() => setDraggedTool(undefined)}
               >
-                <GripVertical size={12} aria-hidden="true" />
+                <span className="drag-grip" aria-hidden="true">⋮</span>
                 {item.icon}
                 <span className="tool-shortcut">{shortcut}</span>
                 <span className="tool-label">{item.label}</span>
@@ -1212,12 +1336,13 @@ export default function App() {
             <span>Aktuelle Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
-          <section className="measurement-field" aria-label="Einheitenfeld">
-            <strong>Einheitenfeld</strong>
-            <span>Aktuelles Maß</span>
-            <output>{activeMeasurement}</output>
-            <small>mm · m² bei Flächen</small>
-          </section>
+          <MeasurementBox
+            activeMeasurement={activeMeasurement}
+            value={measurementBoxValue}
+            status={measurementBoxStatus}
+            onValueChange={setMeasurementBoxValue}
+            onApply={applyMeasurementBoxInput}
+          />
         </div>
         <footer className="statusbar">
           <span>Werkzeug: {tool}</span>

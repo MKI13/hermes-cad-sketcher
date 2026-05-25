@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#475569" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">STL</title>
+  <desc id="desc">STL-Datei</desc>
+  <path d="M12 8 H29 L36 15 V40 H12 Z" fill="#475569" opacity="0.08"/>
+  <path d="M12 8 H29 L36 15 V40 H12 Z" />
+  <polygon points="17,31 24,18 32,31" fill="#475569" opacity="0.16"/>
+  <line x1="17" y1="31" x2="32" y2="31" />
+  <text x="24" y="38" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="6" font-weight="800" fill="#475569" stroke="none" >STL</text>
+</svg>

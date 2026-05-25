@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#0284c7" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Orbit</title>
+  <desc id="desc">Kamera Orbit</desc>
+  <polygon points="24,15.9 31.8,20.45 24,25 16.2,20.45" fill="none"/>
+<polygon points="16.2,20.45 24,25 24,34.1 16.2,29.55" fill="none"/>
+<polygon points="31.8,20.45 24,25 24,34.1 31.8,29.55" fill="none"/>
+<polygon points="24,15.9 31.8,20.45 31.8,29.55 24,34.1 16.2,29.55 16.2,20.45" fill="none"/>
+  <path d="M11 21 A15 15 0 0 1 35 13" />
+  <polygon points="35,13 31.621494865639036,16.867987597846795 29.924150718734552,12.218092669252268" fill="#0284c7" stroke="none"/>
+  <path d="M37 27 A15 15 0 0 1 13 35" />
+  <polygon points="13,35 16.410904861373094,31.160553031143497 18.069096204644826,35.824553617453354" fill="#0284c7" stroke="none"/>
+</svg>

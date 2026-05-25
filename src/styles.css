@@ -4,9 +4,10 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-body { margin: 0; }
+html, body, #root { height: 100%; }
+body { margin: 0; overflow: hidden; }
 button { font: inherit; }
-.app-shell { display: grid; grid-template-columns: 46px minmax(0, 1fr) 260px; grid-template-rows: auto minmax(0, 1fr); min-height: 100vh; background: #d9dde3; }
+.app-shell { display: grid; grid-template-columns: 46px minmax(0, 1fr) 260px; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; min-height: 0; overflow: hidden; background: #d9dde3; }
 .app-shell.right-tray-closed { grid-template-columns: 46px minmax(0, 1fr) 30px; }
 .app-shell.icon-rail-left .toolbar { grid-column: 1; grid-row: 2; }
 .app-shell.icon-rail-left .workspace { grid-column: 2; grid-row: 2; }
@@ -88,8 +89,8 @@ button { font: inherit; }
 .mouse-bindings-grid select { min-width: 0; border: 1px solid #475569; border-radius: 8px; background: #020617; color: #f8fafc; padding: 7px 8px; font: inherit; }
 .workspace-dock-button { background: #0ea5e9; border-color: #38bdf8; font-weight: 700; }
 .workspace-dock-button:hover { background: #0284c7; }
-.workspace { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; background: #f8fafc; }
-.viewport-placeholder { position: relative; overflow: hidden; background: #fbfbf7; }
+.workspace { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; background: #f8fafc; }
+.viewport-placeholder { position: relative; overflow: hidden; min-height: 0; background: #fbfbf7; }
 .three-viewport { position: absolute; inset: 0; }
 .three-canvas { width: 100%; height: 100%; display: block; cursor: default; }
 .three-canvas:active { cursor: default; }
@@ -168,7 +169,7 @@ button { font: inherit; }
 .right-tray .mouse-bindings-panel p, .right-tray .mouse-bindings-grid small { color: #475569; }
 .right-tray .mouse-bindings-grid { grid-template-columns: 1fr; padding: 7px; }
 @media (max-width: 720px) {
-  .app-shell { grid-template-columns: 52px minmax(0, 1fr); grid-template-rows: auto minmax(620px, 70vh) auto; }
+  .app-shell { grid-template-columns: 52px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; overflow: auto; }
   .app-shell.icon-rail-left .toolbar { grid-column: 1; grid-row: 2; }
   .app-shell.icon-rail-left .workspace { grid-column: 2; grid-row: 2; }
   .app-shell .right-tray { grid-column: 1 / -1; grid-row: 3; max-height: 520px; }
@@ -178,7 +179,7 @@ button { font: inherit; }
   .quick-toolbar { gap: 6px; }
   .quick-toolbar .tool-icon { min-width: 52px; }
   .toolbar { padding: 16px; }
-  .workspace { min-height: 620px; }
+  .workspace { min-height: 0; }
   .viewport-help { left: 12px; right: 12px; bottom: 12px; border-radius: 14px; }
   .viewport-error { left: 12px; right: 12px; top: 12px; max-width: none; }
   .model-card.compact { top: 12px; right: 12px; left: 12px; min-width: 0; }
@@ -186,3 +187,16 @@ button { font: inherit; }
   .statusbar span { overflow-wrap: anywhere; }
   .ai-chat-window { left: 12px; right: 12px; bottom: 12px; width: auto; }
 }
+
+
+.hermes-icon { display: inline-block; object-fit: contain; vertical-align: middle; pointer-events: none; }
+.tool-icon .hermes-icon, .icon-rail-button .hermes-icon { filter: none; }
+.tool-icon.active .hermes-icon, .tool-icon:hover .hermes-icon { filter: brightness(0) invert(1); }
+.drag-grip { font-size: 12px; line-height: 1; color: #64748b; }
+
+.measurement-box-active { gap: 4px; }
+.measurement-box-active label { width: 100%; }
+.measurement-box-active input { width: 100%; border: 1px solid #38bdf8; border-radius: 4px; padding: 5px 7px; font: inherit; background: #f8fafc; color: #0f172a; }
+.measurement-box-active button { border: 1px solid #0284c7; border-radius: 4px; background: #0369a1; color: white; padding: 4px 8px; cursor: pointer; }
+.measurement-box-active button:hover { background: #075985; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

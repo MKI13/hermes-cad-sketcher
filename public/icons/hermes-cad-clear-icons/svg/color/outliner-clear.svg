@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#0f766e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Outliner</title>
+  <desc id="desc">Modellbaum/Outliner</desc>
+  <rect x="8" y="8" width="32" height="32" rx="4" fill="#0f766e" opacity="0.08"/>
+  <line x1="17" y1="15" x2="17" y2="33" />
+  <line x1="17" y1="16" x2="25" y2="16" />
+  <line x1="17" y1="25" x2="25" y2="25" />
+  <line x1="17" y1="33" x2="25" y2="33" />
+  <rect x="26" y="12" width="8" height="8" rx="1" fill="#0f766e" opacity="0.18"/>
+  <rect x="26" y="21" width="8" height="8" rx="1" fill="#0f766e" opacity="0.18"/>
+  <rect x="26" y="30" width="8" height="8" rx="1" fill="#0f766e" opacity="0.18"/>
+</svg>

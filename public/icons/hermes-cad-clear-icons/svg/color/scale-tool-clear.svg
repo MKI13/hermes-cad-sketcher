@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#ea580c" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Skalieren</title>
+  <desc id="desc">Skalieren über Griffe</desc>
+  <rect x="14" y="14" width="20" height="20" rx="2" fill="#ea580c" opacity="0.12"/>
+  <line x1="14" y1="34" x2="8" y2="40" />
+  <polygon points="8,40 9.401312297323653,35.05915504742666 12.923105393638334,38.53758477745575" fill="#ea580c" stroke="none"/>
+  <line x1="34" y1="14" x2="40" y2="8" />
+  <polygon points="40,8 38.640276132914074,12.952451514682087 35.08936348296144,9.50375330341362" fill="#ea580c" stroke="none"/>
+  <rect x="12" y="32" width="5" height="5" rx="1" fill="#ea580c" stroke="none"/>
+  <rect x="31" y="11" width="5" height="5" rx="1" fill="#ea580c" stroke="none"/>
+</svg>

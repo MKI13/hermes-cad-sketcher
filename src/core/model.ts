@@ -1,4 +1,4 @@
-import { add, bbox, distance, rotateAroundZ, sub, type Vec3, vec } from './geometry';
+import { add, bbox, distance, rotateAroundZ, scale, sub, type Vec3, vec } from './geometry';
 
 export function isPositiveFinite(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -113,12 +113,35 @@ export class SketchModel {
     return entity;
   }
 
+  resizeLineLength(id: EntityId, lengthMm: number): EdgeEntity {
+    if (!isPositiveFinite(lengthMm)) throw new Error('Eine Linie braucht eine positive Länge.');
+    const entity = this.requireEntity(id);
+    if (entity.type !== 'edge') throw new Error('Längenmaß braucht eine ausgewählte Linie.');
+    const currentLength = distance(entity.start, entity.end);
+    if (currentLength <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
+    const direction = scale(sub(entity.end, entity.start), 1 / currentLength);
+    const updated: EdgeEntity = { ...entity, end: add(entity.start, scale(direction, lengthMm)) };
+    this.entities.set(id, updated);
+    return updated;
+  }
+
   createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}, plane: DrawingPlane = 'xy'): FaceEntity {
     if (!isPositiveFinite(Math.abs(width)) || !isPositiveFinite(Math.abs(depth))) throw new Error('Ein Rechteck braucht eine Breite und Tiefe ungleich null.');
     const vertices = rectangleVertices(origin, width, depth, plane);
     const entity: FaceEntity = { id: nextId('face'), type: 'face', vertices, ...metadata };
     this.entities.set(entity.id, entity);
     return entity;
+  }
+
+  resizeRectangleFace(id: EntityId, width: number, depth: number): FaceEntity {
+    if (!isPositiveFinite(width) || !isPositiveFinite(depth)) throw new Error('Ein Rechteck braucht positive Breite und Tiefe.');
+    const entity = this.requireEntity(id);
+    if (entity.type !== 'face') throw new Error('Rechteckmaß braucht eine ausgewählte Fläche.');
+    const plane = rectangleFacePlane(entity.vertices);
+    if (!plane) throw new Error('Rechteckmaß unterstützt nur axis-aligned Rechteckflächen.');
+    const updated: FaceEntity = { ...entity, vertices: rectangleVertices(entity.vertices[0], width, depth, plane) };
+    this.entities.set(id, updated);
+    return updated;
   }
 
   extrudeFaceToBox(id: EntityId, height: number): BoxEntity {

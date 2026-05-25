@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#059669" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Freihand</title>
+  <desc id="desc">Freihand-Zeichnung</desc>
+  <path d="M9 33 C13 18 18 41 24 25 S35 13 39 29" />
+  <path d="M30 10 L39 19 L21 37 L13 39 L15 31 Z" fill="#059669" opacity="0.18"/>
+  <line x1="30" y1="10" x2="39" y2="19" />
+  <line x1="15" y1="31" x2="21" y2="37" />
+</svg>

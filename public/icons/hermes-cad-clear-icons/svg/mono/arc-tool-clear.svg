@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Bogen</title>
+  <desc id="desc">Bogen mit Pfeilrichtung</desc>
+  <path d="M12 34 Q24 8 38 30" />
+  <circle cx="12" cy="34" r="3" fill="currentColor" opacity="0.35"/>
+  <circle cx="38" cy="30" r="3" fill="currentColor" opacity="0.35"/>
+  <polygon points="38,30 33.08936348296144,28.496246696586383 36.640276132914074,25.04754848531791" fill="currentColor" stroke="none"/>
+  <path d="M17 34 L24 24 L36 32" stroke-dasharray="3 4"/>
+</svg>

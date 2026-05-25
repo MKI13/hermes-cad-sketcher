@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#0f766e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Tags</title>
+  <desc id="desc">Tag/Sichtbarkeit</desc>
+  <path d="M10 13 L28 10 L39 21 L23 39 L10 26 Z" fill="#0f766e" opacity="0.16"/>
+  <path d="M10 13 L28 10 L39 21 L23 39 L10 26 Z" />
+  <circle cx="26" cy="18" r="3" fill="#0f766e" stroke="none"/>
+  <line x1="14" y1="26" x2="23" y2="35" />
+</svg>

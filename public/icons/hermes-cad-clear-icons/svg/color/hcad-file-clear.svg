@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="#475569" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">HCAD</title>
+  <desc id="desc">Hermes CAD Projektdatei</desc>
+  <path d="M12 8 H29 L36 15 V40 H12 Z" fill="#475569" opacity="0.08"/>
+  <path d="M12 8 H29 L36 15 V40 H12 Z" />
+  <polygon points="24,18.7 29.4,21.85 24,25 18.6,21.85" fill="#475569" opacity="0.28"/>
+<polygon points="18.6,21.85 24,25 24,31.3 18.6,28.15" fill="#475569" opacity="0.28"/>
+<polygon points="29.4,21.85 24,25 24,31.3 29.4,28.15" fill="#475569" opacity="0.28"/>
+<polygon points="24,18.7 29.4,21.85 29.4,28.15 24,31.3 18.6,28.15 18.6,21.85" fill="none"/>
+  <text x="24" y="38" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="5.5" font-weight="800" fill="#475569" stroke="none" >HCAD</text>
+</svg>

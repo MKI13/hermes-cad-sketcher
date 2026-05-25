@@ -1,0 +1,991 @@
+[
+  {
+    "id": "select-pointer",
+    "file_color": "svg/color/select-pointer.svg",
+    "file_mono": "svg/mono/select-pointer.svg",
+    "label_de": "Auswahl",
+    "category": "selection",
+    "accent": "#2563eb",
+    "tags": [
+      "select",
+      "cursor",
+      "auswahl"
+    ],
+    "description_de": "Pfeil-Cursor für Auswahlwerkzeug"
+  },
+  {
+    "id": "eraser-clear",
+    "file_color": "svg/color/eraser-clear.svg",
+    "file_mono": "svg/mono/eraser-clear.svg",
+    "label_de": "Radierer",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "erase",
+      "delete",
+      "radierer"
+    ],
+    "description_de": "Radierer/Löschen"
+  },
+  {
+    "id": "line-tool-clear",
+    "file_color": "svg/color/line-tool-clear.svg",
+    "file_mono": "svg/mono/line-tool-clear.svg",
+    "label_de": "Linie",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "line",
+      "linie",
+      "edge"
+    ],
+    "description_de": "Linie mit Start- und Endpunkt"
+  },
+  {
+    "id": "rectangle-tool-clear",
+    "file_color": "svg/color/rectangle-tool-clear.svg",
+    "file_mono": "svg/mono/rectangle-tool-clear.svg",
+    "label_de": "Rechteck",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "rectangle",
+      "rechteck",
+      "fläche"
+    ],
+    "description_de": "Rechteck mit Maßpfeilen"
+  },
+  {
+    "id": "circle-tool-clear",
+    "file_color": "svg/color/circle-tool-clear.svg",
+    "file_mono": "svg/mono/circle-tool-clear.svg",
+    "label_de": "Kreis",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "circle",
+      "kreis"
+    ],
+    "description_de": "Kreis mit Mittelpunkt"
+  },
+  {
+    "id": "arc-tool-clear",
+    "file_color": "svg/color/arc-tool-clear.svg",
+    "file_mono": "svg/mono/arc-tool-clear.svg",
+    "label_de": "Bogen",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "arc",
+      "bogen"
+    ],
+    "description_de": "Bogen mit Pfeilrichtung"
+  },
+  {
+    "id": "polygon-tool-clear",
+    "file_color": "svg/color/polygon-tool-clear.svg",
+    "file_mono": "svg/mono/polygon-tool-clear.svg",
+    "label_de": "Polygon",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "polygon",
+      "sechseck"
+    ],
+    "description_de": "Polygon/Sechseck"
+  },
+  {
+    "id": "freehand-tool-clear",
+    "file_color": "svg/color/freehand-tool-clear.svg",
+    "file_mono": "svg/mono/freehand-tool-clear.svg",
+    "label_de": "Freihand",
+    "category": "drawing",
+    "accent": "#059669",
+    "tags": [
+      "freehand",
+      "sketch"
+    ],
+    "description_de": "Freihand-Zeichnung"
+  },
+  {
+    "id": "box-cube-clear",
+    "file_color": "svg/color/box-cube-clear.svg",
+    "file_mono": "svg/mono/box-cube-clear.svg",
+    "label_de": "Körper",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "box",
+      "cube",
+      "körper"
+    ],
+    "description_de": "3D-Körper/Kubus"
+  },
+  {
+    "id": "face-surface-clear",
+    "file_color": "svg/color/face-surface-clear.svg",
+    "file_mono": "svg/mono/face-surface-clear.svg",
+    "label_de": "Fläche",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "face",
+      "surface",
+      "fläche"
+    ],
+    "description_de": "Einzelne Fläche"
+  },
+  {
+    "id": "push-pull-clear",
+    "file_color": "svg/color/push-pull-clear.svg",
+    "file_mono": "svg/mono/push-pull-clear.svg",
+    "label_de": "Push/Pull",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "pushpull",
+      "extrude",
+      "ziehen"
+    ],
+    "description_de": "Fläche ziehen/extrudieren"
+  },
+  {
+    "id": "move-tool-clear",
+    "file_color": "svg/color/move-tool-clear.svg",
+    "file_mono": "svg/mono/move-tool-clear.svg",
+    "label_de": "Verschieben",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "move",
+      "verschieben"
+    ],
+    "description_de": "Vier-Richtungen-Verschieben"
+  },
+  {
+    "id": "rotate-tool-clear",
+    "file_color": "svg/color/rotate-tool-clear.svg",
+    "file_mono": "svg/mono/rotate-tool-clear.svg",
+    "label_de": "Drehen",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "rotate",
+      "drehen"
+    ],
+    "description_de": "Drehwerkzeug"
+  },
+  {
+    "id": "scale-tool-clear",
+    "file_color": "svg/color/scale-tool-clear.svg",
+    "file_mono": "svg/mono/scale-tool-clear.svg",
+    "label_de": "Skalieren",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "scale",
+      "skalieren"
+    ],
+    "description_de": "Skalieren über Griffe"
+  },
+  {
+    "id": "offset-tool-clear",
+    "file_color": "svg/color/offset-tool-clear.svg",
+    "file_mono": "svg/mono/offset-tool-clear.svg",
+    "label_de": "Versatz",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "offset",
+      "versatz"
+    ],
+    "description_de": "Versatz/Offset einer Kontur"
+  },
+  {
+    "id": "follow-path-clear",
+    "file_color": "svg/color/follow-path-clear.svg",
+    "file_mono": "svg/mono/follow-path-clear.svg",
+    "label_de": "Folgepfad",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "follow me",
+      "follow path",
+      "profile"
+    ],
+    "description_de": "Profil entlang Pfad"
+  },
+  {
+    "id": "extrude-face-clear",
+    "file_color": "svg/color/extrude-face-clear.svg",
+    "file_mono": "svg/mono/extrude-face-clear.svg",
+    "label_de": "Fläche extrudieren",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "extrude",
+      "face"
+    ],
+    "description_de": "Rechteckfläche zu Körper extrudieren"
+  },
+  {
+    "id": "resize-box-clear",
+    "file_color": "svg/color/resize-box-clear.svg",
+    "file_mono": "svg/mono/resize-box-clear.svg",
+    "label_de": "Maße ändern",
+    "category": "modeling",
+    "accent": "#ea580c",
+    "tags": [
+      "resize",
+      "dimensions",
+      "maße"
+    ],
+    "description_de": "Boxmaße direkt bearbeiten"
+  },
+  {
+    "id": "component-clear",
+    "file_color": "svg/color/component-clear.svg",
+    "file_mono": "svg/mono/component-clear.svg",
+    "label_de": "Komponente",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "component",
+      "komponente"
+    ],
+    "description_de": "Komponente"
+  },
+  {
+    "id": "group-clear",
+    "file_color": "svg/color/group-clear.svg",
+    "file_mono": "svg/mono/group-clear.svg",
+    "label_de": "Gruppe",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "group",
+      "gruppe"
+    ],
+    "description_de": "Gruppe/Container"
+  },
+  {
+    "id": "explode-clear",
+    "file_color": "svg/color/explode-clear.svg",
+    "file_mono": "svg/mono/explode-clear.svg",
+    "label_de": "Explodieren",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "explode",
+      "ungroup"
+    ],
+    "description_de": "Gruppe/Komponente auflösen"
+  },
+  {
+    "id": "make-component-clear",
+    "file_color": "svg/color/make-component-clear.svg",
+    "file_mono": "svg/mono/make-component-clear.svg",
+    "label_de": "Komponente erstellen",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "make component",
+      "create component"
+    ],
+    "description_de": "Neue Komponente erstellen"
+  },
+  {
+    "id": "duplicate-component-clear",
+    "file_color": "svg/color/duplicate-component-clear.svg",
+    "file_mono": "svg/mono/duplicate-component-clear.svg",
+    "label_de": "Duplizieren",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "duplicate",
+      "copy"
+    ],
+    "description_de": "Kopieren/Duplizieren"
+  },
+  {
+    "id": "outliner-clear",
+    "file_color": "svg/color/outliner-clear.svg",
+    "file_mono": "svg/mono/outliner-clear.svg",
+    "label_de": "Outliner",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "outliner",
+      "tree"
+    ],
+    "description_de": "Modellbaum/Outliner"
+  },
+  {
+    "id": "tags-clear",
+    "file_color": "svg/color/tags-clear.svg",
+    "file_mono": "svg/mono/tags-clear.svg",
+    "label_de": "Tags",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "tag",
+      "tags",
+      "layers"
+    ],
+    "description_de": "Tag/Sichtbarkeit"
+  },
+  {
+    "id": "layers-clear",
+    "file_color": "svg/color/layers-clear.svg",
+    "file_mono": "svg/mono/layers-clear.svg",
+    "label_de": "Layer",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "layers",
+      "stack"
+    ],
+    "description_de": "Gestapelte Layer"
+  },
+  {
+    "id": "scenes-clear",
+    "file_color": "svg/color/scenes-clear.svg",
+    "file_mono": "svg/mono/scenes-clear.svg",
+    "label_de": "Szenen",
+    "category": "structure",
+    "accent": "#0f766e",
+    "tags": [
+      "scene",
+      "szenen"
+    ],
+    "description_de": "Szenen/Ansichten speichern"
+  },
+  {
+    "id": "section-plane-clear",
+    "file_color": "svg/color/section-plane-clear.svg",
+    "file_mono": "svg/mono/section-plane-clear.svg",
+    "label_de": "Schnittfläche",
+    "category": "view",
+    "accent": "#334155",
+    "tags": [
+      "section",
+      "cut"
+    ],
+    "description_de": "Schnitt-/Section-Plane"
+  },
+  {
+    "id": "tape-measure-clear",
+    "file_color": "svg/color/tape-measure-clear.svg",
+    "file_mono": "svg/mono/tape-measure-clear.svg",
+    "label_de": "Maßband",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "tape",
+      "measure",
+      "maßband"
+    ],
+    "description_de": "Maßband mit ausgezogenem Band"
+  },
+  {
+    "id": "dimension-arrows-clear",
+    "file_color": "svg/color/dimension-arrows-clear.svg",
+    "file_mono": "svg/mono/dimension-arrows-clear.svg",
+    "label_de": "Bemaßung",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "dimension",
+      "bemaßung"
+    ],
+    "description_de": "Bemaßung mit Maßzahl"
+  },
+  {
+    "id": "protractor-clear",
+    "file_color": "svg/color/protractor-clear.svg",
+    "file_mono": "svg/mono/protractor-clear.svg",
+    "label_de": "Winkelmesser",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "protractor",
+      "angle"
+    ],
+    "description_de": "Winkelmesser"
+  },
+  {
+    "id": "angle-clear",
+    "file_color": "svg/color/angle-clear.svg",
+    "file_mono": "svg/mono/angle-clear.svg",
+    "label_de": "Winkel",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "angle",
+      "winkel"
+    ],
+    "description_de": "Winkel messen"
+  },
+  {
+    "id": "measurement-box-clear",
+    "file_color": "svg/color/measurement-box-clear.svg",
+    "file_mono": "svg/mono/measurement-box-clear.svg",
+    "label_de": "Maßeingabe",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "measurements box",
+      "input",
+      "mm"
+    ],
+    "description_de": "Aktives Maßeingabefeld"
+  },
+  {
+    "id": "axes-clear",
+    "file_color": "svg/color/axes-clear.svg",
+    "file_mono": "svg/mono/axes-clear.svg",
+    "label_de": "Achsen",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "axes",
+      "x y z"
+    ],
+    "description_de": "Rote/grüne/blaue Achsen"
+  },
+  {
+    "id": "grid-clear",
+    "file_color": "svg/color/grid-clear.svg",
+    "file_mono": "svg/mono/grid-clear.svg",
+    "label_de": "Raster",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "grid",
+      "raster"
+    ],
+    "description_de": "Millimeter-Raster"
+  },
+  {
+    "id": "snap-endpoint-clear",
+    "file_color": "svg/color/snap-endpoint-clear.svg",
+    "file_mono": "svg/mono/snap-endpoint-clear.svg",
+    "label_de": "Endpunkt-Fang",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "snap",
+      "endpoint"
+    ],
+    "description_de": "Snap auf Linien-Endpunkt"
+  },
+  {
+    "id": "snap-midpoint-clear",
+    "file_color": "svg/color/snap-midpoint-clear.svg",
+    "file_mono": "svg/mono/snap-midpoint-clear.svg",
+    "label_de": "Mittelpunkt-Fang",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "snap",
+      "midpoint"
+    ],
+    "description_de": "Snap auf Mittelpunkt"
+  },
+  {
+    "id": "snap-center-clear",
+    "file_color": "svg/color/snap-center-clear.svg",
+    "file_mono": "svg/mono/snap-center-clear.svg",
+    "label_de": "Zentrum-Fang",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "snap",
+      "center"
+    ],
+    "description_de": "Snap auf Mittelpunkt/Zentrum"
+  },
+  {
+    "id": "axis-lock-clear",
+    "file_color": "svg/color/axis-lock-clear.svg",
+    "file_mono": "svg/mono/axis-lock-clear.svg",
+    "label_de": "Achse sperren",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "axis lock",
+      "inference"
+    ],
+    "description_de": "Achse/Inferenz sperren"
+  },
+  {
+    "id": "guide-line-clear",
+    "file_color": "svg/color/guide-line-clear.svg",
+    "file_mono": "svg/mono/guide-line-clear.svg",
+    "label_de": "Hilfslinie",
+    "category": "measure",
+    "accent": "#7c3aed",
+    "tags": [
+      "guide",
+      "construction"
+    ],
+    "description_de": "Hilfs-/Konstruktionslinie"
+  },
+  {
+    "id": "orbit-clear",
+    "file_color": "svg/color/orbit-clear.svg",
+    "file_mono": "svg/mono/orbit-clear.svg",
+    "label_de": "Orbit",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "orbit",
+      "camera"
+    ],
+    "description_de": "Kamera Orbit"
+  },
+  {
+    "id": "pan-hand-clear",
+    "file_color": "svg/color/pan-hand-clear.svg",
+    "file_mono": "svg/mono/pan-hand-clear.svg",
+    "label_de": "Hand/Pan",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "pan",
+      "hand"
+    ],
+    "description_de": "Pan/Hand-Werkzeug"
+  },
+  {
+    "id": "zoom-clear",
+    "file_color": "svg/color/zoom-clear.svg",
+    "file_mono": "svg/mono/zoom-clear.svg",
+    "label_de": "Zoom",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "zoom",
+      "magnifier"
+    ],
+    "description_de": "Zoom-Lupe"
+  },
+  {
+    "id": "zoom-extents-clear",
+    "file_color": "svg/color/zoom-extents-clear.svg",
+    "file_mono": "svg/mono/zoom-extents-clear.svg",
+    "label_de": "Alles zeigen",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "zoom extents",
+      "fit"
+    ],
+    "description_de": "Zoom Extents / Modell einpassen"
+  },
+  {
+    "id": "home-view-clear",
+    "file_color": "svg/color/home-view-clear.svg",
+    "file_mono": "svg/mono/home-view-clear.svg",
+    "label_de": "Home Ansicht",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "home",
+      "view"
+    ],
+    "description_de": "Startansicht/Home"
+  },
+  {
+    "id": "view-top-clear",
+    "file_color": "svg/color/view-top-clear.svg",
+    "file_mono": "svg/mono/view-top-clear.svg",
+    "label_de": "Ansicht oben",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "top view"
+    ],
+    "description_de": "Top View"
+  },
+  {
+    "id": "view-front-clear",
+    "file_color": "svg/color/view-front-clear.svg",
+    "file_mono": "svg/mono/view-front-clear.svg",
+    "label_de": "Ansicht vorne",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "front view"
+    ],
+    "description_de": "Front View"
+  },
+  {
+    "id": "view-iso-clear",
+    "file_color": "svg/color/view-iso-clear.svg",
+    "file_mono": "svg/mono/view-iso-clear.svg",
+    "label_de": "Iso Ansicht",
+    "category": "camera",
+    "accent": "#0284c7",
+    "tags": [
+      "iso view"
+    ],
+    "description_de": "Isometrische Ansicht"
+  },
+  {
+    "id": "materials-clear",
+    "file_color": "svg/color/materials-clear.svg",
+    "file_mono": "svg/mono/materials-clear.svg",
+    "label_de": "Materialien",
+    "category": "visual",
+    "accent": "#ca8a04",
+    "tags": [
+      "materials",
+      "materialien"
+    ],
+    "description_de": "Material-Swatches"
+  },
+  {
+    "id": "paint-bucket-clear",
+    "file_color": "svg/color/paint-bucket-clear.svg",
+    "file_mono": "svg/mono/paint-bucket-clear.svg",
+    "label_de": "Farbeimer",
+    "category": "visual",
+    "accent": "#ca8a04",
+    "tags": [
+      "paint bucket",
+      "material"
+    ],
+    "description_de": "Material/Farbe auftragen"
+  },
+  {
+    "id": "texture-clear",
+    "file_color": "svg/color/texture-clear.svg",
+    "file_mono": "svg/mono/texture-clear.svg",
+    "label_de": "Textur",
+    "category": "visual",
+    "accent": "#ca8a04",
+    "tags": [
+      "texture",
+      "checker"
+    ],
+    "description_de": "Textur/Checker-Muster"
+  },
+  {
+    "id": "styles-clear",
+    "file_color": "svg/color/styles-clear.svg",
+    "file_mono": "svg/mono/styles-clear.svg",
+    "label_de": "Stile",
+    "category": "visual",
+    "accent": "#ca8a04",
+    "tags": [
+      "styles",
+      "display"
+    ],
+    "description_de": "Anzeige-Stile"
+  },
+  {
+    "id": "shadows-clear",
+    "file_color": "svg/color/shadows-clear.svg",
+    "file_mono": "svg/mono/shadows-clear.svg",
+    "label_de": "Schatten",
+    "category": "visual",
+    "accent": "#ca8a04",
+    "tags": [
+      "shadow",
+      "shadows"
+    ],
+    "description_de": "Schatten anzeigen"
+  },
+  {
+    "id": "sun-clear",
+    "file_color": "svg/color/sun-clear.svg",
+    "file_mono": "svg/mono/sun-clear.svg",
+    "label_de": "Sonne",
+    "category": "visual",
+    "accent": "#ca8a04",
+    "tags": [
+      "sun",
+      "light"
+    ],
+    "description_de": "Sonne/Licht"
+  },
+  {
+    "id": "xray-clear",
+    "file_color": "svg/color/xray-clear.svg",
+    "file_mono": "svg/mono/xray-clear.svg",
+    "label_de": "X-Ray",
+    "category": "view",
+    "accent": "#334155",
+    "tags": [
+      "xray",
+      "transparent"
+    ],
+    "description_de": "Transparente X-Ray Ansicht"
+  },
+  {
+    "id": "wireframe-clear",
+    "file_color": "svg/color/wireframe-clear.svg",
+    "file_mono": "svg/mono/wireframe-clear.svg",
+    "label_de": "Drahtmodell",
+    "category": "view",
+    "accent": "#334155",
+    "tags": [
+      "wireframe"
+    ],
+    "description_de": "Drahtmodell"
+  },
+  {
+    "id": "shaded-clear",
+    "file_color": "svg/color/shaded-clear.svg",
+    "file_mono": "svg/mono/shaded-clear.svg",
+    "label_de": "Schattiert",
+    "category": "view",
+    "accent": "#334155",
+    "tags": [
+      "shaded"
+    ],
+    "description_de": "Schattierte Ansicht"
+  },
+  {
+    "id": "hidden-line-clear",
+    "file_color": "svg/color/hidden-line-clear.svg",
+    "file_mono": "svg/mono/hidden-line-clear.svg",
+    "label_de": "Verdeckte Linien",
+    "category": "view",
+    "accent": "#334155",
+    "tags": [
+      "hidden line"
+    ],
+    "description_de": "Hidden-Line Ansicht"
+  },
+  {
+    "id": "save-project-clear",
+    "file_color": "svg/color/save-project-clear.svg",
+    "file_mono": "svg/mono/save-project-clear.svg",
+    "label_de": "Projekt speichern",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "save",
+      "project"
+    ],
+    "description_de": "Projekt speichern"
+  },
+  {
+    "id": "open-project-clear",
+    "file_color": "svg/color/open-project-clear.svg",
+    "file_mono": "svg/mono/open-project-clear.svg",
+    "label_de": "Projekt öffnen",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "open",
+      "folder"
+    ],
+    "description_de": "Projekt öffnen/laden"
+  },
+  {
+    "id": "import-file-clear",
+    "file_color": "svg/color/import-file-clear.svg",
+    "file_mono": "svg/mono/import-file-clear.svg",
+    "label_de": "Import",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "import"
+    ],
+    "description_de": "Datei importieren"
+  },
+  {
+    "id": "export-file-clear",
+    "file_color": "svg/color/export-file-clear.svg",
+    "file_mono": "svg/mono/export-file-clear.svg",
+    "label_de": "Export",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "export"
+    ],
+    "description_de": "Datei exportieren"
+  },
+  {
+    "id": "dxf-file-clear",
+    "file_color": "svg/color/dxf-file-clear.svg",
+    "file_mono": "svg/mono/dxf-file-clear.svg",
+    "label_de": "DXF",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "dxf"
+    ],
+    "description_de": "DXF-Datei"
+  },
+  {
+    "id": "stl-file-clear",
+    "file_color": "svg/color/stl-file-clear.svg",
+    "file_mono": "svg/mono/stl-file-clear.svg",
+    "label_de": "STL",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "stl"
+    ],
+    "description_de": "STL-Datei"
+  },
+  {
+    "id": "hcad-file-clear",
+    "file_color": "svg/color/hcad-file-clear.svg",
+    "file_mono": "svg/mono/hcad-file-clear.svg",
+    "label_de": "HCAD",
+    "category": "files",
+    "accent": "#475569",
+    "tags": [
+      "hcad",
+      "project"
+    ],
+    "description_de": "Hermes CAD Projektdatei"
+  },
+  {
+    "id": "undo-clear",
+    "file_color": "svg/color/undo-clear.svg",
+    "file_mono": "svg/mono/undo-clear.svg",
+    "label_de": "Rückgängig",
+    "category": "system",
+    "accent": "#64748b",
+    "tags": [
+      "undo"
+    ],
+    "description_de": "Undo/Rückgängig"
+  },
+  {
+    "id": "redo-clear",
+    "file_color": "svg/color/redo-clear.svg",
+    "file_mono": "svg/mono/redo-clear.svg",
+    "label_de": "Wiederholen",
+    "category": "system",
+    "accent": "#64748b",
+    "tags": [
+      "redo"
+    ],
+    "description_de": "Redo/Wiederholen"
+  },
+  {
+    "id": "inspector-clear",
+    "file_color": "svg/color/inspector-clear.svg",
+    "file_mono": "svg/mono/inspector-clear.svg",
+    "label_de": "Inspector",
+    "category": "system",
+    "accent": "#64748b",
+    "tags": [
+      "inspector",
+      "info"
+    ],
+    "description_de": "Entity Info / Inspector"
+  },
+  {
+    "id": "settings-clear",
+    "file_color": "svg/color/settings-clear.svg",
+    "file_mono": "svg/mono/settings-clear.svg",
+    "label_de": "Einstellungen",
+    "category": "system",
+    "accent": "#64748b",
+    "tags": [
+      "settings"
+    ],
+    "description_de": "Einstellungen"
+  },
+  {
+    "id": "help-clear",
+    "file_color": "svg/color/help-clear.svg",
+    "file_mono": "svg/mono/help-clear.svg",
+    "label_de": "Hilfe",
+    "category": "system",
+    "accent": "#64748b",
+    "tags": [
+      "help"
+    ],
+    "description_de": "Hilfe"
+  },
+  {
+    "id": "hermes-agent-clear",
+    "file_color": "svg/color/hermes-agent-clear.svg",
+    "file_mono": "svg/mono/hermes-agent-clear.svg",
+    "label_de": "Hermes Agent",
+    "category": "agent",
+    "accent": "#db2777",
+    "tags": [
+      "hermes",
+      "agent",
+      "bot"
+    ],
+    "description_de": "Hermes Agent / Bot"
+  },
+  {
+    "id": "agent-chat-clear",
+    "file_color": "svg/color/agent-chat-clear.svg",
+    "file_mono": "svg/mono/agent-chat-clear.svg",
+    "label_de": "Agent Chat",
+    "category": "agent",
+    "accent": "#db2777",
+    "tags": [
+      "chat",
+      "ai"
+    ],
+    "description_de": "Chat-Fenster mit Hermes"
+  },
+  {
+    "id": "ruby-console-clear",
+    "file_color": "svg/color/ruby-console-clear.svg",
+    "file_mono": "svg/mono/ruby-console-clear.svg",
+    "label_de": "Ruby-Konsole",
+    "category": "agent",
+    "accent": "#db2777",
+    "tags": [
+      "console",
+      "ruby",
+      "terminal"
+    ],
+    "description_de": "Sichere CAD-DSL/Ruby-Konsole"
+  },
+  {
+    "id": "command-play-clear",
+    "file_color": "svg/color/command-play-clear.svg",
+    "file_mono": "svg/mono/command-play-clear.svg",
+    "label_de": "Befehl ausführen",
+    "category": "agent",
+    "accent": "#db2777",
+    "tags": [
+      "run",
+      "play",
+      "command"
+    ],
+    "description_de": "Befehl ausführen"
+  },
+  {
+    "id": "bridge-clear",
+    "file_color": "svg/color/bridge-clear.svg",
+    "file_mono": "svg/mono/bridge-clear.svg",
+    "label_de": "Bridge",
+    "category": "agent",
+    "accent": "#db2777",
+    "tags": [
+      "bridge",
+      "two pcs"
+    ],
+    "description_de": "Lokale Agent-Bridge / zwei PCs"
+  },
+  {
+    "id": "ai-create-clear",
+    "file_color": "svg/color/ai-create-clear.svg",
+    "file_mono": "svg/mono/ai-create-clear.svg",
+    "label_de": "AI erstellt Körper",
+    "category": "agent",
+    "accent": "#db2777",
+    "tags": [
+      "ai create",
+      "generate"
+    ],
+    "description_de": "AI erzeugt CAD-Objekt"
+  }
+]

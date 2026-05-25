@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Komponente erstellen</title>
+  <desc id="desc">Neue Komponente erstellen</desc>
+  <polygon points="21,13.1 31.2,19.05 21,25 10.8,19.05" fill="currentColor" opacity="0.28"/>
+<polygon points="10.8,19.05 21,25 21,36.9 10.8,30.95" fill="currentColor" opacity="0.28"/>
+<polygon points="31.2,19.05 21,25 21,36.9 31.2,30.95" fill="currentColor" opacity="0.28"/>
+<polygon points="21,13.1 31.2,19.05 31.2,30.95 21,36.9 10.8,30.95 10.8,19.05" fill="none"/>
+  <circle cx="35" cy="14" r="7" fill="currentColor" opacity="0.20"/>
+  <line x1="31" y1="14" x2="39" y2="14" /><line x1="35" y1="10" x2="35" y2="18" />
+</svg>

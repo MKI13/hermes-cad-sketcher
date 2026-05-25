@@ -59,6 +59,16 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
+
+
+  it('renders an active measurement input for exact SketchUp-like dimensions', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="Aktive Maßeingabe"');
+    expect(markup).toContain('placeholder="1200 · 1200,600 · 100,0,0"');
+    expect(markup).toContain('Enter übernimmt das Maß für das aktive Werkzeug');
+  });
+
   it('documents configurable per-user mouse bindings with left, middle, right and wheel defaults', () => {
     const markup = renderToStaticMarkup(<App />);
 
@@ -111,8 +121,8 @@ describe('App controls', () => {
   it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('class="measurement-field"');
-    expect(markup).toContain('Einheitenfeld');
+    expect(markup).toContain('class="measurement-field measurement-box-active"');
+    expect(markup).toContain('Aktive Maßeingabe');
     expect(markup).toContain('Aktuelles Maß');
     expect(markup).toContain('mm');
     expect(markup).toContain('Fläche: keine Körperfläche');
@@ -168,4 +178,14 @@ describe('App controls', () => {
     expect(workflow).toContain('npm run check');
     expect(workflow).toContain('pull_request:');
   });
+
+  it('lets the CAD workspace use the full browser viewport without page-level dead space', async () => {
+    const css = await readFile('src/styles.css', 'utf8');
+
+    expect(css).toContain('height: 100dvh');
+    expect(css).toContain('overflow: hidden');
+    expect(css).toContain('.workspace { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0;');
+    expect(css).toContain('.viewport-placeholder { position: relative; overflow: hidden; min-height: 0;');
+  });
+
 });

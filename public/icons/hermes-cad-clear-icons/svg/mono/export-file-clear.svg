@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" role="img" aria-labelledby="title desc" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Export</title>
+  <desc id="desc">Datei exportieren</desc>
+  <path d="M10 8 H27 L34 15 V40 H10 Z" fill="currentColor" opacity="0.08"/>
+  <path d="M10 8 H27 L34 15 V40 H10 Z" />
+  <line x1="22" y1="24" x2="41" y2="24" />
+  <polygon points="41,24 36.5,26.475 36.5,21.525" fill="currentColor" stroke="none"/>
+  <line x1="22" y1="19" x2="22" y2="29" />
+</svg>
