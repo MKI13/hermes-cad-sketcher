@@ -1,5 +1,6 @@
 import { SketchModel, isValidWoodworkingMetadata, type SketchModelSnapshot } from './model';
 import { distance, sub, vec, type Vec3 } from './geometry';
+import { hasValidCutOperations } from './cutOperations';
 
 export const PROJECT_FILE_VERSION = 1;
 export const PROJECT_FILE_FORMAT = 'hermes-cad-sketcher';
@@ -73,6 +74,7 @@ function isEntityPayload(value: unknown, knownTagIds: ReadonlySet<string>, known
   if ('componentId' in value && value.componentId !== undefined && typeof value.componentId !== 'string') return false;
   if (!hasValidLayerMetadata(value)) return false;
   if ('woodworking' in value && value.woodworking !== undefined && !isValidWoodworkingMetadata(value.woodworking)) return false;
+  if ('cutOperations' in value && value.cutOperations !== undefined && !hasValidCutOperations(value.cutOperations)) return false;
   if (!hasValidEntityTagAndMaterialMetadata(value, knownTagIds, knownMaterialIds)) return false;
 
   if (value.type === 'edge') {
