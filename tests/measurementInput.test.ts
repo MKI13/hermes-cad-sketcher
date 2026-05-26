@@ -18,6 +18,12 @@ describe('measurement box input', () => {
     expect(parseMeasurementBoxInput('move', '100,50')).toEqual({ ok: true, kind: 'vector', x: 100, y: 50, z: 0 });
   });
 
+  it('creates geometry from the fixed measurement box even when select is active', () => {
+    expect(parseMeasurementBoxInput('select', '600,400,720')).toEqual({ ok: true, kind: 'box', width: 600, depth: 400, height: 720 });
+    expect(parseMeasurementBoxInput('select', '1200,600')).toEqual({ ok: true, kind: 'rectangle', width: 1200, depth: 600 });
+    expect(parseMeasurementBoxInput('select', '300')).toEqual({ ok: true, kind: 'box', width: 300, depth: 300, height: 300 });
+  });
+
   it('reports clear errors for impossible measurements', () => {
     expect(parseMeasurementBoxInput('rectangle', '1200')).toEqual({ ok: false, error: 'Rechteck braucht Breite und Tiefe, z. B. 1200,600.' });
     expect(parseMeasurementBoxInput('pushPull', '0')).toEqual({ ok: false, error: 'Maß muss ungleich 0 sein.' });

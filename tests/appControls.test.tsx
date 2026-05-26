@@ -65,7 +65,7 @@ describe('App controls', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('aria-label="Aktive Maßeingabe"');
-    expect(markup).toContain('placeholder="1200 · 1200,600 · 100,0,0"');
+    expect(markup).toContain('placeholder="600,400,720 · 1200,600 · 1200"');
     expect(markup).toContain('Enter übernimmt das Maß für das aktive Werkzeug');
   });
 
@@ -138,12 +138,12 @@ describe('App controls', () => {
     expect(markup).toContain('Y grün');
   });
 
-  it('renders a bottom-right unit field and selected body-face status for measure/move/pull workflows', () => {
+  it('renders a fixed bottom unit field and selected body-face status for measure/move/pull workflows', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('class="measurement-field measurement-box-active"');
     expect(markup).toContain('Aktive Maßeingabe');
-    expect(markup).toContain('Aktuelles Maß');
+    expect(markup).toContain('Maße');
     expect(markup).toContain('mm');
     expect(markup).toContain('Fläche: keine Körperfläche');
     expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
