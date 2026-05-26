@@ -18,6 +18,8 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 
 export type EntityId = string;
 export type ComponentId = string;
+export type ComponentDefinitionId = string;
+export type ComponentInstanceId = string;
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
 export type MaterialAssignment = { materialId?: MaterialId; name?: string; color?: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
 
@@ -55,10 +57,35 @@ export type Component = {
   entityIds: EntityId[];
 };
 
+export type ComponentDefinitionMetadata = {
+  localAxes?: { length: 'x' | 'y' | 'z'; width: 'x' | 'y' | 'z'; thickness: 'x' | 'y' | 'z' };
+};
+
+export type ComponentDefinition = ComponentDefinitionMetadata & {
+  id: ComponentDefinitionId;
+  name: string;
+  entityIds: EntityId[];
+};
+
+export type ComponentTransform = {
+  translation: Vec3;
+  rotationZ: number;
+  scale: Vec3;
+};
+
+export type ComponentInstance = {
+  id: ComponentInstanceId;
+  name: string;
+  definitionId: ComponentDefinitionId;
+  transform: ComponentTransform;
+};
+
 export type SketchModelSnapshot = {
   unit: 'mm';
   entities: Entity[];
   components: Component[];
+  componentDefinitions?: ComponentDefinition[];
+  componentInstances?: ComponentInstance[];
   tags?: TagDefinition[];
   materials?: MaterialDefinition[];
 };
@@ -69,7 +96,12 @@ function nextId(prefix: string): string {
 }
 
 function bumpNextNumberPastSnapshot(snapshot: SketchModelSnapshot): void {
-  const ids = [...snapshot.entities.map((entity) => entity.id), ...snapshot.components.map((component) => component.id)];
+  const ids = [
+    ...snapshot.entities.map((entity) => entity.id),
+    ...snapshot.components.map((component) => component.id),
+    ...(snapshot.componentDefinitions ?? []).map((definition) => definition.id),
+    ...(snapshot.componentInstances ?? []).map((instance) => instance.id)
+  ];
   const highest = ids.reduce((max, id) => {
     const match = /_(\d+)$/.exec(id);
     return match ? Math.max(max, Number(match[1])) : max;
@@ -81,6 +113,8 @@ export class SketchModel {
   readonly unit = 'mm' as const;
   private entities = new Map<EntityId, Entity>();
   private components = new Map<ComponentId, Component>();
+  private componentDefinitions = new Map<ComponentDefinitionId, ComponentDefinition>();
+  private componentInstances = new Map<ComponentInstanceId, ComponentInstance>();
   private tags: TagDefinition[] = defaultTags();
   private materials: MaterialDefinition[] = defaultMaterials();
 
@@ -90,6 +124,8 @@ export class SketchModel {
     model.materials = normalizeMaterialCatalog(snapshot.materials, { preserveStarterMaterials: true });
     for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(withDefaultEntityMetadata(entity)));
     for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
+    for (const definition of snapshot.componentDefinitions ?? []) model.componentDefinitions.set(definition.id, structuredClone(definition));
+    for (const instance of snapshot.componentInstances ?? []) model.componentInstances.set(instance.id, structuredClone({ ...instance, transform: normalizeComponentTransform(instance.transform) }));
     bumpNextNumberPastSnapshot(snapshot);
     return model;
   }
@@ -99,6 +135,8 @@ export class SketchModel {
       unit: this.unit,
       entities: [...this.entities.values()].map((entity) => structuredClone(withDefaultEntityMetadata(entity))),
       components: [...this.components.values()].map((component) => structuredClone(component)),
+      componentDefinitions: [...this.componentDefinitions.values()].map((definition) => structuredClone(definition)),
+      componentInstances: [...this.componentInstances.values()].map((instance) => structuredClone(instance)),
       tags: this.tags.map((tag) => ({ ...tag })),
       materials: this.materials.map((material) => ({ ...material }))
     };
@@ -110,6 +148,14 @@ export class SketchModel {
 
   allComponents(): Component[] {
     return [...this.components.values()];
+  }
+
+  allComponentDefinitions(): ComponentDefinition[] {
+    return [...this.componentDefinitions.values()].map((definition) => structuredClone(definition));
+  }
+
+  allComponentInstances(): ComponentInstance[] {
+    return [...this.componentInstances.values()].map((instance) => structuredClone(instance));
   }
 
   allTags(): TagDefinition[] {
@@ -285,6 +331,17 @@ export class SketchModel {
       if (entityIds.length === 0) this.components.delete(component.id);
       else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
     }
+    for (const definition of [...this.componentDefinitions.values()]) {
+      const entityIds = definition.entityIds.filter((entityId) => entityId !== id);
+      if (entityIds.length === 0) {
+        this.componentDefinitions.delete(definition.id);
+        for (const instance of [...this.componentInstances.values()]) {
+          if (instance.definitionId === definition.id) this.componentInstances.delete(instance.id);
+        }
+      } else if (entityIds.length !== definition.entityIds.length) {
+        this.componentDefinitions.set(definition.id, { ...definition, entityIds });
+      }
+    }
     return true;
   }
 
@@ -392,6 +449,56 @@ export class SketchModel {
     return this.createComponent(name, copiedIds);
   }
 
+  createComponentDefinition(name: string, entityIds: EntityId[], metadata: ComponentDefinitionMetadata = {}): ComponentDefinition {
+    if (entityIds.length === 0) throw new Error('Eine Komponenten-Definition braucht mindestens ein Element.');
+    for (const id of entityIds) this.requireEntity(id);
+    const definition: ComponentDefinition = { id: nextId('definition'), name, entityIds: [...entityIds], ...(metadata.localAxes ? { localAxes: { ...metadata.localAxes } } : {}) };
+    this.componentDefinitions.set(definition.id, definition);
+    return structuredClone(definition);
+  }
+
+  createComponentInstance(definitionId: ComponentDefinitionId, name: string, transform: Partial<ComponentTransform> = {}): ComponentInstance {
+    this.requireComponentDefinition(definitionId);
+    const instance: ComponentInstance = { id: nextId('instance'), name, definitionId, transform: normalizeComponentTransform(transform) };
+    this.componentInstances.set(instance.id, instance);
+    return structuredClone(instance);
+  }
+
+  moveComponentInstance(id: ComponentInstanceId, delta: Vec3): ComponentInstance {
+    const instance = this.requireComponentInstance(id);
+    const updated = { ...instance, transform: { ...instance.transform, translation: add(instance.transform.translation, delta) } };
+    this.componentInstances.set(id, updated);
+    return structuredClone(updated);
+  }
+
+  rotateComponentInstanceZ(id: ComponentInstanceId, angleRadians: number): ComponentInstance {
+    if (!Number.isFinite(angleRadians)) throw new Error('Instanz-Rotation braucht einen finiten Winkel.');
+    const instance = this.requireComponentInstance(id);
+    const updated = { ...instance, transform: { ...instance.transform, rotationZ: instance.transform.rotationZ + angleRadians } };
+    this.componentInstances.set(id, updated);
+    return structuredClone(updated);
+  }
+
+  duplicateComponentInstance(id: ComponentInstanceId, name: string, transform: Partial<ComponentTransform> = {}): ComponentInstance {
+    const source = this.requireComponentInstance(id);
+    return this.createComponentInstance(source.definitionId, name, { ...source.transform, ...transform });
+  }
+
+  makeComponentInstanceUnique(id: ComponentInstanceId, name: string): ComponentDefinition {
+    const instance = this.requireComponentInstance(id);
+    const source = this.requireComponentDefinition(instance.definitionId);
+    const copiedIds: EntityId[] = [];
+    for (const entityId of source.entityIds) {
+      const copy = cloneEntityForComponentDefinition(this.requireEntity(entityId));
+      copiedIds.push(copy.id);
+      this.entities.set(copy.id, copy);
+    }
+    const definition: ComponentDefinition = { ...source, id: nextId('definition'), name, entityIds: copiedIds };
+    this.componentDefinitions.set(definition.id, definition);
+    this.componentInstances.set(id, { ...instance, definitionId: definition.id });
+    return structuredClone(definition);
+  }
+
   measure(a: Vec3, b: Vec3): number {
     return distance(a, b);
   }
@@ -415,11 +522,90 @@ export class SketchModel {
     return component;
   }
 
+  private requireComponentDefinition(id: ComponentDefinitionId): ComponentDefinition {
+    const definition = this.componentDefinitions.get(id);
+    if (!definition) throw new Error(`Komponenten-Definition nicht gefunden: ${id}`);
+    return definition;
+  }
+
+  private requireComponentInstance(id: ComponentInstanceId): ComponentInstance {
+    const instance = this.componentInstances.get(id);
+    if (!instance) throw new Error(`Komponenten-Instanz nicht gefunden: ${id}`);
+    return instance;
+  }
+
   private requireBox(id: EntityId): BoxEntity {
     const entity = this.requireEntity(id);
     if (entity.type !== 'box') throw new Error('Push/Pull ist im MVP nur für Körper aktiv.');
     return entity;
   }
+}
+
+function normalizeComponentTransform(transform: Partial<ComponentTransform> = {}): ComponentTransform {
+  const normalized = {
+    translation: transform.translation ?? vec(0, 0, 0),
+    rotationZ: transform.rotationZ ?? 0,
+    scale: transform.scale ?? vec(1, 1, 1)
+  };
+  if (!isFiniteVec3(normalized.translation) || !Number.isFinite(normalized.rotationZ) || !isFiniteVec3(normalized.scale)) {
+    throw new Error('Komponenten-Instanz braucht finite Transformationswerte.');
+  }
+  if (!isUnitScale(normalized.scale)) {
+    throw new Error('Instanz-Skalierung ist für zuschnittsfähige Komponenten nicht erlaubt.');
+  }
+  return normalized;
+}
+
+function isUnitScale(value: Vec3): boolean {
+  return Math.abs(value.x - 1) <= 1e-9 && Math.abs(value.y - 1) <= 1e-9 && Math.abs(value.z - 1) <= 1e-9;
+}
+
+function cloneEntityForComponentDefinition(entity: Entity): Entity {
+  if (entity.type === 'edge') return { ...structuredClone(entity), id: nextId('edge'), componentId: undefined };
+  if (entity.type === 'face') return { ...structuredClone(entity), id: nextId('face'), componentId: undefined };
+  if (entity.type === 'referenceMesh') return { ...structuredClone(entity), id: nextId('mesh'), componentId: undefined };
+  return { ...structuredClone(entity), id: nextId('box'), componentId: undefined };
+}
+
+function transformEntityForInstance(entity: Entity, instance: ComponentInstance): Entity {
+  const id = `${instance.id}:${entity.id}`;
+  const transform = instance.transform;
+  if (entity.type === 'edge') {
+    return { ...entity, id, start: transformPoint(entity.start, transform), end: transformPoint(entity.end, transform), componentId: undefined };
+  }
+  if (entity.type === 'face') {
+    return { ...entity, id, vertices: entity.vertices.map((vertex) => transformPoint(vertex, transform)), componentId: undefined };
+  }
+  if (entity.type === 'referenceMesh') {
+    return { ...entity, id, triangles: entity.triangles.map((triangle) => ({ vertices: transformVertices(triangle.vertices, transform) })), componentId: undefined };
+  }
+  return { ...entity, id, origin: transformPoint(entity.origin, transform), rotationZ: entity.rotationZ + transform.rotationZ, componentId: undefined };
+}
+
+function transformPoint(point: Vec3, transform: ComponentTransform): Vec3 {
+  return add(rotateAroundZ(point, transform.rotationZ, vec(0, 0, 0)), transform.translation);
+}
+
+function transformVertices(vertices: [Vec3, Vec3, Vec3], transform: ComponentTransform): [Vec3, Vec3, Vec3] {
+  return [transformPoint(vertices[0], transform), transformPoint(vertices[1], transform), transformPoint(vertices[2], transform)];
+}
+
+export function worldEntitiesForModel(model: SketchModel): Entity[] {
+  const definitions = model.allComponentDefinitions();
+  const instances = model.allComponentInstances();
+  const instantiatedDefinitionIds = new Set(instances.map((instance) => instance.definitionId));
+  const instancedSourceIds = new Set(definitions.filter((definition) => instantiatedDefinitionIds.has(definition.id)).flatMap((definition) => definition.entityIds));
+  const entities = model.allEntities().filter((entity) => !instancedSourceIds.has(entity.id)).map((entity) => structuredClone(entity));
+  for (const instance of instances) {
+    const definition = definitions.find((candidate) => candidate.id === instance.definitionId);
+    if (!definition) continue;
+    for (const entityId of definition.entityIds) {
+      const entity = model.getEntity(entityId);
+      if (!entity) continue;
+      entities.push(transformEntityForInstance(entity, instance));
+    }
+  }
+  return entities;
 }
 
 function withDefaultEntityMetadata<T extends Entity>(entity: T): T {
