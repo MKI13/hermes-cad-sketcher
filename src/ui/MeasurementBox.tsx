@@ -18,20 +18,19 @@ export function MeasurementBox({ activeMeasurement, value, status, onValueChange
         onApply();
       }}
     >
-      <strong>Aktive Maßeingabe</strong>
-      <span>Aktuelles Maß</span>
+      <strong>Maße</strong>
       <output>{activeMeasurement}</output>
       <label>
         <span className="sr-only">Maß oder Koordinaten in Millimeter eingeben</span>
         <input
           value={value}
           onChange={(event) => onValueChange(event.currentTarget.value)}
-          placeholder="1200 · 1200,600 · 100,0,0"
+          placeholder="600,400,720 · 1200,600 · 1200"
           aria-label="Maß oder Koordinaten in Millimeter"
         />
       </label>
-      <button type="submit">Übernehmen</button>
-      <small>{status ?? 'mm · Enter übernimmt das Maß für das aktive Werkzeug'}</small>
+      <button type="submit">OK</button>
+      <small>{status ?? 'mm · Enter erstellt oder ändert das aktive Element'}</small>
     </form>
   );
 }

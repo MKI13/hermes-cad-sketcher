@@ -185,6 +185,13 @@ export default function App() {
     xz: drawingPlaneAppearance('xz').label,
     yz: drawingPlaneAppearance('yz').label
   };
+  const activeEditContext = model.activeEditContext();
+  const activeContextLabel = activeEditContext.type === 'root'
+    ? 'Root / lose Geometrie'
+    : `Komponente ${activeEditContext.componentId}`;
+  const selectedEditBlocked = Boolean(selectedId && !model.canEditEntity(selectedId));
+  const selectedComponentId = selected?.componentId;
+  const canOpenSelectedComponent = Boolean(selectedComponentId && activeEditContext.type === 'root');
 
   function handleRectangleDimensionMaskChange(key: RectangleDimensionKey, event: React.ChangeEvent<HTMLInputElement>) {
     const rawValue = event.currentTarget.value;
@@ -509,8 +516,17 @@ export default function App() {
   }
 
   function handleViewportSelect(entityId: string | undefined, faceSelection?: FaceSelection) {
+    if (!entityId) {
+      setSelectedId(undefined);
+      setSelectedBoxFace(undefined);
+      return;
+    }
+    const target = model.selectionTargetForEntity(entityId);
     setSelectedId(entityId);
-    setSelectedBoxFace(faceSelection && faceSelection.entityId === entityId ? faceSelection : undefined);
+    setSelectedBoxFace(target.type === 'entity' && faceSelection?.entityId === entityId ? faceSelection : undefined);
+    if (target.type === 'component') {
+      setProjectStatus(`Komponente ${target.componentId} außen gewählt. Doppelklick/Edit-Kontext folgt in #50; innere Geometrie ist geschützt.`);
+    }
   }
 
   function moveFromViewport(entityId: string, delta: Vec3) {
@@ -716,13 +732,29 @@ export default function App() {
     setProjectStatus('Auswahl ausgeblendet.');
   }
 
+  function openSelectedComponentContext() {
+    if (!selectedComponentId) return;
+    mutate((m) => {
+      m.openComponent(selectedComponentId);
+    });
+    setProjectStatus(`Komponente ${selectedComponentId} geöffnet. Innere Kanten und Flächen sind jetzt bearbeitbar.`);
+  }
+
+  function closeEditContext() {
+    mutate((m) => {
+      m.closeActiveContext();
+    });
+    setProjectStatus('Bearbeitungskontext geschlossen. Root / lose Geometrie aktiv.');
+  }
+
   function makeSelectedComponent(prefix: 'Gruppe' | 'Komponente') {
     if (!selectedId) return;
     mutate((m) => {
       const component = m.createComponent(`${prefix} aus Auswahl`, [selectedId]);
+      m.openComponent(component.id);
       setSelectedId(component.entityIds[0]);
     });
-    setProjectStatus(`${prefix} aus Auswahl erstellt.`);
+    setProjectStatus(`${prefix} aus Auswahl erstellt und zum Bearbeiten geöffnet.`);
   }
 
   function reportSelectedArea() {
@@ -1446,6 +1478,8 @@ export default function App() {
             <span>Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
+        </div>
+        <footer className="statusbar">
           <MeasurementBox
             activeMeasurement={activeMeasurement}
             value={measurementBoxValue}
@@ -1453,10 +1487,14 @@ export default function App() {
             onValueChange={setMeasurementBoxValue}
             onApply={applyMeasurementBoxInput}
           />
-        </div>
-        <footer className="statusbar">
           <span>Werkzeug: {tool}</span>
           <span>Auswahl: {selectedId ?? 'keine'}</span>
+          <span>Kontext: {activeContextLabel}</span>
+          {selectedEditBlocked ? <span>Bearbeitung: erst Komponente öffnen</span> : <span>Bearbeitung: aktiv</span>}
+          {canOpenSelectedComponent ? <button type="button" onClick={openSelectedComponentContext}>Komponente öffnen</button> : null}
+          {activeEditContext.type !== 'root' ? <button type="button" onClick={closeEditContext}>Kontext schließen</button> : null}
+          <button type="button" disabled={!selectedId} onClick={() => makeSelectedComponent('Gruppe')}>Gruppe erstellen</button>
+          <button type="button" disabled={!selectedId} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
           <span>Fläche: {selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</span>
           <span>Verlauf: {history.past.length} rückgängig / {history.future.length} wiederholbar</span>
           <span>Maßband: {lastMeasurement}</span>

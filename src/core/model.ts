@@ -48,6 +48,11 @@ export type BoxEntity = CadMetadata & {
 };
 export type BoxDimensions = Pick<BoxEntity, 'width' | 'depth' | 'height'>;
 export type Entity = EdgeEntity | FaceEntity | ReferenceMeshEntity | BoxEntity;
+export type EditContext = Readonly<{ type: 'root' } | { type: 'component'; componentId: ComponentId }>;
+export type SelectionTarget = Readonly<
+  | { type: 'entity'; entityId: EntityId }
+  | { type: 'component'; componentId: ComponentId; hitEntityId: EntityId }
+>;
 
 export type Component = {
   id: ComponentId;
@@ -61,6 +66,7 @@ export type SketchModelSnapshot = {
   components: Component[];
   tags?: TagDefinition[];
   materials?: MaterialDefinition[];
+  activePath?: ComponentId[];
 };
 
 let nextNumber = 1;
@@ -81,6 +87,7 @@ export class SketchModel {
   readonly unit = 'mm' as const;
   private entities = new Map<EntityId, Entity>();
   private components = new Map<ComponentId, Component>();
+  private activeContext: EditContext = { type: 'root' };
   private tags: TagDefinition[] = defaultTags();
   private materials: MaterialDefinition[] = defaultMaterials();
 
@@ -90,18 +97,22 @@ export class SketchModel {
     model.materials = normalizeMaterialCatalog(snapshot.materials, { preserveStarterMaterials: true });
     for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(withDefaultEntityMetadata(entity)));
     for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
+    const activeComponentId = snapshot.activePath?.at(-1);
+    if (activeComponentId && model.components.has(activeComponentId)) model.activeContext = { type: 'component', componentId: activeComponentId };
     bumpNextNumberPastSnapshot(snapshot);
     return model;
   }
 
   snapshot(): SketchModelSnapshot {
-    return {
+    const activePath = this.activePath();
+    const snapshot: SketchModelSnapshot = {
       unit: this.unit,
       entities: [...this.entities.values()].map((entity) => structuredClone(withDefaultEntityMetadata(entity))),
       components: [...this.components.values()].map((component) => structuredClone(component)),
       tags: this.tags.map((tag) => ({ ...tag })),
       materials: this.materials.map((material) => ({ ...material }))
     };
+    return activePath.length > 0 ? { ...snapshot, activePath } : snapshot;
   }
 
   allEntities(): Entity[] {
@@ -125,6 +136,39 @@ export class SketchModel {
     return entity ? withDefaultEntityMetadata(entity) : undefined;
   }
 
+  activeEditContext(): EditContext {
+    return this.activeContext.type === 'root' ? { type: 'root' } : { ...this.activeContext };
+  }
+
+  activePath(): ComponentId[] {
+    return this.activeContext.type === 'component' ? [this.activeContext.componentId] : [];
+  }
+
+  openComponent(id: ComponentId): Component {
+    const component = this.requireComponent(id);
+    this.activeContext = { type: 'component', componentId: id };
+    return structuredClone(component);
+  }
+
+  closeActiveContext(): EditContext {
+    this.activeContext = { type: 'root' };
+    return this.activeEditContext();
+  }
+
+  selectionTargetForEntity(id: EntityId): SelectionTarget {
+    const entity = this.requireEntity(id);
+    if (entity.componentId && !this.isActiveComponentContext(entity.componentId)) {
+      this.requireComponent(entity.componentId);
+      return { type: 'component', componentId: entity.componentId, hitEntityId: id };
+    }
+    return { type: 'entity', entityId: id };
+  }
+
+  canEditEntity(id: EntityId): boolean {
+    const entity = this.requireEntity(id);
+    return !entity.componentId || this.isActiveComponentContext(entity.componentId);
+  }
+
   createLine(start: Vec3, end: Vec3, metadata: CadMetadata = {}): EdgeEntity {
     if (distance(start, end) <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
     const entity: EdgeEntity = withDefaultEntityMetadata({ id: nextId('edge'), type: 'edge', start, end, ...metadata });
@@ -134,7 +178,7 @@ export class SketchModel {
 
   resizeLineLength(id: EntityId, lengthMm: number): EdgeEntity {
     if (!isPositiveFinite(lengthMm)) throw new Error('Eine Linie braucht eine positive Länge.');
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     if (entity.type !== 'edge') throw new Error('Längenmaß braucht eine ausgewählte Linie.');
     const currentLength = distance(entity.start, entity.end);
     if (currentLength <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
@@ -154,7 +198,7 @@ export class SketchModel {
 
   resizeRectangleFace(id: EntityId, width: number, depth: number): FaceEntity {
     if (!isPositiveFinite(width) || !isPositiveFinite(depth)) throw new Error('Ein Rechteck braucht positive Breite und Tiefe.');
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     if (entity.type !== 'face') throw new Error('Rechteckmaß braucht eine ausgewählte Fläche.');
     const plane = rectangleFacePlane(entity.vertices);
     if (!plane) throw new Error('Rechteckmaß unterstützt nur axis-aligned Rechteckflächen.');
@@ -165,7 +209,7 @@ export class SketchModel {
 
   extrudeFaceToBox(id: EntityId, height: number): BoxEntity {
     if (!isPositiveFinite(height)) throw new Error('Extrusion braucht eine positive Höhe.');
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     if (entity.type !== 'face') throw new Error('Extrusion braucht eine ausgewählte Fläche.');
     const plane = rectangleFacePlane(entity.vertices);
     if (!plane) throw new Error('Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.');
@@ -232,6 +276,7 @@ export class SketchModel {
   }
 
   resizeBox(id: EntityId, dimensions: Partial<BoxDimensions>): BoxEntity {
+    this.requireEntityEditable(id);
     const entity = this.requireBox(id);
     const next = {
       width: dimensions.width ?? entity.width,
@@ -247,6 +292,7 @@ export class SketchModel {
   pushPullBoxFace(id: EntityId, deltaHeight: number): BoxEntity;
   pushPullBoxFace(id: EntityId, face: BoxFaceName, delta: number): BoxEntity;
   pushPullBoxFace(id: EntityId, faceOrDelta: BoxFaceName | number, maybeDelta?: number): BoxEntity {
+    this.requireEntityEditable(id);
     const entity = this.requireBox(id);
     const face = typeof faceOrDelta === 'number' ? 'top' : faceOrDelta;
     const delta = typeof faceOrDelta === 'number' ? faceOrDelta : maybeDelta ?? 0;
@@ -256,7 +302,7 @@ export class SketchModel {
   }
 
   moveEntity(id: EntityId, delta: Vec3): Entity {
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     let moved: Entity;
     if (entity.type === 'edge') moved = { ...entity, start: add(entity.start, delta), end: add(entity.end, delta) };
     else if (entity.type === 'face') moved = { ...entity, vertices: entity.vertices.map((v) => add(v, delta)) };
@@ -267,7 +313,7 @@ export class SketchModel {
   }
 
   private rotateEntity(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     return rotateEntitySnapshot(entity, angleRadians, origin);
   }
 
@@ -279,17 +325,20 @@ export class SketchModel {
 
   deleteEntity(id: EntityId): boolean {
     if (!this.entities.has(id)) return false;
+    this.requireEntityEditable(id);
     this.entities.delete(id);
     for (const component of [...this.components.values()]) {
       const entityIds = component.entityIds.filter((entityId) => entityId !== id);
-      if (entityIds.length === 0) this.components.delete(component.id);
-      else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
+      if (entityIds.length === 0) {
+        this.components.delete(component.id);
+        if (this.isActiveComponentContext(component.id)) this.closeActiveContext();
+      } else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
     }
     return true;
   }
 
   hideEntity(id: EntityId): Entity {
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     const hidden = { ...entity, hidden: true } as Entity;
     this.entities.set(id, hidden);
     return hidden;
@@ -309,7 +358,7 @@ export class SketchModel {
   applyMaterial(id: EntityId, material: MaterialAssignment): Entity {
     const materialId = material.materialId ?? this.findOrCreateLegacyMaterial(material);
     if (!materialById(materialId, this.materials)) throw new Error(`Material nicht gefunden: ${materialId}`);
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     const painted = { ...entity, materialId, material: material.name || material.color || material.previewUrl || material.textureDataUrl ? { ...material, materialId } : undefined } as Entity;
     this.entities.set(id, painted);
     return painted;
@@ -327,7 +376,7 @@ export class SketchModel {
       if (!normalized.some((tag) => tag.id === tagId)) throw new Error(`Tag nicht gefunden oder ungültig: ${tagId}`);
       this.tags = normalized;
     }
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     const tagged = { ...entity, tagId } as Entity;
     this.entities.set(id, tagged);
     return tagged;
@@ -406,6 +455,18 @@ export class SketchModel {
   private requireEntity(id: EntityId): Entity {
     const entity = this.entities.get(id);
     if (!entity) throw new Error(`Element nicht gefunden: ${id}`);
+    return entity;
+  }
+
+  private isActiveComponentContext(componentId: ComponentId): boolean {
+    return this.activeContext.type === 'component' && this.activeContext.componentId === componentId;
+  }
+
+  private requireEntityEditable(id: EntityId): Entity {
+    const entity = this.requireEntity(id);
+    if (entity.componentId && !this.isActiveComponentContext(entity.componentId)) {
+      throw new Error('Erst Gruppe oder Komponente bearbeiten, bevor innere Geometrie geändert wird.');
+    }
     return entity;
   }
 
