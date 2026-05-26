@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
-import { type DrawingPlane, type SketchModel, type ToolName } from '../core/model';
+import { type DrawingPlane, type EntityId, type SketchModel, type ToolName, type BoxFaceName } from '../core/model';
 import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick, type ToolCommand, type ToolPreview, type ToolState } from '../core/toolState';
 import { secondPointForRectangleDimensions, type RectangleDimensions } from './drawingController';
 import {
@@ -15,7 +15,8 @@ import {
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { beginPushPullDrag, finishPushPullDrag, pointForPushPullPointerDelta, updatePushPullDrag, type PushPullDragState } from './pushPullInteraction';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -27,6 +28,7 @@ type ThreeViewportProps = {
   onCreateBox?: (origin: Vec3) => void;
   onMeasure?: (start: Vec3, end: Vec3) => void;
   onMove?: (entityId: string, delta: Vec3) => void;
+  onPushPull?: (entityId: string, delta: number, faceSelection?: FaceSelection) => void;
   onMeasurementPreview?: (message: string | undefined) => void;
   mouseBindings?: MouseBindings;
   onMouseBindingAction?: (action: MouseAction) => void;
@@ -35,10 +37,11 @@ type ThreeViewportProps = {
   rectangleDimensions?: RectangleDimensions;
 };
 
-export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
+  const [pushPullDrag, setPushPullDrag] = useState<PushPullDragState | undefined>();
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
       ? 'WebGL konnte in diesem Browser nicht gestartet werden.'
@@ -46,15 +49,19 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   );
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
   const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const pushPullDragRef = useRef<PushPullDragState | undefined>(undefined);
+  const pushPullPointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
   const activeToolRef = useRef(activeTool);
   const selectedIdRef = useRef(selectedId);
+  const selectedFaceRef = useRef<FaceSelection | undefined>(undefined);
   const onSelectRef = useRef(onSelect);
   const onCreateLineRef = useRef(onCreateLine);
   const onCreateRectangleRef = useRef(onCreateRectangle);
   const onCreateBoxRef = useRef(onCreateBox);
   const onMeasureRef = useRef(onMeasure);
   const onMoveRef = useRef(onMove);
+  const onPushPullRef = useRef(onPushPull);
   const onMeasurementPreviewRef = useRef(onMeasurementPreview);
   const mouseBindingsRef = useRef<MouseBindings>({});
   const onMouseBindingActionRef = useRef(onMouseBindingAction);
@@ -63,18 +70,26 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const rectangleDimensionsRef = useRef<RectangleDimensions | undefined>(rectangleDimensions);
   activeToolRef.current = activeTool;
   selectedIdRef.current = selectedId;
+  if (selectedFaceRef.current?.entityId !== selectedId) selectedFaceRef.current = undefined;
   onSelectRef.current = onSelect;
   onCreateLineRef.current = onCreateLine;
   onCreateRectangleRef.current = onCreateRectangle;
   onCreateBoxRef.current = onCreateBox;
   onMeasureRef.current = onMeasure;
   onMoveRef.current = onMove;
+  onPushPullRef.current = onPushPull;
   onMeasurementPreviewRef.current = onMeasurementPreview;
   mouseBindingsRef.current = (mouseBindings ?? {}) as MouseBindings;
   onMouseBindingActionRef.current = onMouseBindingAction;
   onContextMenuCommandRef.current = onContextMenuCommand;
   drawingPlaneRef.current = drawingPlane;
   rectangleDimensionsRef.current = rectangleDimensions;
+
+  const setActivePushPullDrag = (drag: PushPullDragState | undefined, pointer?: { x: number; y: number }) => {
+    pushPullDragRef.current = drag;
+    pushPullPointerStartRef.current = drag ? pointer : undefined;
+    setPushPullDrag(drag);
+  };
 
   useEffect(() => {
     const host = hostRef.current;
@@ -136,6 +151,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       if (command.type === 'moveEntity') onMoveRef.current?.(command.entityId, command.delta);
     };
 
+    const rememberSelection = (entityId: EntityId | undefined, faceSelection?: FaceSelection) => {
+      selectedFaceRef.current = faceSelection && faceSelection.entityId === entityId ? faceSelection : undefined;
+      onSelectRef.current?.(entityId, selectedFaceRef.current);
+    };
+
     const toPreviewVector = (point: Vec3) => new THREE.Vector3(point.x, point.z + 3, point.y);
 
     const rectanglePreviewCorners = (first: Vec3, second: Vec3, plane: DrawingPlane): Vec3[] => {
@@ -151,6 +171,12 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const createPreviewObject = (preview: ToolPreview): THREE.Object3D => {
+      if (preview.type === 'pushPullPreview') {
+        const object = createModelGroup({ allEntities: () => [preview.entity] } as SketchModel, undefined);
+        object.name = 'push-pull-preview';
+        return object;
+      }
+
       if (preview.type === 'linePreview') {
         const geometry = new THREE.BufferGeometry().setFromPoints([toPreviewVector(preview.start), toPreviewVector(preview.end)]);
         return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9 }));
@@ -194,7 +220,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const updateDrawingPreview = (groundPoint?: Vec3) => {
       clearDrawingPreview();
       const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
-      const preview = previewPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
+      let preview = previewPoint ? getDrawingPreview(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
+      if (previewPoint && pushPullDragRef.current) {
+        const step = updatePushPullDrag(pushPullDragRef.current, previewPoint, (selection, delta) => createPushPullPreview(model, selection, delta));
+        if (step.preview.ok) preview = { type: 'pushPullPreview', entity: step.preview.entity };
+      }
       if (preview) {
         previewObject = createPreviewObject(preview);
         scene.add(previewObject);
@@ -209,7 +239,18 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         onMeasurementPreviewRef.current?.(draft);
         return;
       }
+      if (previewPoint && pushPullDragRef.current) {
+        const step = updatePushPullDrag(pushPullDragRef.current, previewPoint, (selection, delta) => createPushPullPreview(model, selection, delta));
+        onMeasurementPreviewRef.current?.(step.preview.ok ? pushPullPreviewMeasurement(step.preview.entity, step.delta) : step.preview.error);
+        return;
+      }
       onMeasurementPreviewRef.current?.(undefined);
+    };
+
+    const pointForPushPullDrag = (event: PointerEvent | MouseEvent, state: PushPullDragState): Vec3 | undefined => {
+      const start = pushPullPointerStartRef.current;
+      if (!start) return state.startPoint;
+      return pointForPushPullPointerDelta(state, { x: event.clientX - start.x, y: event.clientY - start.y });
     };
 
     const pickMeasurementAtPointer = (event: PointerEvent) => {
@@ -246,7 +287,22 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         activeToolRef.current === 'rectangle' ||
         activeToolRef.current === 'box' ||
         activeToolRef.current === 'tape' ||
+        activeToolRef.current === 'pushPull' ||
         (activeToolRef.current === 'move' && selectedIdRef.current !== undefined);
+      if (groundPoint && activeToolRef.current === 'pushPull') {
+        const picked = pickSelectionAtPointer(event);
+        const entityId = picked.entityId ?? selectedIdRef.current;
+        if (picked.entityId) rememberSelection(picked.entityId, picked.faceSelection);
+        const selectedEntity = entityId ? model.getEntity(entityId) : undefined;
+        const selectedFace = picked.faceSelection ?? (selectedFaceRef.current?.entityId === entityId ? selectedFaceRef.current : undefined);
+        const drag = beginPushPullDrag(entityId, selectedEntity?.type === 'box' ? selectedFace : undefined, groundPoint);
+        if (drag) {
+          setActivePushPullDrag(drag, { x: event.clientX, y: event.clientY });
+          updateDrawingPreview(groundPoint);
+          updateMeasurementPreview(groundPoint);
+          return;
+        }
+      }
       if (groundPoint && usesGroundPoint) {
         const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current, drawingPlaneRef.current);
         toolStateRef.current = step.state;
@@ -256,11 +312,12 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return;
       }
       toolStateRef.current = cancelToolState(toolStateRef.current);
+      setActivePushPullDrag(undefined);
       updateDrawingPreview();
       setSnapCue(undefined);
       updateMeasurementPreview();
       const selection = pickSelectionAtPointer(event);
-      onSelectRef.current?.(selection.entityId, selection.faceSelection);
+      rememberSelection(selection.entityId, selection.faceSelection);
     };
 
     const pointerDown = (event: PointerEvent) => {
@@ -302,7 +359,9 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return;
       }
 
-      const rawGroundPoint = screenPointToDrawingPlane(
+      const drag = pushPullDragRef.current;
+      const dragPoint = drag ? pointForPushPullDrag(event, drag) : undefined;
+      const rawGroundPoint = dragPoint ?? screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
         drawingPlaneRef.current
@@ -315,9 +374,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         setSnapCue(undefined);
       }
       updateDrawingPreview(groundPoint);
-      const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
-      const draftMeasurement = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
-      onMeasurementPreviewRef.current?.(draftMeasurement ?? (activeToolRef.current === 'tape' ? pickMeasurementAtPointer(event) : undefined));
+      updateMeasurementPreview(groundPoint);
     };
 
     const wheel = (event: WheelEvent) => {
@@ -341,17 +398,33 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         renderer.domElement.releasePointerCapture(event.pointerId);
         dragRef.current = null;
       }
+      const drag = pushPullDragRef.current;
+      const rawGroundPoint = drag ? pointForPushPullDrag(event, drag) : undefined;
+      if (drag && rawGroundPoint) {
+        const result = finishPushPullDrag(drag, rawGroundPoint);
+        const preview = result ? createPushPullPreview(model, result.selection, result.delta) : undefined;
+        setActivePushPullDrag(undefined);
+        clearDrawingPreview();
+        if (result && preview?.ok) {
+          onPushPullRef.current?.(result.selection.entityId, result.delta, result.selection.face ? { entityId: result.selection.entityId, face: result.selection.face } : undefined);
+        } else if (preview && !preview.ok) {
+          onMeasurementPreviewRef.current?.(preview.error);
+        }
+        updateMeasurementPreview();
+        render();
+      }
     };
 
     const contextMenu = (event: MouseEvent) => {
       event.preventDefault();
       toolStateRef.current = cancelToolState(toolStateRef.current);
+      setActivePushPullDrag(undefined);
       updateDrawingPreview();
       setSnapCue(undefined);
       onMeasurementPreviewRef.current?.(undefined);
       const selection = pickSelectionAtPointer(event);
       const contextSelectedId = selection.entityId ?? selectedIdRef.current;
-      if (selection.entityId) onSelectRef.current?.(selection.entityId, selection.faceSelection);
+      if (selection.entityId) rememberSelection(selection.entityId, selection.faceSelection);
       const selectedEntityType = contextSelectedId ? model.getEntity(contextSelectedId)?.type : undefined;
       const hostRect = host.getBoundingClientRect();
       setContextMenu({
@@ -363,6 +436,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const keyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         toolStateRef.current = cancelToolState(toolStateRef.current);
+        setActivePushPullDrag(undefined);
         setContextMenu(undefined);
         updateDrawingPreview();
         setSnapCue(undefined);
