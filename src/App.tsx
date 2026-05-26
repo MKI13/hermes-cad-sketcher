@@ -161,6 +161,7 @@ export default function App() {
   const selectedFaceLabel = selectedBoxFace && selectedBoxFace.entityId === selectedId ? faceSelectionLabel(selectedBoxFace) : faceSelectionLabel();
   const activeMeasurement = formatActiveMeasurement({ draft: liveMeasurement, selected: selectedMeasurement, last: lastMeasurement });
   const activeBoxFace = selectedBoxFace && selectedBoxFace.entityId === selectedId ? selectedBoxFace.face : undefined;
+  const selectedPushPullSelection = selectedId ? { entityId: selectedId, face: selected?.type === 'box' ? activeBoxFace : undefined } : undefined;
   const rectangleMaskResult = parseRectangleDimensionMask(rectangleDimensionMask);
   const activeRectangleDimensions = useRectangleDimensionMask && rectangleMaskResult.ok ? { width: rectangleMaskResult.width, depth: rectangleMaskResult.depth } : undefined;
   const drawingPlaneLabels: Record<DrawingPlane, string> = {
@@ -541,14 +542,20 @@ export default function App() {
   }
 
   function applyPushPullDelta() {
-    if (!selectedId || (selected?.type !== 'box' && selected?.type !== 'face')) return;
+    if (!selectedPushPullSelection || (selected?.type !== 'box' && selected?.type !== 'face')) return;
     const parsed = parsePushPullDelta(pushPullDeltaHeight);
     if (!parsed.ok) return;
-    if (selected.type === 'face') {
+    applyPushPullSelection(selectedPushPullSelection.entityId, parsed.deltaHeight, selectedPushPullSelection.face ? { entityId: selectedPushPullSelection.entityId, face: selectedPushPullSelection.face } : undefined);
+  }
+
+  function applyPushPullSelection(entityId: string, deltaHeight: number, faceSelection?: FaceSelection) {
+    const entity = model.getEntity(entityId);
+    if (!entity || (entity.type !== 'box' && entity.type !== 'face')) return;
+    if (entity.type === 'face') {
       try {
         let extruded = false;
         mutate((m) => {
-          const box = m.extrudeFaceToBox(selectedId, parsed.deltaHeight);
+          const box = m.extrudeFaceToBox(entityId, deltaHeight);
           setSelectedId(box.id);
           setSelectedBoxFace(undefined);
           setSelectedDimensions(boxDimensionsToInput(box));
@@ -568,9 +575,10 @@ export default function App() {
     }
     try {
       mutate((m) => {
-        const face = activeBoxFace ?? 'top';
-        const updated = m.pushPullBoxFace(selectedId, face, parsed.deltaHeight);
-        setSelectedId(selectedId);
+        const face = faceSelection?.entityId === entityId ? faceSelection.face : 'top';
+        const updated = m.pushPullBoxFace(entityId, face, deltaHeight);
+        setSelectedId(entityId);
+        setSelectedBoxFace(faceSelection?.entityId === entityId ? faceSelection : undefined);
         setSelectedDimensions(boxDimensionsToInput(updated));
         setLiveMeasurement(formatEntityMeasurement(updated));
       });
@@ -1367,6 +1375,7 @@ export default function App() {
               onCreateBox={createBoxFromViewport}
               onMeasure={measureFromViewport}
               onMove={moveFromViewport}
+              onPushPull={applyPushPullSelection}
               onMeasurementPreview={setLiveMeasurement}
               mouseBindings={mouseBindings}
               onMouseBindingAction={handleMouseBindingAction}

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
 import { entityToObject } from '../src/ui/sceneAdapter';
-import { collectSnapPoints, faceSelectionLabel, getFaceSelectionFromObject, snapPointToModel } from '../src/ui/viewportInteractionHelpers';
+import { collectSnapPoints, createPushPullPreview, faceSelectionLabel, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapPointToModel } from '../src/ui/viewportInteractionHelpers';
 
 describe('SketchUp-like snapping and box face interaction', () => {
   it('collects endpoints and midpoints from lines and body line skeletons', () => {
@@ -70,5 +70,42 @@ describe('SketchUp-like snapping and box face interaction', () => {
 
     const pushedFront = model.pushPullBoxFace(box.id, 'front', -100);
     expect(pushedFront.depth).toBe(400);
+  });
+
+
+  it('builds a non-mutating live preview for selected box face Push/Pull drags', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 1000, 500, 300);
+
+    const preview = createPushPullPreview(model, { entityId: box.id, face: 'right' }, 200);
+
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) throw new Error('Expected a valid Push/Pull preview');
+    expect(preview.entity).toMatchObject({ id: box.id, type: 'box', width: 1200, depth: 500, height: 300 });
+    expect(model.getEntity(box.id)).toMatchObject({ type: 'box', width: 1000, depth: 500, height: 300 });
+    expect(pushPullPreviewMeasurement(preview.entity, 200)).toBe('Push/Pull-Vorschau: 200 mm · Körper: 1200 mm × 500 mm × 300 mm');
+  });
+
+  it('builds a non-mutating live preview for axis-aligned face extrusion drags', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1200, 600, {}, 'xy');
+
+    const preview = createPushPullPreview(model, { entityId: face.id }, 720);
+
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) throw new Error('Expected a valid face extrusion preview');
+    expect(preview.entity).toMatchObject({ type: 'box', origin: vec(10, 20, 0), width: 1200, depth: 600, height: 720 });
+    expect(model.getEntity(face.id)).toEqual(face);
+  });
+
+  it('rejects live Push/Pull previews that would create invalid final dimensions', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 1000, 500, 300);
+
+    expect(createPushPullPreview(model, { entityId: box.id, face: 'front' }, -500)).toEqual({
+      ok: false,
+      error: 'Push/Pull darf das betroffene Maß nicht auf null oder negativ setzen.'
+    });
+    expect(model.getEntity(box.id)).toEqual(box);
   });
 });

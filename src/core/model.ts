@@ -228,7 +228,7 @@ export class SketchModel {
     const entity = this.requireBox(id);
     const face = typeof faceOrDelta === 'number' ? 'top' : faceOrDelta;
     const delta = typeof faceOrDelta === 'number' ? faceOrDelta : maybeDelta ?? 0;
-    const updated = pushPullBoxFaceSnapshot(entity, face, delta);
+    const updated = previewPushPullBoxFace(entity, face, delta);
     this.entities.set(id, updated);
     return updated;
   }
@@ -404,7 +404,7 @@ function cornerKey(a: number, b: number): string {
   return `${a.toFixed(6)},${b.toFixed(6)}`;
 }
 
-function pushPullBoxFaceSnapshot(entity: BoxEntity, face: BoxFaceName, delta: number): BoxEntity {
+export function previewPushPullBoxFace(entity: BoxEntity, face: BoxFaceName, delta: number): BoxEntity {
   if (!Number.isFinite(delta)) throw new Error('Push/Pull braucht eine positive Höhe.');
   const previousCenter = boxLocalCenter(entity);
   const next = { ...entity };

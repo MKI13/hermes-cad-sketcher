@@ -48,10 +48,17 @@ export function parseMeasurementBoxInput(tool: ToolName, raw: string): Measureme
     return { ok: true, kind: 'vector', x, y, z };
   }
 
-  if (tool === 'line' || tool === 'pushPull' || tool === 'tape') {
+  if (tool === 'line' || tool === 'tape') {
     if (values.length !== 1) return { ok: false, error: 'Dieses Werkzeug braucht genau ein Maß in Millimeter.' };
     const [value] = values;
     return requirePositive(value) ?? { ok: true, kind: 'distance', value };
+  }
+
+  if (tool === 'pushPull') {
+    if (values.length !== 1) return { ok: false, error: 'Dieses Werkzeug braucht genau ein Maß in Millimeter.' };
+    const [value] = values;
+    if (value === 0) return { ok: false, error: 'Maß muss ungleich 0 sein.' };
+    return { ok: true, kind: 'distance', value };
   }
 
   return { ok: false, error: 'Für dieses Werkzeug gibt es noch keine aktive Maßeingabe.' };

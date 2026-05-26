@@ -5,6 +5,7 @@ describe('measurement box input', () => {
   it('parses a single millimeter distance for line and push-pull tools', () => {
     expect(parseMeasurementBoxInput('line', '1200')).toEqual({ ok: true, kind: 'distance', value: 1200 });
     expect(parseMeasurementBoxInput('pushPull', '300mm')).toEqual({ ok: true, kind: 'distance', value: 300 });
+    expect(parseMeasurementBoxInput('pushPull', '-75')).toEqual({ ok: true, kind: 'distance', value: -75 });
   });
 
   it('parses rectangle dimensions written like SketchUp measurements', () => {
@@ -19,7 +20,7 @@ describe('measurement box input', () => {
 
   it('reports clear errors for impossible measurements', () => {
     expect(parseMeasurementBoxInput('rectangle', '1200')).toEqual({ ok: false, error: 'Rechteck braucht Breite und Tiefe, z. B. 1200,600.' });
-    expect(parseMeasurementBoxInput('pushPull', '-20')).toEqual({ ok: false, error: 'Maß muss positiv sein.' });
+    expect(parseMeasurementBoxInput('pushPull', '0')).toEqual({ ok: false, error: 'Maß muss ungleich 0 sein.' });
     expect(parseMeasurementBoxInput('move', 'a,b,c')).toEqual({ ok: false, error: 'Maß enthält keine gültigen Zahlen.' });
   });
 });

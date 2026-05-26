@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { distance, type Vec3, vec } from '../core/geometry';
-import { entityBoundingBox, formatMillimeters, type BoxFaceName, type Entity, type EntityId, type SketchModel, type ToolName } from '../core/model';
+import { entityBoundingBox, formatMillimeters, isAxisAlignedRectangleFace, isPositiveFinite, previewPushPullBoxFace, type BoxEntity, type BoxFaceName, type Entity, type EntityId, type FaceEntity, type SketchModel, type ToolName } from '../core/model';
 import { type ToolState } from '../core/toolState';
 import { type MouseAction } from './mouseBindings';
 import { type OrbitCameraState } from './viewportController';
@@ -20,6 +20,38 @@ export type ViewportContextMenuCommand =
   | Readonly<{ type: 'openWindow'; windowId: FloatingWindowId }>
   | Readonly<{ type: 'entityAction'; action: ViewportEntityAction }>;
 export type ViewportContextMenuItem = Readonly<{ label: string; command: ViewportContextMenuCommand }>;
+export type PushPullPreviewResult =
+  | Readonly<{ ok: true; entity: BoxEntity; sourceEntityId: EntityId; delta: number }>
+  | Readonly<{ ok: false; error: string }>;
+
+export function createPushPullPreview(model: Pick<SketchModel, 'getEntity'>, selection: { entityId: EntityId; face?: BoxFaceName }, delta: number): PushPullPreviewResult {
+  if (!Number.isFinite(delta) || delta === 0) return { ok: false, error: 'Push/Pull braucht eine Distanz ungleich 0 mm.' };
+  const entity = model.getEntity(selection.entityId);
+  if (!entity) return { ok: false, error: 'Push/Pull braucht eine ausgewählte Fläche oder einen Körper.' };
+
+  try {
+    if (entity.type === 'box') {
+      return { ok: true, entity: previewPushPullBoxFace(entity, selection.face ?? 'top', delta), sourceEntityId: entity.id, delta };
+    }
+    if (entity.type === 'face') {
+      if (delta <= 0) return { ok: false, error: 'Push/Pull-Flächenextrusion braucht eine positive Distanz.' };
+      return { ok: true, entity: previewFaceExtrusion(entity, delta), sourceEntityId: entity.id, delta };
+    }
+  } catch (error) {
+    const message = error instanceof Error && error.message.includes('positive Breite, Tiefe und Höhe')
+      ? 'Push/Pull darf das betroffene Maß nicht auf null oder negativ setzen.'
+      : error instanceof Error
+        ? error.message
+        : 'Push/Pull-Vorschau konnte nicht erstellt werden.';
+    return { ok: false, error: message };
+  }
+
+  return { ok: false, error: 'Push/Pull braucht eine ausgewählte Fläche oder einen Körper.' };
+}
+
+export function pushPullPreviewMeasurement(entity: BoxEntity, delta: number): string {
+  return `Push/Pull-Vorschau: ${formatMillimeters(delta)} · ${formatEntityMeasurement(entity)}`;
+}
 
 export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
   const items: ViewportContextMenuItem[] = [
@@ -176,6 +208,22 @@ export function faceSelectionLabel(selection?: FaceSelection): string {
     right: 'rechts'
   };
   return `Fläche ausgewählt: ${labels[selection.face]}`;
+}
+
+function previewFaceExtrusion(entity: FaceEntity, height: number): BoxEntity {
+  if (!isAxisAlignedRectangleFace(entity.vertices)) throw new Error('Push/Pull unterstützt im MVP nur axis-aligned Rechteckflächen oder Körperseiten.');
+  const box = entityBoundingBox(entity);
+  const zSize = box.size.z;
+  const xSize = box.size.x;
+  const ySize = box.size.y;
+  const width = zSize > 0 && xSize === 0 ? Math.abs(height) : xSize;
+  const depth = zSize > 0 && ySize === 0 ? Math.abs(height) : ySize;
+  const boxHeight = zSize > 0 ? zSize : Math.abs(height);
+
+  if (!isPositiveFinite(width) || !isPositiveFinite(depth) || !isPositiveFinite(boxHeight)) {
+    throw new Error('Extrusion braucht eine rechteckige Fläche mit positiver Breite und Tiefe.');
+  }
+  return { id: entity.id, type: 'box', origin: box.min, width, depth, height: boxHeight, rotationZ: 0, componentId: entity.componentId };
 }
 
 function snapPointsForEntity(entity: Entity): SnapPoint[] {

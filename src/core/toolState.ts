@@ -1,5 +1,5 @@
 import { sub, type Vec3 } from './geometry';
-import { formatMillimeters, type DrawingPlane, type EntityId, type SketchModel, type ToolName } from './model';
+import { formatMillimeters, type BoxEntity, type DrawingPlane, type EntityId, type SketchModel, type ToolName } from './model';
 
 export type DrawableTool = Extract<ToolName, 'line' | 'rectangle' | 'box'>;
 export type TwoPointTool = Extract<ToolName, 'line' | 'rectangle' | 'tape'>;
@@ -18,7 +18,8 @@ export type ToolCommand =
 
 export type ToolPreview =
   | { type: 'linePreview'; start: Vec3; end: Vec3 }
-  | { type: 'rectanglePreview'; first: Vec3; second: Vec3; plane: DrawingPlane };
+  | { type: 'rectanglePreview'; first: Vec3; second: Vec3; plane: DrawingPlane }
+  | { type: 'pushPullPreview'; entity: BoxEntity };
 
 export type ToolStep = Readonly<{
   state: ToolState;
