@@ -143,9 +143,9 @@ Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn
    - Nächster Schritt ist eine allgemeinere Modell-/Command-Schicht für spätere nicht-Box-Körper und komplexere Face-Operationen.
    - Null- oder Negativmaße müssen weiterhin blockiert werden.
 
-3. **Komponenten als Instanzen verbessern**
-   - Verschachtelte Komponenten vorbereiten.
-   - Komponenten als Instanzen mit eigener Transformation modellieren.
+3. **Komponenten-Bearbeitungsgrenzen ausbauen**
+   - Komponenten-Definitionen und Instanzen existieren im Kernmodell; nächster Schritt ist eine klare UI-/Command-Schicht für Instanz-Auswahl, „einzigartig machen“ und verschachtelte Bearbeitung.
+   - Instanz-Skalierung bleibt für zuschnittsfähige Komponenten bewusst blockiert.
 
 4. **DXF-Import erweitern**
    - Weitere Entitäten erst nach fail-closed Tests ergänzen.
@@ -224,6 +224,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Agent-Chat-Brücke** — Hermes oder ein anderer AI Agent kann direkte CAD-Befehle oder einfache Sätze wie „erstelle box …“ und „verschiebe auswahl …“ live gegen dieselbe geprüfte Befehlslogik ausführen.
 - **Auswahlbasierte Agent-Skripte** — Mehrzeilige Agent-Antworten wie `select box_1` gefolgt von einem nackten `delete` werden korrekt auf die aktuelle Auswahl angewendet. Mutierende Befehle ohne explizite Element-ID nutzen die aktuelle Auswahl, wenn eine vorhanden ist; ohne Auswahl bleibt der Befehl fail-closed. Dafür gibt es einen Regressionstest in `tests/cadCommandConsole.test.ts`.
 - **Agent-erstellte Körper als Einzelkomponenten** — `box`- und `extrude`-Befehle der Hermes-CAD-DSL legen den entstehenden Körper automatisch in einer eigenen Komponente ab, damit mehrere agentisch erzeugte Bauteile getrennt auswählbar, verschiebbar und später zuschnitt-/Stücklisten-fähig bleiben.
+- **Komponenten-Definitionen und Instanzen** — Wiederholteile können als gemeinsame Komponenten-Definition mit mehreren Instanzen modelliert werden; jede Instanz hat eigene Translation und Z-Rotation, Projektdateien speichern Definitionen/Instanzen neben alten Komponenten weiter abwärtskompatibel, und Viewport-/DXF-/STL-Exportadapter können Instanzen als Weltgeometrie expandieren. Instanz-Skalierung bleibt für woodworking-/Cut-list-sichere Semantik blockiert; detaillierte Instanz-Auswahl und verschachtelte Bearbeitung bleiben Folgearbeit.
 
 ## Sicherheits- und Realismusregeln
 

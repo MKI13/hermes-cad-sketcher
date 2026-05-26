@@ -1,4 +1,4 @@
-import { SketchModel, type Entity } from './model';
+import { SketchModel, boxWorldPoints, worldEntitiesForModel, type Entity } from './model';
 import { almostEqual, vec, type Vec3 } from './geometry';
 
 function pair(code: string | number, value: string | number): string {
@@ -7,15 +7,16 @@ function pair(code: string | number, value: string | number): string {
 
 export function exportDxf(model: SketchModel): string {
   const out: string[] = [pair(0, 'SECTION'), pair(2, 'HEADER'), pair(9, '$INSUNITS'), pair(70, 4), pair(0, 'ENDSEC'), pair(0, 'SECTION'), pair(2, 'ENTITIES')];
-  for (const entity of model.allEntities()) {
+  for (const entity of worldEntitiesForModel(model)) {
     if (entity.type === 'edge') line(out, entity.start, entity.end, entity.layer);
     if (entity.type === 'face') polyline(out, entity.vertices, entity.layer);
     if (entity.type === 'box') {
-      const o = entity.origin;
-      const pts = [o, vec(o.x + entity.width, o.y, o.z), vec(o.x + entity.width, o.y + entity.depth, o.z), vec(o.x, o.y + entity.depth, o.z)];
-      polyline(out, pts);
-      for (const p of pts) line(out, p, vec(p.x, p.y, p.z + entity.height));
-      polyline(out, pts.map((p) => vec(p.x, p.y, p.z + entity.height)));
+      const pts = boxWorldPoints(entity);
+      const bottom = [pts[0], pts[1], pts[2], pts[3]];
+      const top = [pts[4], pts[5], pts[6], pts[7]];
+      polyline(out, bottom, entity.layer);
+      for (let index = 0; index < 4; index += 1) line(out, bottom[index], top[index], entity.layer);
+      polyline(out, top, entity.layer);
     }
   }
   out.push(pair(0, 'ENDSEC'), pair(0, 'EOF'));

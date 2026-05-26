@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
-import { type DrawingPlane, type SketchModel } from '../core/model';
+import { worldEntitiesForModel, type DrawingPlane, type SketchModel } from '../core/model';
 import type { MaterialDefinition } from '../core/materials';
 import { entityToObject } from './sceneAdapter';
 
@@ -66,7 +66,10 @@ export function applyOrbitToCamera(camera: THREE.PerspectiveCamera, state: Orbit
 export function createModelGroup(model: Pick<SketchModel, 'allEntities'>, selectedId?: string, materials: readonly MaterialDefinition[] = 'allMaterials' in model && typeof model.allMaterials === 'function' ? model.allMaterials() : []): THREE.Group {
   const group = new THREE.Group();
   group.name = 'sketch-model';
-  for (const entity of model.allEntities()) {
+  const entities = 'allComponentDefinitions' in model && 'allComponentInstances' in model && 'getEntity' in model
+    ? worldEntitiesForModel(model as SketchModel)
+    : model.allEntities();
+  for (const entity of entities) {
     if (entity.hidden) continue;
     const object = entityToObject(entity, materials);
     object.userData.entityId = entity.id;
