@@ -3,7 +3,10 @@ import { defaultMaterialId, defaultMaterials, materialById, normalizeMaterialCat
 import { defaultTagId, defaultTags, normalizeTags, type TagDefinition, type TagId } from './tags';
 import { normalizePartMaterialMetadata } from './woodworkingMaterials';
 import type { PartMaterialMetadata } from './woodworkingMaterials';
+import { normalizeCutOperation } from './cutOperations';
+import type { CutOperation } from './cutOperations';
 export { partMaterialReadinessForEntity, type PartMaterialMetadata } from './woodworkingMaterials';
+export { boardEntitiesForCutList, cutOperationReadinessForEntity, type CutOperation } from './cutOperations';
 
 export function isPositiveFinite(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -95,6 +98,7 @@ type CadMetadata = {
   material?: MaterialAssignment;
   woodworking?: WoodworkingMetadata;
   partMaterial?: PartMaterialMetadata;
+  cutOperations?: CutOperation[];
 };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
@@ -322,7 +326,8 @@ export class SketchModel {
       tagId: entity.tagId ?? defaultTagId,
       materialId: entity.materialId ?? defaultMaterialId,
       material: entity.material,
-      partMaterial: entity.partMaterial
+      partMaterial: entity.partMaterial,
+      cutOperations: entity.cutOperations
     };
     this.entities.delete(id);
     this.entities.set(extruded.id, extruded);
@@ -470,6 +475,14 @@ export class SketchModel {
     const classified = { ...entity, woodworking: createWoodworkingMetadata(kind, role) } as Entity;
     this.entities.set(id, classified);
     return classified;
+  }
+
+  assignCutOperation(id: EntityId, operation: CutOperation): Entity {
+    const entity = this.requireEntity(id);
+    const cutOperations = [...(entity.cutOperations ?? []), normalizeCutOperation(operation)];
+    const updated = { ...entity, cutOperations } as Entity;
+    this.entities.set(id, updated);
+    return updated;
   }
 
   assignComponentWoodworkingClassification(id: ComponentId, kind: WoodworkingKind, role?: string): Component {
