@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SketchModel, type BoxFaceName, type DrawingPlane, type MaterialAssignment, type ToolName } from './core/model';
+import { SketchModel, type BoxFaceName, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { parseMeasurementBoxInput } from './core/measurementInput';
@@ -28,6 +28,7 @@ import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, typ
 import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, menuPanelTitle, type FloatingWindowId } from './ui/workspaceMenuRouting';
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
 import { buildDefaultMaterialSwatches, buildMaterialLibrary, materialAssignmentFromLibraryEntry, type BrowserMaterialLibraryEntry, type MaterialLibrary, type MaterialSwatch } from './ui/materialLibrary';
+import type { MaterialDefinition } from './core/materials';
 import { shouldApplyDxfImportReport, statusFromDxfImportReport } from './ui/dxfImportPolicy';
 import { drawingPlaneAppearance } from './ui/drawingPlaneAppearance';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
@@ -113,6 +114,11 @@ export function createInitialSketchModel(): SketchModel {
   return new SketchModel();
 }
 
+export function materialLabelForEntity(entity: Entity | undefined, materials: readonly MaterialDefinition[]): string {
+  if (!entity) return 'Standard';
+  return entity.material?.name ?? materials.find((material) => material.id === entity.materialId)?.name ?? 'Standard';
+}
+
 export default function App() {
   const [initialModel] = useState(createInitialSketchModel);
   const [model, setModel] = useState(initialModel);
@@ -191,6 +197,9 @@ export default function App() {
     .map((toolId) => `${getToolShortcut(toolId)} ${shortcutSummaryLabels[toolId]}`)
     .join(' · ');
   const materialSwatches = buildDefaultMaterialSwatches();
+  const tagCatalog = model.allTags();
+  const materialCatalog = model.allMaterials();
+  const selectedMaterialLabel = materialLabelForEntity(selected, materialCatalog);
   const visibleMaterialCategory = selectedMaterialCategory ?? materialLibrary?.categories[0];
   const visibleMaterialEntries = materialLibrary?.entries.filter((entry) => !visibleMaterialCategory || entry.category === visibleMaterialCategory) ?? [];
   const mouseBindingPanel = (
@@ -677,7 +686,7 @@ export default function App() {
     mutate((m) => {
       m.applyMaterial(selectedId, material);
     });
-    setProjectStatus(`Material angewendet: ${material.name}`);
+    setProjectStatus(`Material angewendet: ${material.name ?? material.materialId ?? 'default'}`);
   }
 
   function materialFromImageEntry(entry: BrowserMaterialLibraryEntry): MaterialAssignment {
@@ -685,7 +694,7 @@ export default function App() {
   }
 
   function materialFromSwatch(swatch: MaterialSwatch): MaterialAssignment {
-    return { name: swatch.name, color: swatch.color };
+    return { materialId: swatch.id };
   }
 
   function hideSelectedEntity() {
@@ -1131,7 +1140,7 @@ export default function App() {
               <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
               <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
               <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
-              <div><dt>Material</dt><dd>{selected?.material?.name ?? 'Standard'}</dd></div>
+              <div><dt>Material</dt><dd>{selectedMaterialLabel}</dd></div>
             </dl>
           </details>
           <details className="tray-section" open>
@@ -1164,7 +1173,14 @@ export default function App() {
           <details className="tray-section"><summary><HermesIcon id="outliner-clear" label="Outliner" size={16} /> Outliner</summary><p>{model.allEntities().length} Elemente im Modell.</p></details>
           <details className="tray-section"><summary><HermesIcon id="component-clear" label="Komponenten" size={16} /> Components</summary><p>{model.allComponents().length} Komponenten im Modell.</p></details>
           <details className="tray-section"><summary><HermesIcon id="styles-clear" label="Styles" size={16} /> Styles</summary><p>Schlichter CAD-Stil mit Achsen, Kanten und millimetersicherem Raster.</p></details>
-          <details className="tray-section"><summary><HermesIcon id="tags-clear" label="Tags" size={16} /> Tags</summary><p>Tag-Verwaltung ist vorbereitet.</p></details>
+          <details className="tray-section">
+            <summary><HermesIcon id="tags-clear" label="Tags" size={16} /> Tags</summary>
+            <p>Tags: {tagCatalog.length} · sichtbar: {tagCatalog.filter((tag) => tag.visible).length}</p>
+            <ul>
+              {tagCatalog.map((tag) => <li key={tag.id}>{tag.name}</li>)}
+            </ul>
+            <small>Tag-Sichtbarkeit ist im Modell vorbereitet; UI-Umschalter folgen separat.</small>
+          </details>
           <details className="tray-section"><summary>Shadows</summary><p>Schatten und Tageslicht bleiben als Ansichtsfunktion vorgemerkt.</p></details>
           <details className="tray-section"><summary><HermesIcon id="scenes-clear" label="Szenen" size={16} /> Scenes</summary><p>Szenen und Ansichten werden hier gesammelt.</p></details>
           <details className="tray-section"><summary>Instructor</summary><p>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p></details>
@@ -1173,6 +1189,7 @@ export default function App() {
             <p>Auswahl mit Material belegen: erst Fläche oder Körper auswählen, dann Farbfeld anklicken.</p>
             <div className="materials-toolbar" aria-label="Material-Auswahl">
               <span>Materialordner: {materialLibrary?.rootLabel ?? 'Standard-Farbfelder'}</span>
+              <span>Startmaterialien: {materialSwatches.length}</span>
               <label className="material-folder-button">
                 Ordner vom PC wählen
                 <input

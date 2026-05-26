@@ -172,7 +172,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const createPreviewObject = (preview: ToolPreview): THREE.Object3D => {
       if (preview.type === 'pushPullPreview') {
-        const object = createModelGroup({ allEntities: () => [preview.entity] } as SketchModel, undefined);
+        const object = createModelGroup({ allEntities: () => [preview.entity] }, undefined, model.allMaterials());
         object.name = 'push-pull-preview';
         return object;
       }

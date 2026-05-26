@@ -195,7 +195,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Fail-closed DXF-Einheitenprüfung** — `$INSUNITS=4` wird als Millimeter akzeptiert, fehlende Einheiten werden sichtbar als Millimeter-Annahme gemeldet und bekannte andere Einheiten werden vor Geometrieimport abgelehnt.
 - **ASCII-STL-Export für Boxkörper** — einfache STL-Ausgabe für Boxgeometrie.
 - **ASCII-STL-Referenzmesh-Import** — synthetische ASCII-STL-Dateien können als nicht editierbare Referenzmeshes mit Dreieckszahl geladen, inspiziert, gerendert und in `.hcad.json` Projekten erhalten werden; Binary-STL und Solid-Healing bleiben bewusst ausgeschlossen.
-- **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen und Komponenten.
+- **Projektdatei speichern/laden** — `.hcad.json` Snapshot mit Version, Einheit, Elementen, Komponenten, Tags und Materialkatalog.
 - **React/Vite-Oberfläche mit Werkzeugleiste** — Bedienoberfläche für die vorhandenen Werkzeuge.
 - **Anpassbare Schnell-Werkzeugleiste** — kleine Werkzeug-Icons liegen oben, lassen sich per Drag-and-drop umsortieren und bieten Tastenkürzel für schnelle Arbeit.
 - **SketchUp-inspirierter klassischer CAD-Arbeitsplatz** — eigene, rechtlich saubere Menü- und Werkzeuggruppen für Basis, Zeichnen, Modellieren, Messen, Kamera, Struktur und Visualisierung; der klassische Arbeitsplatz steht ganz oben. Jeder Menübutton öffnet den passenden Funktionsbereich, z. B. Datei → Datei & Import/Export und Bearbeiten → Bearbeiten & Maße. Die detaillierten Bearbeiten-/Maße-Funktionen erscheinen zuerst als Button-Verknüpfungen und öffnen danach als externe Fenster statt als große Dauerleiste.

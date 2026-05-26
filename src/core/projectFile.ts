@@ -46,7 +46,17 @@ export function importProjectFile(text: string): SketchModel {
     throw new Error('Projektdatei enthält kein gültiges Modell.');
   }
 
-  if (!model.entities.every(isEntityPayload)) {
+  if (!hasValidTagCatalog(model.tags)) {
+    throw new Error('Projektdatei enthält ungültige Tags.');
+  }
+
+  if (!hasValidMaterialCatalog(model.materials)) {
+    throw new Error('Projektdatei enthält ungültige Materialien.');
+  }
+
+  const tagIds = idsFromOptionalCatalog(model.tags, 'untagged');
+  const materialIds = idsFromOptionalCatalog(model.materials, 'default');
+  if (!model.entities.every((entity) => isEntityPayload(entity, tagIds, materialIds))) {
     throw new Error('Projektdatei enthält ungültige Elemente.');
   }
 
@@ -58,10 +68,11 @@ export function importProjectFile(text: string): SketchModel {
   return SketchModel.fromSnapshot(model);
 }
 
-function isEntityPayload(value: unknown): value is SketchModelSnapshot['entities'][number] {
+function isEntityPayload(value: unknown, knownTagIds: ReadonlySet<string>, knownMaterialIds: ReadonlySet<string>): value is SketchModelSnapshot['entities'][number] {
   if (!isRecord(value) || typeof value.id !== 'string') return false;
   if ('componentId' in value && value.componentId !== undefined && typeof value.componentId !== 'string') return false;
   if (!hasValidLayerMetadata(value)) return false;
+  if (!hasValidEntityTagAndMaterialMetadata(value, knownTagIds, knownMaterialIds)) return false;
 
   if (value.type === 'edge') {
     return isVec3(value.start) && isVec3(value.end);
@@ -96,6 +107,66 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
 function hasValidLayerMetadata(value: Record<string, unknown>): boolean {
   if (!('layer' in value) || value.layer === undefined) return true;
   return typeof value.layer === 'string' && isSafeLayerName(value.layer);
+}
+
+function hasValidEntityTagAndMaterialMetadata(value: Record<string, unknown>, knownTagIds: ReadonlySet<string>, knownMaterialIds: ReadonlySet<string>): boolean {
+  if ('tagId' in value && value.tagId !== undefined && (typeof value.tagId !== 'string' || !knownTagIds.has(value.tagId))) return false;
+  if ('materialId' in value && value.materialId !== undefined && (typeof value.materialId !== 'string' || !knownMaterialIds.has(value.materialId))) return false;
+  if ('material' in value && value.material !== undefined && !isValidLegacyMaterialAssignment(value.material, knownMaterialIds)) return false;
+  return true;
+}
+
+function isValidLegacyMaterialAssignment(value: unknown, knownMaterialIds: ReadonlySet<string>): boolean {
+  if (!isRecord(value)) return false;
+  if ('materialId' in value && value.materialId !== undefined && (typeof value.materialId !== 'string' || !knownMaterialIds.has(value.materialId))) return false;
+  if ('name' in value && value.name !== undefined && (typeof value.name !== 'string' || value.name.trim().length === 0)) return false;
+  if ('color' in value && value.color !== undefined && (typeof value.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.color.trim()))) return false;
+  if ('previewUrl' in value && value.previewUrl !== undefined && (typeof value.previewUrl !== 'string' || !isSafeLocalMaterialUrl(value.previewUrl))) return false;
+  if ('textureDataUrl' in value && value.textureDataUrl !== undefined && (typeof value.textureDataUrl !== 'string' || !isSafeImageDataUrl(value.textureDataUrl))) return false;
+  if ('textureFileName' in value && value.textureFileName !== undefined && (typeof value.textureFileName !== 'string' || value.textureFileName.trim().length === 0 || /[\\/]/.test(value.textureFileName))) return false;
+  return Object.keys(value).every((key) => ['materialId', 'name', 'color', 'previewUrl', 'textureDataUrl', 'textureFileName'].includes(key));
+}
+
+function isSafeLocalMaterialUrl(value: string): boolean {
+  return value.startsWith('blob:') || isSafeImageDataUrl(value);
+}
+
+function isSafeImageDataUrl(value: string): boolean {
+  return /^data:image\/(png|jpeg|jpg|webp|gif|bmp|svg\+xml);base64,[A-Za-z0-9+/=]+$/i.test(value);
+}
+
+function hasValidTagCatalog(tags: unknown): boolean {
+  if (tags === undefined) return true;
+  if (!Array.isArray(tags)) return false;
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (!isRecord(tag) || typeof tag.id !== 'string' || typeof tag.name !== 'string' || typeof tag.visible !== 'boolean') return false;
+    if (!isSafeCatalogId(tag.id) || tag.name.trim().length === 0 || seen.has(tag.id)) return false;
+    seen.add(tag.id);
+  }
+  return true;
+}
+
+function hasValidMaterialCatalog(materials: unknown): boolean {
+  if (materials === undefined) return true;
+  if (!Array.isArray(materials)) return false;
+  const seen = new Set<string>();
+  for (const material of materials) {
+    if (!isRecord(material) || typeof material.id !== 'string' || typeof material.name !== 'string' || typeof material.color !== 'string') return false;
+    if (!isSafeCatalogId(material.id) || material.name.trim().length === 0 || !/^#[0-9a-f]{6}$/i.test(material.color.trim()) || seen.has(material.id)) return false;
+    if ('transparent' in material && material.transparent !== undefined && typeof material.transparent !== 'boolean') return false;
+    seen.add(material.id);
+  }
+  return true;
+}
+
+function idsFromOptionalCatalog(catalog: unknown, defaultId: string): Set<string> {
+  if (!Array.isArray(catalog)) return new Set([defaultId]);
+  return new Set([defaultId, ...catalog.map((entry) => isRecord(entry) && typeof entry.id === 'string' ? entry.id : '')]);
+}
+
+function isSafeCatalogId(value: string): boolean {
+  return value.trim().length > 0 && /^[A-Za-z0-9_.-]+$/.test(value);
 }
 
 function isSafeLayerName(value: string): boolean {

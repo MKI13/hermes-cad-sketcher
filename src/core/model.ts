@@ -1,4 +1,6 @@
 import { add, bbox, distance, rotateAroundZ, scale, sub, type Vec3, vec } from './geometry';
+import { defaultMaterialId, defaultMaterials, materialById, normalizeMaterialCatalog, type MaterialDefinition, type MaterialId } from './materials';
+import { defaultTagId, defaultTags, normalizeTags, type TagDefinition, type TagId } from './tags';
 
 export function isPositiveFinite(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -17,9 +19,9 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 export type EntityId = string;
 export type ComponentId = string;
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
-export type MaterialAssignment = { name: string; color: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
+export type MaterialAssignment = { materialId?: MaterialId; name?: string; color?: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
 
-type CadMetadata = { layer?: string; hidden?: boolean; material?: MaterialAssignment };
+type CadMetadata = { layer?: string; hidden?: boolean; tagId?: TagId; materialId?: MaterialId; material?: MaterialAssignment };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
 export type EdgeEntity = CadMetadata & { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
@@ -57,6 +59,8 @@ export type SketchModelSnapshot = {
   unit: 'mm';
   entities: Entity[];
   components: Component[];
+  tags?: TagDefinition[];
+  materials?: MaterialDefinition[];
 };
 
 let nextNumber = 1;
@@ -77,10 +81,14 @@ export class SketchModel {
   readonly unit = 'mm' as const;
   private entities = new Map<EntityId, Entity>();
   private components = new Map<ComponentId, Component>();
+  private tags: TagDefinition[] = defaultTags();
+  private materials: MaterialDefinition[] = defaultMaterials();
 
   static fromSnapshot(snapshot: SketchModelSnapshot): SketchModel {
     const model = new SketchModel();
-    for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(entity));
+    model.tags = normalizeTags(snapshot.tags);
+    model.materials = normalizeMaterialCatalog(snapshot.materials, { preserveStarterMaterials: true });
+    for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(withDefaultEntityMetadata(entity)));
     for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
     bumpNextNumberPastSnapshot(snapshot);
     return model;
@@ -89,8 +97,10 @@ export class SketchModel {
   snapshot(): SketchModelSnapshot {
     return {
       unit: this.unit,
-      entities: [...this.entities.values()].map((entity) => structuredClone(entity)),
-      components: [...this.components.values()].map((component) => structuredClone(component))
+      entities: [...this.entities.values()].map((entity) => structuredClone(withDefaultEntityMetadata(entity))),
+      components: [...this.components.values()].map((component) => structuredClone(component)),
+      tags: this.tags.map((tag) => ({ ...tag })),
+      materials: this.materials.map((material) => ({ ...material }))
     };
   }
 
@@ -102,13 +112,22 @@ export class SketchModel {
     return [...this.components.values()];
   }
 
+  allTags(): TagDefinition[] {
+    return this.tags.map((tag) => ({ ...tag }));
+  }
+
+  allMaterials(): MaterialDefinition[] {
+    return this.materials.map((material) => ({ ...material }));
+  }
+
   getEntity(id: EntityId): Entity | undefined {
-    return this.entities.get(id);
+    const entity = this.entities.get(id);
+    return entity ? withDefaultEntityMetadata(entity) : undefined;
   }
 
   createLine(start: Vec3, end: Vec3, metadata: CadMetadata = {}): EdgeEntity {
     if (distance(start, end) <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
-    const entity: EdgeEntity = { id: nextId('edge'), type: 'edge', start, end, ...metadata };
+    const entity: EdgeEntity = withDefaultEntityMetadata({ id: nextId('edge'), type: 'edge', start, end, ...metadata });
     this.entities.set(entity.id, entity);
     return entity;
   }
@@ -128,7 +147,7 @@ export class SketchModel {
   createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}, plane: DrawingPlane = 'xy'): FaceEntity {
     if (!isPositiveFinite(Math.abs(width)) || !isPositiveFinite(Math.abs(depth))) throw new Error('Ein Rechteck braucht eine Breite und Tiefe ungleich null.');
     const vertices = rectangleVertices(origin, width, depth, plane);
-    const entity: FaceEntity = { id: nextId('face'), type: 'face', vertices, ...metadata };
+    const entity: FaceEntity = withDefaultEntityMetadata({ id: nextId('face'), type: 'face', vertices, ...metadata });
     this.entities.set(entity.id, entity);
     return entity;
   }
@@ -180,7 +199,10 @@ export class SketchModel {
       depth,
       height: boxHeight,
       rotationZ: 0,
-      componentId: entity.componentId
+      componentId: entity.componentId,
+      tagId: entity.tagId ?? defaultTagId,
+      materialId: entity.materialId ?? defaultMaterialId,
+      material: entity.material
     };
     this.entities.delete(id);
     this.entities.set(extruded.id, extruded);
@@ -194,7 +216,7 @@ export class SketchModel {
 
   createBox(origin: Vec3, width: number, depth: number, height: number): BoxEntity {
     assertPositiveBoxDimensions(width, depth, height);
-    const entity: BoxEntity = { id: nextId('box'), type: 'box', origin, width, depth, height, rotationZ: 0 };
+    const entity: BoxEntity = withDefaultEntityMetadata({ id: nextId('box'), type: 'box', origin, width, depth, height, rotationZ: 0 });
     this.entities.set(entity.id, entity);
     return entity;
   }
@@ -204,7 +226,7 @@ export class SketchModel {
     if (clonedTriangles.length === 0 || !hasOwnArrayEntries(clonedTriangles) || !clonedTriangles.every(isValidReferenceMeshTriangle)) {
       throw new Error('Ein Referenzmesh braucht mindestens ein gültiges Dreieck mit finiten Koordinaten.');
     }
-    const entity: ReferenceMeshEntity = { id: nextId('mesh'), type: 'referenceMesh', name, triangles: clonedTriangles, triangleCount: clonedTriangles.length };
+    const entity: ReferenceMeshEntity = withDefaultEntityMetadata({ id: nextId('mesh'), type: 'referenceMesh', name, triangles: clonedTriangles, triangleCount: clonedTriangles.length });
     this.entities.set(entity.id, entity);
     return entity;
   }
@@ -285,12 +307,47 @@ export class SketchModel {
   }
 
   applyMaterial(id: EntityId, material: MaterialAssignment): Entity {
-    if (!material.name.trim()) throw new Error('Material braucht einen Namen.');
-    if (!/^#[0-9a-f]{6}$/i.test(material.color)) throw new Error('Materialfarbe muss als #RRGGBB angegeben werden.');
+    const materialId = material.materialId ?? this.findOrCreateLegacyMaterial(material);
+    if (!materialById(materialId, this.materials)) throw new Error(`Material nicht gefunden: ${materialId}`);
     const entity = this.requireEntity(id);
-    const painted = { ...entity, material: { ...material, name: material.name.trim() } } as Entity;
+    const painted = { ...entity, materialId, material: material.name || material.color || material.previewUrl || material.textureDataUrl ? { ...material, materialId } : undefined } as Entity;
     this.entities.set(id, painted);
     return painted;
+  }
+
+  upsertTag(tag: TagDefinition): TagDefinition {
+    const normalized = normalizeTags([...this.tags.filter((existing) => existing.id !== tag.id), tag]);
+    this.tags = normalized;
+    return this.tags.find((existing) => existing.id === tag.id)!;
+  }
+
+  assignTag(id: EntityId, tagId: TagId): Entity {
+    if (!this.tags.some((tag) => tag.id === tagId)) {
+      const normalized = normalizeTags([...this.tags, { id: tagId, name: tagId, visible: true }]);
+      if (!normalized.some((tag) => tag.id === tagId)) throw new Error(`Tag nicht gefunden oder ungültig: ${tagId}`);
+      this.tags = normalized;
+    }
+    const entity = this.requireEntity(id);
+    const tagged = { ...entity, tagId } as Entity;
+    this.entities.set(id, tagged);
+    return tagged;
+  }
+
+  upsertMaterial(material: MaterialDefinition): MaterialDefinition {
+    this.materials = normalizeMaterialCatalog([...this.materials.filter((existing) => existing.id !== material.id), material]);
+    return this.materials.find((existing) => existing.id === material.id)!;
+  }
+
+  private findOrCreateLegacyMaterial(material: MaterialAssignment): MaterialId {
+    if (material.materialId) return material.materialId;
+    const name = material.name?.trim();
+    const color = material.color?.trim();
+    if (!name || !color) return defaultMaterialId;
+    const existing = this.materials.find((entry) => entry.name === name && entry.color.toLowerCase() === color.toLowerCase());
+    if (existing) return existing.id;
+    const id = uniqueMaterialId(safeIdFromName(name, 'material'), this.materials);
+    this.upsertMaterial({ id, name, color });
+    return id;
   }
 
   createComponent(name: string, entityIds: EntityId[]): Component {
@@ -362,6 +419,26 @@ export class SketchModel {
     const entity = this.requireEntity(id);
     if (entity.type !== 'box') throw new Error('Push/Pull ist im MVP nur für Körper aktiv.');
     return entity;
+  }
+}
+
+function withDefaultEntityMetadata<T extends Entity>(entity: T): T {
+  return { ...entity, tagId: entity.tagId ?? defaultTagId, materialId: entity.materialId ?? defaultMaterialId } as T;
+}
+
+function safeIdFromName(name: string, fallback: string): string {
+  const id = name.trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, '-').replace(/^-+|-+$/g, '');
+  return id || fallback;
+}
+
+function uniqueMaterialId(baseId: string, materials: readonly MaterialDefinition[]): MaterialId {
+  const existingIds = new Set(materials.map((material) => material.id));
+  if (!existingIds.has(baseId)) return baseId;
+  const prefixed = baseId.startsWith('material-') ? baseId : `material-${baseId}`;
+  if (!existingIds.has(prefixed)) return prefixed;
+  for (let index = 2; ; index += 1) {
+    const candidate = `${prefixed}-${index}`;
+    if (!existingIds.has(candidate)) return candidate;
   }
 }
 

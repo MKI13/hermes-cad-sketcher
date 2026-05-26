@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
+import { defaultMaterials } from '../src/core/materials';
 import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
 import { importAsciiStl } from '../src/core/stl';
@@ -67,6 +69,38 @@ describe('interactive Three.js viewport foundation', () => {
     const mesh = group.children[0] as THREE.Mesh;
     expect(mesh).toBeInstanceOf(THREE.Mesh);
     expect((mesh.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('b45309');
+  });
+
+  it('uses stable materialId catalog colors when no legacy material color is stored on the entity', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 50, 25);
+    model.applyMaterial(box.id, { materialId: 'wood-light' });
+
+    const group = createModelGroup(model, undefined, defaultMaterials());
+
+    const boxObject = group.children[0] as THREE.Group;
+    const mesh = boxObject.children[0] as THREE.Mesh;
+    expect(mesh).toBeInstanceOf(THREE.Mesh);
+    expect((mesh.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('d97706');
+  });
+
+  it('renders push/pull preview entities without requiring a full SketchModel instance', () => {
+    const model = { allEntities: () => [{ id: 'box_1', type: 'box' as const, origin: vec(0, 0, 0), width: 100, depth: 50, height: 25, rotationZ: 0, materialId: 'wood-light' }] };
+
+    const group = createModelGroup(model, undefined, defaultMaterials());
+
+    expect(group.children).toHaveLength(1);
+    const boxObject = group.children[0] as THREE.Group;
+    const mesh = boxObject.children[0] as THREE.Mesh;
+    expect((mesh.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('d97706');
+  });
+
+  it('passes the live material catalog into ThreeViewport push/pull preview rendering', async () => {
+    const source = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
+
+    expect(source).not.toContain('createModelGroup({ allEntities: () => [preview.entity] } as SketchModel, undefined)');
+    expect(source).toContain('createModelGroup({ allEntities: () => [preview.entity] }');
+    expect(source).toContain('model.allMaterials()');
   });
 
   it('renders STL reference meshes as transparent wireframe mesh geometry', () => {
