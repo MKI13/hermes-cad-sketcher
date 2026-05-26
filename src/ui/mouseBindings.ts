@@ -24,7 +24,7 @@ export type MouseToolAction =
   | 'tool:pushPull'
   | 'tool:rotate'
   | 'tool:tape';
-export type MouseAction = 'none' | 'toolAction' | 'contextMenu' | 'orbit' | 'zoom' | MouseToolAction | 'undo' | 'redo' | 'delete';
+export type MouseAction = 'none' | 'toolAction' | 'contextMenu' | 'orbit' | 'pan' | 'zoom' | MouseToolAction | 'undo' | 'redo' | 'delete';
 export type MouseBindings = Partial<Record<MouseInputId, MouseAction>>;
 
 export type MouseInputOption = Readonly<{
@@ -56,6 +56,7 @@ const ACTIONS: MouseAction[] = [
   'toolAction',
   'contextMenu',
   'orbit',
+  'pan',
   'zoom',
   'tool:select',
   'tool:line',
@@ -103,6 +104,7 @@ export function mouseActionLabel(action: MouseAction): string {
     toolAction: 'Standardaktion des aktiven Werkzeugs',
     contextMenu: 'Arbeitsflächen-Kontextmenü',
     orbit: 'Ansicht drehen',
+    pan: 'Ansicht verschieben',
     zoom: 'Zoom',
     'tool:select': 'Werkzeug Auswahl wählen',
     'tool:line': 'Werkzeug Linie wählen',

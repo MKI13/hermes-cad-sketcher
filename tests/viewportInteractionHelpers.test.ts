@@ -10,6 +10,7 @@ import {
   formatActiveMeasurement,
   formatDraftMeasurement,
   formatEntityMeasurement,
+  findViewportSnapPoint,
   snapCueLabel,
   zoomOrbitTowardPoint
 } from '../src/ui/viewportInteractionHelpers';
@@ -88,6 +89,27 @@ describe('SketchUp-like viewport interaction helpers', () => {
   it('uses SketchUp-style inference labels for endpoint and midpoint cues without forcing snapping', () => {
     expect(snapCueLabel('endpoint')).toBe('Endpoint');
     expect(snapCueLabel('midpoint')).toBe('Midpoint');
+    expect(snapCueLabel('axis:x')).toBe('Achse X');
+  });
+
+  it('resolves the snapped viewport point from model endpoints or the active drawing start axis', () => {
+    const model = new SketchModel();
+    const edge = model.createLine(vec(100, 100, 0), vec(500, 100, 0));
+
+    expect(findViewportSnapPoint({ model, pointer: vec(103, 98, 0), toolState: createInitialToolState(), activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 100, 0), kind: 'endpoint', entityId: edge.id });
+
+    const firstStep = handleGroundClick(createInitialToolState(), 'line', vec(100, 20, 0));
+    expect(findViewportSnapPoint({ model, pointer: vec(246, 18, 4), toolState: firstStep.state, activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(250, 20, 0), kind: 'axis', axis: 'x' });
+  });
+
+  it('keeps ThreeViewport live drawing and cue paths wired to the shared snap helper', async () => {
+    const source = await import('node:fs/promises').then((fs) => fs.readFile('src/ui/ThreeViewport.tsx', 'utf8'));
+
+    expect(source).toContain('findViewportSnapPoint');
+    expect(source).toContain('resolveViewportSnap(rawGroundPoint)');
+    expect(source).toContain('const groundPoint = snap?.point;');
+    expect(source).toContain('snapCueLabel(cueKind)');
+    expect(source).not.toContain('const snap = snapPointToModel(rawGroundPoint, model);');
   });
 
   it('builds a right-click workspace menu with general drawing tools and selected-model editing functions', () => {

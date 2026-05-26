@@ -11,12 +11,14 @@ import {
   disposeObjectTree,
   getEntityIdFromObject,
   orbitCameraDrag,
+  panOrbitCameraDrag,
   screenPointToDrawingPlane,
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, findViewportSnapPoint, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapCueLabel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type SnapPointKind, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 import { beginPushPullDrag, finishPushPullDrag, pointForPushPullPointerDelta, updatePushPullDrag, type PushPullDragState } from './pushPullInteraction';
+import { type SnapResult as CoreSnapResult } from '../core/snapping';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -48,7 +50,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       : undefined
   );
   const orbitRef = useRef<OrbitCameraState>(createOrbitCameraState({ radius: 4200 }));
-  const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ x: number; y: number; mode: 'orbit' | 'pan' } | null>(null);
   const pushPullDragRef = useRef<PushPullDragState | undefined>(undefined);
   const pushPullPointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
@@ -253,6 +255,21 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       return pointForPushPullPointerDelta(state, { x: event.clientX - start.x, y: event.clientY - start.y });
     };
 
+    const resolveViewportSnap = (rawGroundPoint: Vec3): CoreSnapResult => findViewportSnapPoint({
+      model,
+      pointer: rawGroundPoint,
+      toolState: toolStateRef.current,
+      activeTool: activeToolRef.current,
+      gridSize: 50,
+      tolerance: 35
+    });
+
+    const axisCueKind = (snap: CoreSnapResult): SnapPointKind | undefined => {
+      if (snap.kind === 'axis') return `axis:${snap.axis}`;
+      if (snap.kind === 'endpoint' || snap.kind === 'midpoint') return snap.kind;
+      return undefined;
+    };
+
     const pickMeasurementAtPointer = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -281,7 +298,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         camera,
         drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? rectangleAwarePoint(rawGroundPoint) : undefined;
+      const groundPoint = rawGroundPoint ? rectangleAwarePoint(resolveViewportSnap(rawGroundPoint).point) : undefined;
       const usesGroundPoint =
         activeToolRef.current === 'line' ||
         activeToolRef.current === 'rectangle' ||
@@ -323,8 +340,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const pointerDown = (event: PointerEvent) => {
       if (event.button !== 2) setContextMenu(undefined);
       const action = resolveMouseInputAction(mouseBindingsRef.current, event.button);
-      if (action === 'orbit') {
-        dragRef.current = { x: event.clientX, y: event.clientY };
+      if (action === 'orbit' || action === 'pan') {
+        dragRef.current = { x: event.clientX, y: event.clientY, mode: action };
         renderer.domElement.setPointerCapture(event.pointerId);
         event.preventDefault();
         return;
@@ -346,30 +363,36 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const pointerMove = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       if (dragRef.current) {
-        const last = dragRef.current;
-        orbitRef.current = orbitCameraDrag(orbitRef.current, {
-          deltaX: event.clientX - last.x,
-          deltaY: event.clientY - last.y,
+        const drag = dragRef.current;
+        const cameraDrag = {
+          deltaX: event.clientX - drag.x,
+          deltaY: event.clientY - drag.y,
           viewportWidth: host.clientWidth,
           viewportHeight: host.clientHeight
-        });
-        dragRef.current = { x: event.clientX, y: event.clientY };
+        };
+        orbitRef.current = drag.mode === 'pan' ? panOrbitCameraDrag(orbitRef.current, cameraDrag) : orbitCameraDrag(orbitRef.current, cameraDrag);
+        dragRef.current = { x: event.clientX, y: event.clientY, mode: drag.mode };
         applyOrbitToCamera(camera, orbitRef.current);
         render();
         return;
       }
 
-      const drag = pushPullDragRef.current;
-      const dragPoint = drag ? pointForPushPullDrag(event, drag) : undefined;
+      const pushPullDrag = pushPullDragRef.current;
+      const dragPoint = pushPullDrag ? pointForPushPullDrag(event, pushPullDrag) : undefined;
       const rawGroundPoint = dragPoint ?? screenPointToDrawingPlane(
         { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
         camera,
         drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint;
-      if (rawGroundPoint) {
-        const snap = snapPointToModel(rawGroundPoint, model);
-        setSnapCue(snap.snapped ? { x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 18, label: snapCueLabel(snap.kind) } : undefined);
+      const snap = rawGroundPoint ? resolveViewportSnap(rawGroundPoint) : undefined;
+      const groundPoint = snap?.point;
+      if (snap) {
+        const cueKind = axisCueKind(snap);
+        if (cueKind) {
+          setSnapCue({ x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 18, label: snapCueLabel(cueKind) });
+        } else {
+          setSnapCue(undefined);
+        }
       } else {
         setSnapCue(undefined);
       }
