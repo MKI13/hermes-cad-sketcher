@@ -12,6 +12,15 @@ describe('DXF UI import policy', () => {
     expect(statusFromDxfImportReport(report, 'inch.dxf')).toContain('$INSUNITS=1');
   });
 
+  it('does not replace the current model when DXF units are malformed', () => {
+    const report = importDxfWithReport('0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n999\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n');
+
+    expect(report.unitStatus.kind).toBe('malformed');
+    expect(shouldApplyDxfImportReport(report)).toBe(false);
+    expect(statusFromDxfImportReport(report, 'malformed-units.dxf')).toContain('DXF abgelehnt');
+    expect(statusFromDxfImportReport(report, 'malformed-units.dxf')).toContain('Malformed DXF units');
+  });
+
   it('allows millimeter and missing-unit DXF reports to be applied with visible status text', () => {
     const report = importDxfWithReport('0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n250\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n');
 
