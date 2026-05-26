@@ -1,4 +1,4 @@
-import { SketchModel, type SketchModelSnapshot } from './model';
+import { SketchModel, isValidWoodworkingMetadata, type SketchModelSnapshot } from './model';
 import { distance, sub, vec, type Vec3 } from './geometry';
 
 export const PROJECT_FILE_VERSION = 1;
@@ -72,6 +72,7 @@ function isEntityPayload(value: unknown, knownTagIds: ReadonlySet<string>, known
   if (!isRecord(value) || typeof value.id !== 'string') return false;
   if ('componentId' in value && value.componentId !== undefined && typeof value.componentId !== 'string') return false;
   if (!hasValidLayerMetadata(value)) return false;
+  if ('woodworking' in value && value.woodworking !== undefined && !isValidWoodworkingMetadata(value.woodworking)) return false;
   if (!hasValidEntityTagAndMaterialMetadata(value, knownTagIds, knownMaterialIds)) return false;
 
   if (value.type === 'edge') {
@@ -100,7 +101,8 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
     typeof value.name === 'string' &&
     Array.isArray(value.entityIds) &&
     value.entityIds.length > 0 &&
-    value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId))
+    value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId)) &&
+    (!('woodworking' in value) || value.woodworking === undefined || isValidWoodworkingMetadata(value.woodworking))
   );
 }
 
