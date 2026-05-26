@@ -197,6 +197,11 @@ export function getFaceSelectionFromObject(object: THREE.Object3D | undefined): 
   return undefined;
 }
 
+export function isSameFaceSelection(left: FaceSelection | undefined, right: FaceSelection | undefined): boolean {
+  if (!left || !right) return left === right;
+  return left.entityId === right.entityId && left.face === right.face;
+}
+
 export function faceSelectionLabel(selection?: FaceSelection): string {
   if (!selection) return 'Fläche: keine Körperfläche';
   const labels: Record<BoxFaceName, string> = {
