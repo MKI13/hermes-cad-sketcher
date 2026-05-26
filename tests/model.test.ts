@@ -16,15 +16,41 @@ describe('SketchModel geometry tools', () => {
     expect(face.vertices).toEqual([vec(10, 20, 0), vec(1010, 20, 0), vec(1010, 520, 0), vec(10, 520, 0)]);
   });
 
-  it('extrudes an axis-aligned rectangle face into a box and removes the source face', () => {
+  it('extrudes an xy rectangle face into a box and removes the source face', () => {
     const model = new SketchModel();
-    const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
+    const face = model.createRectangle(vec(10, 20, 0), 1000, 500, {}, 'xy');
 
     const box = model.extrudeFaceToBox(face.id, 300);
 
     expect(box).toMatchObject({ type: 'box', origin: vec(10, 20, 0), width: 1000, depth: 500, height: 300 });
     expect(model.getEntity(face.id)).toBeUndefined();
     expect(model.getEntity(box.id)).toEqual(box);
+  });
+
+  it('extrudes xz and yz rectangle faces along the remaining axis', () => {
+    const model = new SketchModel();
+    const xzFace = model.createRectangle(vec(10, 20, 30), 1200, 600, {}, 'xz');
+    const yzFace = model.createRectangle(vec(40, 50, 60), 900, 450, {}, 'yz');
+
+    const xzBox = model.extrudeFaceToBox(xzFace.id, 240);
+    const yzBox = model.extrudeFaceToBox(yzFace.id, 180);
+
+    expect(xzBox).toMatchObject({ type: 'box', origin: vec(10, 20, 30), width: 1200, depth: 240, height: 600 });
+    expect(yzBox).toMatchObject({ type: 'box', origin: vec(40, 50, 60), width: 180, depth: 900, height: 450 });
+    expect(model.getEntity(xzFace.id)).toBeUndefined();
+    expect(model.getEntity(yzFace.id)).toBeUndefined();
+  });
+
+  it('replaces component membership when a component rectangle face is extruded', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
+    const component = model.createComponent('Frontplatte', [face.id]);
+
+    const box = model.extrudeFaceToBox(face.id, 300);
+
+    expect(box.componentId).toBe(component.id);
+    expect(model.allComponents()).toEqual([{ ...component, entityIds: [box.id] }]);
+    expect(model.getEntity(face.id)).toBeUndefined();
   });
 
   it('rejects rotated rectangle face extrusion instead of silently creating an axis-aligned bbox body', () => {

@@ -139,4 +139,18 @@ describe('Hermes CAD project files', () => {
       }
     }))).toThrow('Projektdatei enthält ungültige Komponenten.');
   });
+
+  it('round-trips a rectangle extruded to a component-backed body', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1200, 600, {}, 'xy');
+    const component = model.createComponent('Extrusionsfläche', [face.id]);
+    const box = model.extrudeFaceToBox(face.id, 720);
+
+    const roundTrip = importProjectFile(exportProjectFile(model));
+
+    expect(roundTrip.snapshot()).toEqual(model.snapshot());
+    expect(roundTrip.getEntity(face.id)).toBeUndefined();
+    expect(roundTrip.getEntity(box.id)).toMatchObject({ type: 'box', width: 1200, depth: 600, height: 720, componentId: component.id });
+    expect(roundTrip.allComponents()).toEqual([{ ...component, entityIds: [box.id] }]);
+  });
 });

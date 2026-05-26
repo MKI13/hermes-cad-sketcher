@@ -53,4 +53,20 @@ describe('model history', () => {
     expect(branched.canRedo).toBe(false);
     expect(branched.future).toEqual([]);
   });
+
+  it('undoes and redoes rectangle face extrusion snapshots', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 1200, 600);
+    const initial = model.snapshot();
+
+    const box = model.extrudeFaceToBox(face.id, 720);
+    const extruded = model.snapshot();
+
+    const history = pushHistory(createHistory(initial), extruded);
+    const undone = undoHistory(history);
+    const redone = redoHistory(undone.history);
+
+    expect(undone.snapshot.entities).toEqual([face]);
+    expect(redone.snapshot.entities).toEqual([box]);
+  });
 });
