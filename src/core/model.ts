@@ -1,6 +1,9 @@
 import { add, bbox, distance, rotateAroundZ, scale, sub, type Vec3, vec } from './geometry';
 import { defaultMaterialId, defaultMaterials, materialById, normalizeMaterialCatalog, type MaterialDefinition, type MaterialId } from './materials';
 import { defaultTagId, defaultTags, normalizeTags, type TagDefinition, type TagId } from './tags';
+import { normalizePartMaterialMetadata } from './woodworkingMaterials';
+import type { PartMaterialMetadata } from './woodworkingMaterials';
+export { partMaterialReadinessForEntity, type PartMaterialMetadata } from './woodworkingMaterials';
 
 export function isPositiveFinite(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -84,7 +87,15 @@ function formatWoodworkingDimension(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
-type CadMetadata = { layer?: string; hidden?: boolean; tagId?: TagId; materialId?: MaterialId; material?: MaterialAssignment; woodworking?: WoodworkingMetadata };
+type CadMetadata = {
+  layer?: string;
+  hidden?: boolean;
+  tagId?: TagId;
+  materialId?: MaterialId;
+  material?: MaterialAssignment;
+  woodworking?: WoodworkingMetadata;
+  partMaterial?: PartMaterialMetadata;
+};
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
 export type EdgeEntity = CadMetadata & { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
@@ -310,7 +321,8 @@ export class SketchModel {
       componentId: entity.componentId,
       tagId: entity.tagId ?? defaultTagId,
       materialId: entity.materialId ?? defaultMaterialId,
-      material: entity.material
+      material: entity.material,
+      partMaterial: entity.partMaterial
     };
     this.entities.delete(id);
     this.entities.set(extruded.id, extruded);
@@ -426,6 +438,13 @@ export class SketchModel {
     const painted = { ...entity, materialId, material: material.name || material.color || material.previewUrl || material.textureDataUrl ? { ...material, materialId } : undefined } as Entity;
     this.entities.set(id, painted);
     return painted;
+  }
+
+  assignPartMaterial(id: EntityId, metadata: PartMaterialMetadata): Entity {
+    const entity = this.requireEntity(id);
+    const updated = { ...entity, partMaterial: normalizePartMaterialMetadata(metadata) } as Entity;
+    this.entities.set(id, updated);
+    return updated;
   }
 
   upsertTag(tag: TagDefinition): TagDefinition {
