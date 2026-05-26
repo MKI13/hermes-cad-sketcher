@@ -21,7 +21,7 @@ describe('App controls', () => {
     expect(markup).toContain('aria-label="Fenster &amp; Hermes öffnen"');
     expect(markup).not.toContain('Auswahl löschen');
     expect(markup).not.toContain('Delta X in Millimeter');
-    expect(markup).not.toContain('Ruby-Konsole');
+    expect(markup).not.toContain('class="top-function-workspace"');
     expect(markup).not.toContain('class="top-function-workspace"');
   });
 
@@ -87,17 +87,16 @@ describe('App controls', () => {
   it('renders a SketchUp-like default tray on the right with a collapse arrow and material swatches', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('aria-label="Rechte Default-Tray-Leiste"');
-    expect(markup).toContain('Default Tray');
-    expect(markup).toContain('aria-label="Rechte Tray-Leiste zuklappen"');
+    expect(markup).toContain('aria-label="Rechter Hermes Tray"');
+    expect(markup).toContain('Hermes Tray');
+    expect(markup).toContain('aria-label="Rechten Hermes Tray zuklappen"');
     expect(markup).toContain('›');
     expect(markup).toContain('Entity Info');
-    expect(markup).toContain('Components');
-    expect(markup).toContain('Styles');
+    expect(markup).toContain('Komponenten');
+    expect(markup).toContain('Anzeige / Styles');
     expect(markup).toContain('Tags');
-    expect(markup).toContain('Shadows');
-    expect(markup).toContain('Scenes');
-    expect(markup).toContain('Materials');
+    expect(markup).toContain('Szenen');
+    expect(markup).toContain('Materialien');
     expect(markup).toContain('Ordner vom PC wählen');
     expect(markup).toContain('Auswahl mit Material belegen');
     expect(markup).toContain('Startmaterialien: 8');

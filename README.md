@@ -49,6 +49,7 @@ Vorhanden im Code:
 - Auswahl/Picking im Viewport mit sichtbarer Markierung
 - anpassbare obere Schnell-Werkzeugleiste mit kleinen Icons, Drag-and-drop-Reihenfolge und Tastenkürzeln
 - SketchUp-inspirierter, aber eigenständig gestalteter klassischer CAD-Arbeitsplatz ganz oben mit Menüleiste; jeder Menübutton öffnet seinen passenden Funktionsbereich, z. B. `Datei` für Datei & Import/Export und `Bearbeiten` für Bearbeiten & Maße
+- rechter Hermes Tray mit einklappbaren Panels für Entity Info/Inspector, Outliner, Komponenten, Tags, Materialien, Szenen, Anzeige/Styles und Hermes Agent; der Viewport bleibt im Layout priorisiert und Floating Windows bleiben optional
 - Bearbeiten-Menü zeigt zuerst Button-Verknüpfungen; die eigentlichen Bearbeiten-/Maße-/Inspektor-Funktionen öffnen danach als verschiebbare, minimierbare und per CSS-Griff skalierbare Fenster
 - seitliche Arbeitsleiste als reine Icon-Leiste für schnelle Werkzeugwahl; ausführliche Eingabe- und Dateifunktionen sitzen oben im passenden Menübereich oder in externen Fenstern
 - linke Maustaste führt die Standardaktion des aktiven Werkzeugs aus: Auswahl anklicken, Linien/Körperpunkte setzen, Körperflächen auswählen und anschließend ziehen
