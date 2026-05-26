@@ -37,11 +37,16 @@ export function MeasurementBox({ activeMeasurement, value, status, onValueChange
           onChange={(event) => onValueChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             const action = shouldMeasurementBoxHandleKey(event);
+            if (action.type === 'apply') {
+              event.preventDefault();
+              event.stopPropagation();
+              onApply();
+            }
             if (action.type === 'cancel') {
+              event.preventDefault();
               event.stopPropagation();
               onCancel?.();
             }
-            if (action.type !== 'text') event.preventDefault();
           }}
           placeholder="1200 · 1200,600 · <100,0,0> · 45°"
           aria-label="Maß oder Koordinaten in Millimeter"
