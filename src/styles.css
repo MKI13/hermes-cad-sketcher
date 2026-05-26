@@ -15,7 +15,11 @@ button { font: inherit; }
 .top-toolbar { grid-column: 1 / -1; background: linear-gradient(#f8fafc, #d7dbe2); color: #111827; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 3px 6px 5px; border-bottom: 1px solid #9ca3af; box-shadow: inset 0 -1px #f8fafc; }
 .top-toolbar-title h1 { margin: 0; font-size: 14px; font-weight: 700; }
 .top-toolbar .subtitle { margin: 1px 0 0; color: #475569; line-height: 1.25; font-size: 11px; }
-.quick-toolbar { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.quick-toolbar { display: flex; align-items: stretch; gap: 5px; flex-wrap: wrap; }
+.quick-toolbar.grouped { align-items: stretch; }
+.toolbar-group { display: flex; align-items: center; gap: 3px; padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: rgba(255, 255, 255, 0.52); }
+.toolbar-group-title { color: #475569; font-size: 10px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
+.toolbar-group-tools { display: flex; align-items: center; gap: 3px; }
 .quick-toolbar .tool-icon { border: 1px solid #a1a1aa; background: linear-gradient(#ffffff, #dfe3e8); color: #1f2937; border-radius: 2px; min-width: 28px; min-height: 26px; padding: 3px; display: grid; grid-template-columns: 1fr; gap: 0; align-items: center; justify-content: center; cursor: grab; position: relative; box-shadow: inset 0 1px #ffffff; }
 .quick-toolbar .tool-icon:active { cursor: grabbing; }
 .quick-toolbar .tool-icon:hover, .quick-toolbar .tool-icon.active { background: #0369a1; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18); }
