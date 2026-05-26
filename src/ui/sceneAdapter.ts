@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { type BoxEntity, type BoxFaceName, type Entity } from '../core/model';
+import type { MaterialDefinition } from '../core/materials';
 
 type FaceSpec = Readonly<{ name: BoxFaceName; points: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3] }>;
 
@@ -7,8 +8,9 @@ function cadPointToThree(point: { x: number; y: number; z: number }): THREE.Vect
   return new THREE.Vector3(point.x, point.z, point.y);
 }
 
-export function entityToObject(entity: Entity): THREE.Object3D {
-  const materialColor = entity.material?.color;
+export function entityToObject(entity: Entity, materials: readonly MaterialDefinition[] = []): THREE.Object3D {
+  const materialDefinition = entity.materialId ? materials.find((material) => material.id === entity.materialId) : undefined;
+  const materialColor = entity.material?.color ?? materialDefinition?.color;
   if (entity.type === 'edge') {
     const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(entity.start.x, entity.start.z, entity.start.y), new THREE.Vector3(entity.end.x, entity.end.z, entity.end.y)]);
     return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: materialColor ?? 0x0f172a }));
@@ -31,10 +33,10 @@ export function entityToObject(entity: Entity): THREE.Object3D {
     geometry.computeVertexNormals();
     return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x94a3b8, side: THREE.DoubleSide, transparent: true, opacity: 0.42, wireframe: true }));
   }
-  return boxToLineBuiltObject(entity);
+  return boxToLineBuiltObject(entity, materialColor);
 }
 
-function boxToLineBuiltObject(entity: BoxEntity): THREE.Group {
+function boxToLineBuiltObject(entity: BoxEntity, materialColor?: string): THREE.Group {
   const group = new THREE.Group();
   group.userData.solidFutureReady = true;
   group.position.set(entity.origin.x + entity.width / 2, entity.origin.z + entity.height / 2, entity.origin.y + entity.depth / 2);
@@ -66,7 +68,7 @@ function boxToLineBuiltObject(entity: BoxEntity): THREE.Group {
     { name: 'bottom', points: [p.lbb, p.rbb, p.rbf, p.lbf] }
   ];
 
-  for (const face of faces) group.add(createFaceMesh(face, entity.material?.color));
+  for (const face of faces) group.add(createFaceMesh(face, materialColor));
 
   const edgePoints = [
     p.lbf, p.rbf, p.rbf, p.rbb, p.rbb, p.lbb, p.lbb, p.lbf,

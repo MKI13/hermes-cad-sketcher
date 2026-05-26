@@ -159,7 +159,7 @@ npm run agent:bridge
 
 ### Aktuell unterstützt
 
-- `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen und Komponenten.
+- `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen, Komponenten, Tags und Materialkatalog.
 - `.dxf`: einfacher Export in der UI, einfacher UI-Import mit Statusbericht, fail-closed `$INSUNITS`-Prüfung, `LINE` und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor; Layernamen dieser MVP-Entitäten bleiben als Metadaten erhalten und werden im Inspector sowie beim DXF-Export wieder ausgegeben.
 - `.stl`: ASCII-STL-Export für Boxkörper und ASCII-STL-Import als nicht editierbares Referenzmesh mit Dreieckszahl; kein Binary-STL, kein Solid-Healing und keine Konvertierung in editierbare Körper.
 

@@ -70,7 +70,7 @@ describe('SketchModel geometry tools', () => {
     const skewedModel = SketchModel.fromSnapshot({ ...snapshot, entities: [skewed] });
 
     expect(() => skewedModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
-    expect(skewedModel.getEntity(face.id)).toEqual(skewed);
+    expect(skewedModel.getEntity(face.id)).toEqual({ ...skewed, tagId: 'untagged', materialId: 'default' });
   });
 
   it('rejects degenerate rectangle faces before extrusion can replace the face', () => {
@@ -80,7 +80,7 @@ describe('SketchModel geometry tools', () => {
     const degenerateModel = SketchModel.fromSnapshot({ ...model.snapshot(), entities: [degenerate] });
 
     expect(() => degenerateModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
-    expect(degenerateModel.getEntity(face.id)).toEqual(degenerate);
+    expect(degenerateModel.getEntity(face.id)).toEqual({ ...degenerate, tagId: 'untagged', materialId: 'default' });
   });
 
   it('rejects self-intersecting rectangle-corner face order before extrusion can replace the face', () => {
@@ -92,9 +92,9 @@ describe('SketchModel geometry tools', () => {
     const tinyBowTieModel = SketchModel.fromSnapshot({ ...model.snapshot(), entities: [tinyBowTie] });
 
     expect(() => bowTieModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
-    expect(bowTieModel.getEntity(face.id)).toEqual(bowTie);
+    expect(bowTieModel.getEntity(face.id)).toEqual({ ...bowTie, tagId: 'untagged', materialId: 'default' });
     expect(() => tinyBowTieModel.extrudeFaceToBox(face.id, 300)).toThrow('axis-aligned');
-    expect(tinyBowTieModel.getEntity(face.id)).toEqual(tinyBowTie);
+    expect(tinyBowTieModel.getEntity(face.id)).toEqual({ ...tinyBowTie, tagId: 'untagged', materialId: 'default' });
   });
 
   it('rejects face extrusion heights that are zero or negative', () => {
@@ -329,4 +329,37 @@ describe('SketchModel geometry tools', () => {
     ]);
   });
 
+  it('assigns Untagged by default and persists stable material ids through snapshots', () => {
+    const model = new SketchModel();
+    const edge = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    model.assignTag(box.id, 'casework');
+    model.applyMaterial(box.id, { materialId: 'wood-light' });
+
+    expect(model.getEntity(edge.id)).toMatchObject({ tagId: 'untagged' });
+    expect(model.getEntity(box.id)).toMatchObject({ tagId: 'casework', materialId: 'wood-light' });
+    expect(SketchModel.fromSnapshot(model.snapshot()).snapshot()).toEqual(model.snapshot());
+  });
+
+  it('rejects unsafe tag ids before assigning them to entities', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    expect(() => model.assignTag(box.id, 'bad id')).toThrow('Tag nicht gefunden oder ungültig: bad id');
+    expect(model.getEntity(box.id)).toMatchObject({ tagId: 'untagged' });
+  });
+
+  it('does not let legacy material names overwrite starter material ids', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+
+    model.applyMaterial(box.id, { name: 'wood-light', color: '#111111' });
+
+    expect(model.allMaterials().filter((material) => material.id === 'wood-light')).toEqual([
+      { id: 'wood-light', name: 'Holz hell', color: '#d97706' }
+    ]);
+    expect(model.getEntity(box.id)?.materialId).not.toBe('wood-light');
+    expect(model.getEntity(box.id)?.materialId).toMatch(/^material-/);
+  });
 });

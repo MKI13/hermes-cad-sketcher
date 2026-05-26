@@ -36,11 +36,21 @@ describe('material library folder import', () => {
     expect(categoryFromMaterialPath('oak.jpg')).toBe('Eigener Ordner');
   });
 
-  it('provides SketchUp-like default wood and dark material swatches that can be applied to a selection', () => {
+  it('provides the stable starter material swatches that can be applied to a selection', () => {
     const swatches = buildDefaultMaterialSwatches();
 
-    expect(swatches.map((swatch) => swatch.name)).toContain('Holz warm');
-    expect(swatches.map((swatch) => swatch.name)).toContain('Dunkel');
+    expect(swatches.map((swatch) => swatch.id)).toEqual([
+      'default',
+      'wood-light',
+      'wood-dark',
+      'mdf',
+      'multiplex',
+      'glass-transparent',
+      'metal',
+      'white-lacquered'
+    ]);
+    expect(swatches.map((swatch) => swatch.name)).toContain('Glas transparent');
+    expect(swatches.map((swatch) => swatch.name)).toContain('Weiß lackiert');
     expect(swatches.every((swatch) => swatch.color.startsWith('#'))).toBe(true);
   });
 

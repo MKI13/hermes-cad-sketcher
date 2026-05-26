@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFile } from 'node:fs/promises';
-import App, { createInitialSketchModel } from '../src/App';
+import App, { createInitialSketchModel, materialLabelForEntity } from '../src/App';
 
 describe('App controls', () => {
   it('starts a new project with an empty model instead of sample furniture geometry', () => {
@@ -100,11 +100,31 @@ describe('App controls', () => {
     expect(markup).toContain('Materials');
     expect(markup).toContain('Ordner vom PC wählen');
     expect(markup).toContain('Auswahl mit Material belegen');
-    expect(markup).toContain('Holz warm');
-    expect(markup).toContain('Dunkel');
+    expect(markup).toContain('Startmaterialien: 8');
+    expect(markup).toContain('Holz hell');
+    expect(markup).toContain('Glas transparent');
+    expect(markup).toContain('Weiß lackiert');
     expect(markup).toContain('accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"');
     expect(markup).toContain('Materialordner: Standard-Farbfelder');
     expect(markup).toContain('class="material-swatch"');
+  });
+
+  it('shows the selected entity material from the stable starter catalog when no legacy display name exists', () => {
+    const model = createInitialSketchModel();
+    const box = model.createBox({ x: 0, y: 0, z: 0 }, 600, 400, 200);
+    model.applyMaterial(box.id, { materialId: 'wood-light' });
+    const selected = model.getEntity(box.id);
+
+    expect(selected ? materialLabelForEntity(selected, model.allMaterials()) : undefined).toBe('Holz hell');
+  });
+
+  it('shows prepared model tag metadata in the right tray without overclaiming visibility toggles', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Tags: 1 · sichtbar: 1');
+    expect(markup).toContain('Untagged');
+    expect(markup).toContain('Tag-Sichtbarkeit ist im Modell vorbereitet; UI-Umschalter folgen separat.');
+    expect(markup).not.toContain('Tag-Verwaltung ist vorbereitet.');
   });
 
   it('shows the active drawing plane with SketchUp-style axis colors', () => {

@@ -153,4 +153,91 @@ describe('Hermes CAD project files', () => {
     expect(roundTrip.getEntity(box.id)).toMatchObject({ type: 'box', width: 1200, depth: 600, height: 720, componentId: component.id });
     expect(roundTrip.allComponents()).toEqual([{ ...component, entityIds: [box.id] }]);
   });
+
+  it('round-trips tags, material catalog, and stable entity material ids', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+    model.upsertTag({ id: 'casework', name: 'Casework', visible: true });
+    model.assignTag(box.id, 'casework');
+    model.upsertMaterial({ id: 'oak', name: 'Oak', color: '#b45309' });
+    model.applyMaterial(box.id, { materialId: 'oak' });
+
+    const roundTrip = importProjectFile(exportProjectFile(model));
+
+    expect(roundTrip.snapshot()).toEqual(model.snapshot());
+    expect(roundTrip.snapshot().tags).toContainEqual({ id: 'casework', name: 'Casework', visible: true });
+    expect(roundTrip.snapshot().materials).toContainEqual({ id: 'oak', name: 'Oak', color: '#b45309' });
+    expect(roundTrip.getEntity(box.id)).toMatchObject({ tagId: 'casework', materialId: 'oak' });
+  });
+
+  it('imports old project payloads without catalogs by hydrating default tags and materials', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 200);
+    const parsed = JSON.parse(exportProjectFile(model));
+    delete parsed.model.tags;
+    delete parsed.model.materials;
+    const firstEntity = parsed.model.entities[0];
+    delete firstEntity.tagId;
+    delete firstEntity.materialId;
+
+    const imported = importProjectFile(JSON.stringify(parsed));
+
+    const importedSnapshot = imported.snapshot();
+    expect(importedSnapshot.tags).toEqual([{ id: 'untagged', name: 'Untagged', visible: true }]);
+    expect(importedSnapshot.materials?.map((material) => material.id)).toContain('default');
+    expect(imported.getEntity(box.id)).toMatchObject({ tagId: 'untagged', materialId: 'default' });
+  });
+
+  it('rejects malformed tag and material catalogs instead of silently dropping entries', () => {
+    const model = new SketchModel();
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, tags: [{ id: 'bad id', name: 'Bad', visible: true }] }
+    }))).toThrow('Projektdatei enthält ungültige Tags.');
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, materials: [{ id: 'oak', name: 'Oak', color: 'brown' }] }
+    }))).toThrow('Projektdatei enthält ungültige Materialien.');
+  });
+
+  it('rejects entity tag and material ids that are malformed or missing from the project catalogs', () => {
+    const model = new SketchModel();
+    model.createBox(vec(0, 0, 0), 600, 400, 200);
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [{ ...parsed.model.entities[0], tagId: 'missing-tag' }] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [{ ...parsed.model.entities[0], materialId: 'missing-material' }] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+
+  it('rejects malformed legacy entity material payloads before restoring the model', () => {
+    const model = new SketchModel();
+    model.createBox(vec(0, 0, 0), 600, 400, 200);
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: {
+        ...parsed.model,
+        entities: [{ ...parsed.model.entities[0], material: { name: 'Oak', color: 'brown' } }]
+      }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: {
+        ...parsed.model,
+        entities: [{ ...parsed.model.entities[0], material: { name: 'Oak', color: '#b45309', textureDataUrl: 'https://example.test/oak.png' } }]
+      }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
 });
