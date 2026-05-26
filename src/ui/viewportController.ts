@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { type Vec3 } from '../core/geometry';
+import { add, scale, type Vec3 } from '../core/geometry';
 import { type DrawingPlane, type SketchModel } from '../core/model';
 import type { MaterialDefinition } from '../core/materials';
 import { entityToObject } from './sceneAdapter';
@@ -47,6 +47,22 @@ export function orbitCameraDrag(state: OrbitCameraState, drag: OrbitDrag): Orbit
     azimuth: state.azimuth + azimuthDelta,
     polar: clamp(state.polar + polarDelta, MIN_POLAR, MAX_POLAR)
   };
+}
+
+export function panOrbitCameraDrag(state: OrbitCameraState, drag: OrbitDrag): OrbitCameraState {
+  const width = Math.max(1, drag.viewportWidth);
+  const height = Math.max(1, drag.viewportHeight);
+  const position = cameraPositionFromOrbit(state);
+  const target = new THREE.Vector3(state.target.x, state.target.z, state.target.y);
+  const forward = target.clone().sub(position).normalize();
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const right = new THREE.Vector3().crossVectors(forward, worldUp).normalize();
+  const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+  const panScale = state.radius / Math.max(width, height);
+  const cadRight = threeVectorToCadPoint(right);
+  const cadUp = threeVectorToCadPoint(up);
+  const delta = add(scale(cadRight, -drag.deltaX * panScale), scale(cadUp, drag.deltaY * panScale));
+  return { ...state, target: add(state.target, delta) };
 }
 
 export function cameraPositionFromOrbit(state: OrbitCameraState): THREE.Vector3 {
@@ -162,6 +178,10 @@ function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
 
 function threePointToCadPoint(point: THREE.Vector3): Vec3 {
   return { x: point.x, y: point.z, z: point.y };
+}
+
+function threeVectorToCadPoint(vector: THREE.Vector3): Vec3 {
+  return { x: vector.x, y: vector.z, z: vector.y };
 }
 
 function clamp(value: number, min: number, max: number): number {
