@@ -1,6 +1,9 @@
 import { add, bbox, distance, rotateAroundZ, scale, sub, type Vec3, vec } from './geometry';
 import { defaultMaterialId, defaultMaterials, materialById, normalizeMaterialCatalog, type MaterialDefinition, type MaterialId } from './materials';
 import { defaultTagId, defaultTags, normalizeTags, type TagDefinition, type TagId } from './tags';
+import { normalizeCutOperation } from './cutOperations';
+import type { CutOperation } from './cutOperations';
+export { boardEntitiesForCutList, cutOperationReadinessForEntity, type CutOperation } from './cutOperations';
 
 export function isPositiveFinite(value: number): boolean {
   return Number.isFinite(value) && value > 0;
@@ -84,7 +87,7 @@ function formatWoodworkingDimension(value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
-type CadMetadata = { layer?: string; hidden?: boolean; tagId?: TagId; materialId?: MaterialId; material?: MaterialAssignment; woodworking?: WoodworkingMetadata };
+type CadMetadata = { layer?: string; hidden?: boolean; tagId?: TagId; materialId?: MaterialId; material?: MaterialAssignment; woodworking?: WoodworkingMetadata; cutOperations?: CutOperation[] };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
 export type EdgeEntity = CadMetadata & { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
@@ -266,7 +269,8 @@ export class SketchModel {
       componentId: entity.componentId,
       tagId: entity.tagId ?? defaultTagId,
       materialId: entity.materialId ?? defaultMaterialId,
-      material: entity.material
+      material: entity.material,
+      cutOperations: entity.cutOperations
     };
     this.entities.delete(id);
     this.entities.set(extruded.id, extruded);
@@ -402,6 +406,14 @@ export class SketchModel {
     const classified = { ...entity, woodworking: createWoodworkingMetadata(kind, role) } as Entity;
     this.entities.set(id, classified);
     return classified;
+  }
+
+  assignCutOperation(id: EntityId, operation: CutOperation): Entity {
+    const entity = this.requireEntity(id);
+    const cutOperations = [...(entity.cutOperations ?? []), normalizeCutOperation(operation)];
+    const updated = { ...entity, cutOperations } as Entity;
+    this.entities.set(id, updated);
+    return updated;
   }
 
   assignComponentWoodworkingClassification(id: ComponentId, kind: WoodworkingKind, role?: string): Component {
