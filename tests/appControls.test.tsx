@@ -129,11 +129,12 @@ describe('App controls', () => {
     expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
   });
 
-  it('renders a normal viewport arrow without a permanent tool symbol', () => {
+  it('does not render a duplicate cursor arrow overlay beside the OS pointer', () => {
     const markup = renderToStaticMarkup(<App />);
 
-    expect(markup).toContain('Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol');
-    expect(markup).toContain('class="cursor-arrow"');
+    expect(markup).not.toContain('Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol');
+    expect(markup).not.toContain('class="cursor-arrow"');
+    expect(markup).not.toContain('cursor-arrow-only');
     expect(markup).not.toContain('class="cursor-symbol"');
     expect(markup).not.toContain('Mauszeiger: Pfeil mit Auswahl Symbol');
   });
@@ -145,6 +146,8 @@ describe('App controls', () => {
     ]);
 
     expect(viewportSource).not.toContain('cursorBadgeForTool');
+    expect(viewportSource).not.toContain('cursor-arrow');
+    expect(viewportSource).not.toContain('cursor-arrow-only');
     expect(helperSource).not.toContain('cursorBadgeForTool');
     expect(helperSource).not.toContain('type CursorBadge');
   });

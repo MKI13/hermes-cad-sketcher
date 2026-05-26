@@ -29,7 +29,12 @@ describe('Hermes CAD clear icons', () => {
     expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/rectangle-tool-clear.svg');
     expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/box-cube-clear.svg');
     expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/push-pull-clear.svg');
+    expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/move-tool-clear.svg');
+    expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/rotate-tool-clear.svg');
     expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/tape-measure-clear.svg');
+    expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/materials-clear.svg');
+    expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/tags-clear.svg');
+    expect(markup).toContain('/icons/hermes-cad-clear-icons/svg/mono/outliner-clear.svg');
     expect(markup).not.toContain('lucide');
   });
 });

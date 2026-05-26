@@ -37,7 +37,6 @@ type ThreeViewportProps = {
 
 export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [cursorPosition, setCursorPosition] = useState({ x: 28, y: 28 });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
@@ -289,7 +288,6 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const pointerMove = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      setCursorPosition({ x: event.clientX - rect.left + 16, y: event.clientY - rect.top + 18 });
       if (dragRef.current) {
         const last = dragRef.current;
         orbitRef.current = orbitCameraDrag(orbitRef.current, {
@@ -427,13 +425,6 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
           ))}
         </section>
       )}
-      <div
-        className="cursor-tool-badge cursor-arrow-only"
-        aria-label="Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol"
-        style={{ left: cursorPosition.x, top: cursorPosition.y }}
-      >
-        <span className="cursor-arrow">↖</span>
-      </div>
       {snapCue && <div className="snap-cue" aria-label={`Fanghinweis ${snapCue.label}`} style={{ left: snapCue.x, top: snapCue.y }}>{snapCue.label}</div>}
       <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Escape: Aktion abbrechen.</div>
     </div>

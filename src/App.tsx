@@ -1075,7 +1075,7 @@ export default function App() {
           <details className="tray-section"><summary>Hermes Agent</summary><p>Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p><p>SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p></details>
           {mouseBindingPanel}
           <details className="tray-section" open>
-            <summary>Entity Info</summary>
+            <summary><HermesIcon id="inspector-clear" label="Inspector" size={16} /> Entity Info</summary>
             <dl>
               <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
               <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
@@ -1110,14 +1110,15 @@ export default function App() {
             </div>
             <small>{useRectangleDimensionMask ? (rectangleMaskResult.ok ? `Aktiv: ${rectangleMaskResult.width} mm × ${rectangleMaskResult.depth} mm, Richtung kommt von der Maus.` : rectangleMaskResult.error) : 'Aus: zweite Mausklick-Position bestimmt die Größe frei.'}</small>
           </details>
-          <details className="tray-section"><summary>Components</summary><p>{model.allComponents().length} Komponenten im Modell.</p></details>
-          <details className="tray-section"><summary>Styles</summary><p>Schlichter CAD-Stil mit Achsen, Kanten und millimetersicherem Raster.</p></details>
-          <details className="tray-section"><summary>Tags</summary><p>Tag-Verwaltung ist vorbereitet.</p></details>
+          <details className="tray-section"><summary><HermesIcon id="outliner-clear" label="Outliner" size={16} /> Outliner</summary><p>{model.allEntities().length} Elemente im Modell.</p></details>
+          <details className="tray-section"><summary><HermesIcon id="component-clear" label="Komponenten" size={16} /> Components</summary><p>{model.allComponents().length} Komponenten im Modell.</p></details>
+          <details className="tray-section"><summary><HermesIcon id="styles-clear" label="Styles" size={16} /> Styles</summary><p>Schlichter CAD-Stil mit Achsen, Kanten und millimetersicherem Raster.</p></details>
+          <details className="tray-section"><summary><HermesIcon id="tags-clear" label="Tags" size={16} /> Tags</summary><p>Tag-Verwaltung ist vorbereitet.</p></details>
           <details className="tray-section"><summary>Shadows</summary><p>Schatten und Tageslicht bleiben als Ansichtsfunktion vorgemerkt.</p></details>
-          <details className="tray-section"><summary>Scenes</summary><p>Szenen und Ansichten werden hier gesammelt.</p></details>
+          <details className="tray-section"><summary><HermesIcon id="scenes-clear" label="Szenen" size={16} /> Scenes</summary><p>Szenen und Ansichten werden hier gesammelt.</p></details>
           <details className="tray-section"><summary>Instructor</summary><p>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p></details>
           <details className="tray-section materials-section" open>
-            <summary>Materials</summary>
+            <summary><HermesIcon id="materials-clear" label="Materialien" size={16} /> Materials</summary>
             <p>Auswahl mit Material belegen: erst Fläche oder Körper auswählen, dann Farbfeld anklicken.</p>
             <div className="materials-toolbar" aria-label="Material-Auswahl">
               <span>Materialordner: {materialLibrary?.rootLabel ?? 'Standard-Farbfelder'}</span>
@@ -1312,14 +1313,7 @@ export default function App() {
       </aside>
       <section className="workspace">
         <div className="viewport-placeholder">
-          <React.Suspense fallback={(
-            <>
-              <div className="viewport-loading" aria-live="polite">3D-Viewport wird geladen …</div>
-              <div className="cursor-tool-badge cursor-arrow-only" aria-label="Mauszeiger: normaler Pfeil ohne störendes Werkzeug-Symbol">
-                <span className="cursor-arrow">↖</span>
-              </div>
-            </>
-          )}>
+          <React.Suspense fallback={<div className="viewport-loading" aria-live="polite">3D-Viewport wird geladen …</div>}>
             <LazyThreeViewport
               model={model}
               activeTool={tool}
