@@ -22,6 +22,7 @@ import { PushPullPanel, parsePushPullDelta } from './ui/PushPullPanel';
 import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { shouldDeleteSelectionFromKey } from './ui/selectionControls';
 import { DEFAULT_TOOLBAR_ORDER, getToolShortcut, reorderToolbar, sanitizeToolbarOrder, toolFromKeyboardEvent } from './ui/toolbarCustomization';
+import { groupToolbarTools } from './ui/toolbarGrouping';
 import { MOUSE_ACTIONS, MOUSE_INPUTS, mouseActionLabel, sanitizeMouseBindings, summarizeMouseBindings, toolFromMouseAction, type MouseAction, type MouseInputId } from './ui/mouseBindings';
 import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type WorkspaceDock } from './ui/workspaceDock';
 import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups, type WorkbenchMenu } from './ui/workbenchLayout';
@@ -193,6 +194,7 @@ export default function App() {
 
   const activeDrawingPlaneAppearance = drawingPlaneAppearance(drawingPlane);
   const orderedTools = toolbarOrder.map((id) => tools.find((item) => item.id === id)).filter((item): item is (typeof tools)[number] => Boolean(item));
+  const groupedToolbarTools = groupToolbarTools(orderedTools);
   const shortcutSummaryLabels: Record<ToolName, string> = {
     select: 'Auswahl',
     line: 'Linie',
@@ -1352,43 +1354,50 @@ export default function App() {
           <h1>Hermes CAD Sketcher</h1>
           <p className="subtitle">Linke Maustaste: Standardaktion des aktiven Werkzeugs. Auswahl: klicken · Linie/Körper: Punkte setzen · Fläche: klicken zum Ziehen.</p>
         </div>
-        <div className="quick-toolbar" role="toolbar" aria-label="Schnell-Werkzeugleiste">
-          {orderedTools.map((item) => {
-            const shortcut = getToolShortcut(item.id);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                draggable
-                className={tool === item.id ? 'tool-icon active' : 'tool-icon'}
-                title={`${item.label} · Taste ${shortcut} · Icon ziehen zum Verschieben`}
-                aria-label={`Werkzeug ${item.label}, Tastenkürzel ${shortcut}`}
-                onClick={() => setTool(item.id)}
-                onDragStart={(event) => {
-                  setDraggedTool(item.id);
-                  event.dataTransfer.effectAllowed = 'move';
-                  event.dataTransfer.setData('text/plain', item.id);
-                }}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = 'move';
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  const droppedTool = draggedTool ?? event.dataTransfer.getData('text/plain');
-                  if (!droppedTool) return;
-                  setToolbarOrder((current) => reorderToolbar(current, droppedTool as ToolName, item.id));
-                  setDraggedTool(undefined);
-                }}
-                onDragEnd={() => setDraggedTool(undefined)}
-              >
-                <span className="drag-grip" aria-hidden="true">⋮</span>
-                {item.icon}
-                <span className="tool-shortcut">{shortcut}</span>
-                <span className="tool-label">{item.label}</span>
-              </button>
-            );
-          })}
+        <div className="quick-toolbar grouped" role="toolbar" aria-label="Schnell-Werkzeugleiste">
+          {groupedToolbarTools.map((group) => (
+            <section className="toolbar-group" key={group.id} aria-label={`Werkzeuggruppe ${group.label}: ${group.description}`}>
+              <strong className="toolbar-group-title">{group.label}</strong>
+              <div className="toolbar-group-tools">
+                {group.tools.map((item) => {
+                  const shortcut = getToolShortcut(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      draggable
+                      className={tool === item.id ? 'tool-icon active' : 'tool-icon'}
+                      title={`${item.label} · Taste ${shortcut} · Icon ziehen zum Verschieben`}
+                      aria-label={`Werkzeug ${item.label}, Tastenkürzel ${shortcut}`}
+                      onClick={() => setTool(item.id)}
+                      onDragStart={(event) => {
+                        setDraggedTool(item.id);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', item.id);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const droppedTool = draggedTool ?? event.dataTransfer.getData('text/plain');
+                        if (!droppedTool) return;
+                        setToolbarOrder((current) => reorderToolbar(current, droppedTool as ToolName, item.id));
+                        setDraggedTool(undefined);
+                      }}
+                      onDragEnd={() => setDraggedTool(undefined)}
+                    >
+                      <span className="drag-grip" aria-hidden="true">⋮</span>
+                      {item.icon}
+                      <span className="tool-shortcut">{shortcut}</span>
+                      <span className="tool-label">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
           <button type="button" className="compact-ai-toggle" onClick={() => void connectHermesAgent()}>
             Hermes Agent verbinden
           </button>
