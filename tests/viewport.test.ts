@@ -6,6 +6,16 @@ import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
 import { importAsciiStl } from '../src/core/stl';
 import {
+  BOX_EDGE_MATERIAL,
+  BOX_FACE_MATERIAL,
+  EDGE_MATERIAL,
+  FACE_MATERIAL,
+  HOVER_FACE_MATERIAL,
+  REFERENCE_MESH_MATERIAL,
+  SELECTED_EDGE_MATERIAL,
+  SELECTED_FACE_MATERIAL
+} from '../src/ui/sceneAdapter';
+import {
   createOrbitCameraState,
   orbitCameraDrag,
   cameraPositionFromOrbit,
@@ -54,6 +64,21 @@ describe('interactive Three.js viewport foundation', () => {
     expect(group).toBeInstanceOf(THREE.Group);
     expect(group.children).toHaveLength(2);
     expect(group.children.map((child) => child.userData.entityId)).toEqual([box.id, line.id]);
+  });
+
+  it('exports centralized viewport materials with distinct face hover, selected face and selected edge colors', () => {
+    expect(EDGE_MATERIAL).toBeInstanceOf(THREE.LineBasicMaterial);
+    expect(FACE_MATERIAL).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect(BOX_FACE_MATERIAL).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect(BOX_EDGE_MATERIAL).toBeInstanceOf(THREE.LineBasicMaterial);
+    expect(SELECTED_FACE_MATERIAL).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect(HOVER_FACE_MATERIAL).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect(SELECTED_EDGE_MATERIAL).toBeInstanceOf(THREE.LineBasicMaterial);
+    expect(REFERENCE_MESH_MATERIAL).toBeInstanceOf(THREE.MeshStandardMaterial);
+
+    expect(HOVER_FACE_MATERIAL.color.getHex()).not.toBe(BOX_FACE_MATERIAL.color.getHex());
+    expect(SELECTED_FACE_MATERIAL.color.getHex()).not.toBe(HOVER_FACE_MATERIAL.color.getHex());
+    expect(SELECTED_EDGE_MATERIAL.color.getHex()).toBe(0x2563eb);
   });
 
   it('skips hidden entities and renders applied material colors like the Materials tray', () => {
@@ -132,6 +157,35 @@ endsolid ref
     }
   });
 
+  it('keeps selected STL reference meshes gray and wireframe instead of applying selected face fill', () => {
+    const model = new SketchModel();
+    const mesh = importAsciiStl(`solid ref
+facet normal 0 0 1
+outer loop
+vertex 0 0 0
+vertex 100 0 0
+vertex 0 50 0
+endloop
+endfacet
+endsolid ref
+`, 'synthetic-reference.stl');
+    const entity = model.addReferenceMesh(mesh.name, mesh.triangles);
+
+    const group = createModelGroup(model, entity.id);
+    const object = group.children[0];
+
+    expect(isSelectedObject(object)).toBe(true);
+    expect(object).toBeInstanceOf(THREE.Mesh);
+    const material = (object as THREE.Mesh).material;
+    expect(Array.isArray(material)).toBe(false);
+    if (!Array.isArray(material)) {
+      expect((material as THREE.MeshStandardMaterial).wireframe).toBe(true);
+      expect((material as THREE.MeshStandardMaterial).color.getHex()).toBe(REFERENCE_MESH_MATERIAL.color.getHex());
+      expect((material as THREE.MeshStandardMaterial).color.getHex()).not.toBe(SELECTED_FACE_MATERIAL.color.getHex());
+      expect(material.opacity).toBeCloseTo(REFERENCE_MESH_MATERIAL.opacity);
+    }
+  });
+
   it('marks only the selected entity object for viewport highlighting', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
@@ -148,6 +202,93 @@ endsolid ref
     if (selectedLine instanceof THREE.Line && !Array.isArray(selectedLine.material)) {
       expect(selectedLine.material.color.getHex()).toBe(0x2563eb);
     }
+  });
+
+  it('highlights a selected body with blue edge skeleton while keeping its faces translucent', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+
+    const group = createModelGroup(model, box.id);
+    const selectedBody = group.children[0] as THREE.Group;
+    const selectedEdges = selectedBody.children.find((child): child is THREE.LineSegments => child instanceof THREE.LineSegments && child.userData.edgeSkeleton === true);
+    const selectedFaces = selectedBody.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh && Boolean(child.userData.boxFace));
+
+    expect(selectedEdges).toBeDefined();
+    expect(selectedEdges?.material).toBeInstanceOf(THREE.LineBasicMaterial);
+    expect((selectedEdges?.material as THREE.LineBasicMaterial).color.getHex()).toBe(0x2563eb);
+    expect(selectedFaces).toHaveLength(6);
+    expect(selectedFaces.every((face) => (face.material as THREE.MeshStandardMaterial).color.getHex() !== 0x2563eb)).toBe(true);
+  });
+
+  it('uses selected face material in preference to hover material for a selected box face', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+
+    const group = createModelGroup(model, box.id, [], { hoveredFace: { entityId: box.id, face: 'front' }, selectedFace: { entityId: box.id, face: 'front' } });
+    const selectedBody = group.children[0] as THREE.Group;
+    const frontFace = selectedBody.children.find((child): child is THREE.Mesh => child instanceof THREE.Mesh && child.userData.boxFace === 'front');
+
+    expect(frontFace).toBeDefined();
+    expect((frontFace?.material as THREE.MeshStandardMaterial).color.getHex()).toBe(SELECTED_FACE_MATERIAL.color.getHex());
+    expect((frontFace?.material as THREE.MeshStandardMaterial).color.getHex()).not.toBe(HOVER_FACE_MATERIAL.color.getHex());
+  });
+
+  it('disposes each replaced base material exactly once when selected and face visual states are applied', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+    const face = model.createRectangle(vec(0, 0, 0), 50, 25);
+    const materialDisposals: string[] = [];
+    const lineDispose = THREE.LineBasicMaterial.prototype.dispose;
+    const meshDispose = THREE.MeshStandardMaterial.prototype.dispose;
+    THREE.LineBasicMaterial.prototype.dispose = function disposeLineMaterial() {
+      materialDisposals.push(this.uuid);
+      return lineDispose.call(this);
+    };
+    THREE.MeshStandardMaterial.prototype.dispose = function disposeMeshMaterial() {
+      materialDisposals.push(this.uuid);
+      return meshDispose.call(this);
+    };
+
+    try {
+      const boxGroup = createModelGroup(model, box.id, [], { hoveredFace: { entityId: box.id, face: 'left' }, selectedFace: { entityId: box.id, face: 'front' } });
+      const lineGroup = createModelGroup(model, line.id);
+      const faceGroup = createModelGroup(model, face.id);
+      const highlightedBox = boxGroup.children[0] as THREE.Group;
+      const highlightedBoxMaterials = highlightedBox.children
+        .filter((child): child is THREE.Mesh | THREE.LineSegments => child instanceof THREE.Mesh || child instanceof THREE.LineSegments)
+        .map((child) => child.material)
+        .filter((material) => !Array.isArray(material));
+      const highlightedLine = lineGroup.children.find((child): child is THREE.Line => child instanceof THREE.Line && child.userData.entityId === line.id);
+      const highlightedFace = faceGroup.children.find((child): child is THREE.Mesh => child instanceof THREE.Mesh && child.userData.entityId === face.id);
+
+      expect(highlightedBoxMaterials).toHaveLength(7);
+      expect(highlightedLine).toBeDefined();
+      expect(highlightedFace).toBeDefined();
+      const activeHighlightUuids = [
+        ...highlightedBoxMaterials,
+        highlightedLine?.material,
+        highlightedFace?.material
+      ].filter((material): material is THREE.Material => material instanceof THREE.Material).map((material) => material.uuid);
+      expect(new Set(activeHighlightUuids).size).toBe(activeHighlightUuids.length);
+      for (const activeUuid of activeHighlightUuids) {
+        expect(materialDisposals).not.toContain(activeUuid);
+      }
+      expect(materialDisposals.length).toBeGreaterThanOrEqual(5);
+    } finally {
+      THREE.LineBasicMaterial.prototype.dispose = lineDispose;
+      THREE.MeshStandardMaterial.prototype.dispose = meshDispose;
+    }
+  });
+
+  it('wires ThreeViewport hover and selected face visual state into model rendering without rebuilding the WebGL renderer', async () => {
+    const source = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
+
+    expect(source).toContain('const hoveredFaceRef = useRef<FaceSelection | undefined>(undefined)');
+    expect(source).toContain('let modelGroup = createModelGroup(model, selectedId, model.allMaterials(), { hoveredFace: hoveredFaceRef.current, selectedFace: selectedFaceRef.current })');
+    expect(source).toContain('rebuildModelGroup({ hoveredFace: selection.faceSelection, selectedFace: selectedFaceRef.current })');
+    expect(source).toMatch(/const rememberSelection = \(entityId:[\s\S]*?rebuildModelGroup\(\{ hoveredFace: hoveredFaceRef\.current, selectedFace: selectedFaceRef\.current \}\);[\s\S]*?};/);
+    expect(source).not.toContain('[model, selectedId, hoveredFace]');
   });
 
   it('finds entity ids on hit ancestors for robust picking', () => {

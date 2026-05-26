@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
 import { entityToObject } from '../src/ui/sceneAdapter';
-import { collectSnapPoints, createPushPullPreview, faceSelectionLabel, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapPointToModel } from '../src/ui/viewportInteractionHelpers';
+import { collectSnapPoints, createPushPullPreview, faceSelectionLabel, getFaceSelectionFromObject, isSameFaceSelection, pushPullPreviewMeasurement, snapPointToModel } from '../src/ui/viewportInteractionHelpers';
 
 describe('SketchUp-like snapping and box face interaction', () => {
   it('collects endpoints and midpoints from lines and body line skeletons', () => {
@@ -41,7 +41,10 @@ describe('SketchUp-like snapping and box face interaction', () => {
 
     expect(object).toBeInstanceOf(THREE.Group);
     expect(object.userData.solidFutureReady).toBe(true);
-    expect(object.children.filter((child) => child.userData.boxFace).map((child) => child.userData.boxFace).sort()).toEqual(['back', 'bottom', 'front', 'left', 'right', 'top']);
+    const faceMeshes = object.children.filter((child): child is THREE.Mesh => child instanceof THREE.Mesh && Boolean(child.userData.boxFace));
+    expect(faceMeshes.map((child) => child.userData.boxFace).sort()).toEqual(['back', 'bottom', 'front', 'left', 'right', 'top']);
+    expect(faceMeshes.every((child) => child.userData.entityId === box.id)).toBe(true);
+    expect(faceMeshes.every((child) => child.userData.entityType === 'box')).toBe(true);
     expect(object.children.some((child) => child.userData.edgeSkeleton === true)).toBe(true);
   });
 
@@ -54,6 +57,13 @@ describe('SketchUp-like snapping and box face interaction', () => {
 
     expect(getFaceSelectionFromObject(face)).toEqual({ entityId: 'box_1', face: 'front' });
     expect(faceSelectionLabel({ entityId: 'box_1', face: 'front' })).toBe('Fläche ausgewählt: vorne');
+  });
+
+  it('compares face selections by entity id and face so unchanged hovers can skip rebuilds', () => {
+    expect(isSameFaceSelection(undefined, undefined)).toBe(true);
+    expect(isSameFaceSelection({ entityId: 'box_1', face: 'front' }, { entityId: 'box_1', face: 'front' })).toBe(true);
+    expect(isSameFaceSelection({ entityId: 'box_1', face: 'front' }, { entityId: 'box_1', face: 'right' })).toBe(false);
+    expect(isSameFaceSelection(undefined, { entityId: 'box_1', face: 'front' })).toBe(false);
   });
 
   it('pushes and pulls a selected box face by changing the matching body dimension', () => {

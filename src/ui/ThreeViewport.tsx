@@ -15,7 +15,7 @@ import {
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, isSameFaceSelection, pushPullPreviewMeasurement, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 import { beginPushPullDrag, finishPushPullDrag, pointForPushPullPointerDelta, updatePushPullDrag, type PushPullDragState } from './pushPullInteraction';
 
 type ThreeViewportProps = {
@@ -42,6 +42,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
   const [pushPullDrag, setPushPullDrag] = useState<PushPullDragState | undefined>();
+  const hoveredFaceRef = useRef<FaceSelection | undefined>(undefined);
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
       ? 'WebGL konnte in diesem Browser nicht gestartet werden.'
@@ -121,7 +122,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const originGuides = createOriginGuideGroup(10000);
     scene.add(originGuides);
 
-    const modelGroup = createModelGroup(model, selectedId);
+    let modelGroup = createModelGroup(model, selectedId, model.allMaterials(), { hoveredFace: hoveredFaceRef.current, selectedFace: selectedFaceRef.current });
     scene.add(modelGroup);
     let previewObject: THREE.Object3D | undefined;
 
@@ -152,7 +153,9 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const rememberSelection = (entityId: EntityId | undefined, faceSelection?: FaceSelection) => {
+      selectedIdRef.current = entityId;
       selectedFaceRef.current = faceSelection && faceSelection.entityId === entityId ? faceSelection : undefined;
+      rebuildModelGroup({ hoveredFace: hoveredFaceRef.current, selectedFace: selectedFaceRef.current });
       onSelectRef.current?.(entityId, selectedFaceRef.current);
     };
 
@@ -201,6 +204,14 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         if (Array.isArray(mesh.material)) mesh.material.forEach((material) => material.dispose());
         else mesh.material?.dispose();
       });
+    };
+
+    const rebuildModelGroup = (visualState = { hoveredFace: hoveredFaceRef.current, selectedFace: selectedFaceRef.current }) => {
+      scene.remove(modelGroup);
+      disposeObjectTree(modelGroup);
+      modelGroup = createModelGroup(model, selectedIdRef.current, model.allMaterials(), visualState);
+      scene.add(modelGroup);
+      render();
     };
 
     const clearDrawingPreview = () => {
@@ -372,6 +383,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         setSnapCue(snap.snapped ? { x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 18, label: snapCueLabel(snap.kind) } : undefined);
       } else {
         setSnapCue(undefined);
+      }
+      const selection = pickSelectionAtPointer(event);
+      if (!isSameFaceSelection(selection.faceSelection, hoveredFaceRef.current)) {
+        hoveredFaceRef.current = selection.faceSelection;
+        rebuildModelGroup({ hoveredFace: selection.faceSelection, selectedFace: selectedFaceRef.current });
       }
       updateDrawingPreview(groundPoint);
       updateMeasurementPreview(groundPoint);
