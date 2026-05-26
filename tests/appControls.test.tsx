@@ -59,6 +59,20 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
+  it('groups the top workbar icons by CAD task so tools sit where they belong', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('class="toolbar-group"');
+    expect(markup).toContain('aria-label="Werkzeuggruppe Auswahl: Objekte und Arbeitskontext wählen"');
+    expect(markup).toContain('aria-label="Werkzeuggruppe Zeichnen: Kanten und Grundflächen zeichnen"');
+    expect(markup).toContain('aria-label="Werkzeuggruppe Körperteile: Möbelteile und Flächen modellieren"');
+    expect(markup).toContain('aria-label="Werkzeuggruppe Bearbeiten: Teile verschieben und drehen"');
+    expect(markup).toContain('aria-label="Werkzeuggruppe Messen: Maße prüfen und übertragen"');
+    expect(markup.indexOf('toolbar-group-title">Zeichnen')).toBeLessThan(markup.indexOf('aria-label="Werkzeug Linie, Tastenkürzel L"'));
+    expect(markup.indexOf('toolbar-group-title">Körperteile')).toBeLessThan(markup.indexOf('aria-label="Werkzeug Körper, Tastenkürzel B"'));
+    expect(markup.indexOf('toolbar-group-title">Bearbeiten')).toBeLessThan(markup.indexOf('aria-label="Werkzeug Verschieben, Tastenkürzel M"'));
+  });
+
 
 
   it('renders an active measurement input for exact SketchUp-like dimensions', () => {
