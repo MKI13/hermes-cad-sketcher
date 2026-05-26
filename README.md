@@ -156,13 +156,19 @@ npm run agent:bridge
 - `DXF exportieren`: exportiert einfache Linien-/Rechteck-Geometrie als DXF-Grundlage.
 - `STL exportieren`: exportiert Boxkörper als ASCII-STL.
 
-## Datei-Formate
+## Datei-Format-Support-Matrix
 
-### Aktuell unterstützt
+Diese Matrix ist die Grenze zwischen belegter Funktion und Wunschliste. Jede unterstützte Aussage muss durch Codepfad und Golden Fixture unter `tests/fixtures/` gedeckt sein. Kein Format wird breiter unterstützt als die Matrix und Golden Fixtures belegen.
 
-- `.hcad.json`: Hermes-Projektsnapshot mit Version, Einheit, Elementen, Komponenten, Tags und Materialkatalog.
-- `.dxf`: einfacher Export in der UI, einfacher UI-Import mit Statusbericht, fail-closed `$INSUNITS`-Prüfung, `LINE` und begrenzter Import geschlossener, vierpunktiger, achsenparalleler LWPOLYLINE-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor; Layernamen dieser MVP-Entitäten bleiben als Metadaten erhalten und werden im Inspector sowie beim DXF-Export wieder ausgegeben.
-- `.stl`: ASCII-STL-Export für Boxkörper und ASCII-STL-Import als nicht editierbares Referenzmesh mit Dreieckszahl; kein Binary-STL, kein Solid-Healing und keine Konvertierung in editierbare Körper.
+| Format | Status | Getestete Unterstützung | Bewusste Grenzen | Golden Fixtures |
+|---|---|---|---|---|
+| `.hcad.json` | Kanonisches editierbares Projektformat | Versioniertes Hermes-CAD-Projekt mit `unit: "mm"`, Elementen, Komponenten, Tags, Materialkatalog und nicht editierbaren Referenzmeshes. | Nur Hermes-CAD-Schema Version 1; keine fremden CAD-Projektformate; ungültige Einheiten, Elemente, Komponenten, Tags oder Materialien werden abgelehnt. | `tests/fixtures/projects/simple-project.hcad.json` |
+| `.dxf` | Begrenzter MVP-Import/Export | Import: `$INSUNITS=4` Millimeter, fehlende Einheiten nur mit sichtbarer Millimeter-Annahme, `LINE`, geschlossene vierpunktige axis-aligned `LWPOLYLINE`-Rechtecke ohne Bulge/Breite/Dicke/Sonder-Extrusionsvektor, Layernamen für diese MVP-Entitäten. Export: einfache Linien, Rechteck-/Box-Kanten und Layerfeld. | Kein vollständiger DXF-Import; keine Blöcke/INSERT, Splines, Kreise/Bögen, Text, Hatch, 3D-Solids, Einheitenumrechnung oder beliebige Polylines. Bekannte Nicht-mm-Einheiten werden vor Geometrieimport abgelehnt. | `tests/fixtures/dxf/simple-line-mm.dxf`, `tests/fixtures/dxf/simple-rectangle-lwpolyline-mm.dxf`, `tests/fixtures/dxf/unsupported-inch-file.dxf` |
+| `.stl` | Begrenzter ASCII-STL-Austausch | Export: Boxkörper als ASCII-STL-Dreiecke. Import: ASCII-STL als nicht editierbares Referenzmesh mit Dreieckszahl. | Kein Binary-STL, kein Solid-Healing, keine Umwandlung in editierbare Körper/Faces, keine Material-/Einheitenmetadaten aus STL. | `tests/fixtures/stl/simple-ascii-triangle.stl`, `tests/fixtures/stl/simple-box-ascii.stl` |
+| `.dwg` | Nicht nativ unterstützt; nur Bridge-Plan | Aktuell keine eingebaute DWG-Lese-/Schreibfunktion. Realistisch nur später über LibreDWG, ODA File Converter oder andere geprüfte Bridge. | Keine direkte DWG-Kompatibilität, kein direkter DWG-Import/Export. | — |
+| `.skp` | Nicht nativ unterstützt; nur Bridge-Plan | Aktuell keine eingebaute SketchUp-Dateiunterstützung. Realistisch nur später über offizielle SketchUp C API oder Export-/Bridge-Workflow. | Keine direkte SKP-Kompatibilität, kein SketchUp-Modellimport. | — |
+| `.rb` / `.rbz` | Nicht unterstützt | Keine SketchUp-Ruby-Plugin-Kompatibilität. Die Ruby-Konsole ist nur eine eigene Hermes-CAD-Befehls-DSL. | Keine SketchUp Ruby API, kein Extension-Warehouse, kein Laden fremder Plugins. | — |
+| `.step` / `.ifc` / `.obj` / `.glb` | Nicht unterstützt / nur nach Prüfung geplant | Keine implementierte Import-/Export-Unterstützung. | Erst nach separater technischer Prüfung, Fail-closed-Tests und klarer Produktentscheidung. | — |
 
 ### Geplant
 

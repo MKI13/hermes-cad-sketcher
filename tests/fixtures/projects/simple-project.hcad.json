@@ -1,0 +1,56 @@
+{
+  "format": "hermes-cad-sketcher",
+  "version": 1,
+  "createdBy": "Hermes CAD Sketcher",
+  "model": {
+    "unit": "mm",
+    "entities": [
+      {
+        "id": "edge_100",
+        "type": "edge",
+        "start": { "x": 0, "y": 0, "z": 0 },
+        "end": { "x": 1000, "y": 0, "z": 0 },
+        "tagId": "untagged",
+        "materialId": "default"
+      },
+      {
+        "id": "box_101",
+        "type": "box",
+        "origin": { "x": 10, "y": 20, "z": 0 },
+        "width": 600,
+        "depth": 400,
+        "height": 200,
+        "rotationZ": 0,
+        "componentId": "component_103",
+        "tagId": "untagged",
+        "materialId": "default"
+      },
+      {
+        "id": "mesh_102",
+        "type": "referenceMesh",
+        "name": "simple-ascii-triangle.stl",
+        "triangles": [
+          {
+            "vertices": [
+              { "x": 0, "y": 0, "z": 0 },
+              { "x": 100, "y": 0, "z": 0 },
+              { "x": 0, "y": 50, "z": 0 }
+            ]
+          }
+        ],
+        "triangleCount": 1,
+        "tagId": "untagged",
+        "materialId": "default"
+      }
+    ],
+    "components": [
+      { "id": "component_103", "name": "Box component", "entityIds": ["box_101"] }
+    ],
+    "tags": [
+      { "id": "untagged", "name": "Untagged", "visible": true }
+    ],
+    "materials": [
+      { "id": "default", "name": "Default", "color": "#d1d5db" }
+    ]
+  }
+}

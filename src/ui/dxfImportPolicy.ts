@@ -1,7 +1,7 @@
 import type { DxfImportReport } from '../core/dxf';
 
 export function shouldApplyDxfImportReport(report: DxfImportReport): boolean {
-  return report.unitStatus.kind !== 'unsupported';
+  return report.unitStatus.kind !== 'unsupported' && report.unitStatus.kind !== 'malformed';
 }
 
 export function statusFromDxfImportReport(report: DxfImportReport, fileName: string): string {

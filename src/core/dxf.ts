@@ -233,13 +233,20 @@ function polyline(out: string[], vertices: Vec3[], layer = '0'): void {
   }
 }
 
-export function supportedCadFormats(): Record<string, 'mvp' | 'planned' | 'external-bridge' | 'unsupported'> {
+export type CadFormatSupportStatus = 'canonical' | 'mvp' | 'planned' | 'external-bridge' | 'unsupported';
+
+export function supportedCadFormats(): Record<string, CadFormatSupportStatus> {
   return {
+    hcadJson: 'canonical',
     dxf: 'mvp',
     stl: 'mvp',
     skp: 'external-bridge',
     dwg: 'external-bridge',
     rb: 'unsupported',
-    rbz: 'unsupported'
+    rbz: 'unsupported',
+    step: 'unsupported',
+    ifc: 'unsupported',
+    obj: 'unsupported',
+    glb: 'unsupported'
   };
 }
