@@ -33,6 +33,7 @@ import { shouldApplyDxfImportReport, statusFromDxfImportReport } from './ui/dxfI
 import { drawingPlaneAppearance } from './ui/drawingPlaneAppearance';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
 import { HermesIcon, type HermesIconId } from './ui/HermesIcon';
+import { RightTray, RIGHT_TRAY_STORAGE_KEY, sanitizeRightTrayState, type RightTrayPanelId, type RightTrayPanelContent, type RightTrayPanelIcons, type RightTrayState } from './ui/RightTray';
 import './styles.css';
 
 const LazyThreeViewport = React.lazy(() =>
@@ -110,6 +111,15 @@ function loadMouseBindings(): Record<MouseInputId, MouseAction> {
   }
 }
 
+function loadRightTrayState(): RightTrayState {
+  if (typeof window === 'undefined') return sanitizeRightTrayState(null);
+  try {
+    return sanitizeRightTrayState(JSON.parse(window.localStorage.getItem(RIGHT_TRAY_STORAGE_KEY) ?? 'null'));
+  } catch {
+    return sanitizeRightTrayState(null);
+  }
+}
+
 export function createInitialSketchModel(): SketchModel {
   return new SketchModel();
 }
@@ -154,7 +164,7 @@ export default function App() {
   const [agentChatInput, setAgentChatInput] = useState('Hallo Hermes, bist du bereit einen Test zu machen?');
   const [agentChatLog, setAgentChatLog] = useState('Agent-Chat bereit.');
   const [agentChatWindowOpen, setAgentChatWindowOpen] = useState(false);
-  const [rightTrayOpen, setRightTrayOpen] = useState(true);
+  const [rightTrayState, setRightTrayState] = useState<RightTrayState>(loadRightTrayState);
   const [materialLibrary, setMaterialLibrary] = useState<BrowserMaterialLibrary | undefined>();
   const [selectedMaterialCategory, setSelectedMaterialCategory] = useState<string | undefined>();
   const [agentBridgeStatus, setAgentBridgeStatus] = useState('Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus · noch nicht verbunden');
@@ -844,6 +854,20 @@ export default function App() {
   }, [mouseBindings]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(RIGHT_TRAY_STORAGE_KEY, JSON.stringify(rightTrayState));
+  }, [rightTrayState]);
+
+  function toggleRightTrayPanel(id: RightTrayPanelId) {
+    setRightTrayState((current) => {
+      const collapsed = new Set(current.collapsedPanelIds);
+      if (collapsed.has(id)) collapsed.delete(id);
+      else collapsed.add(id);
+      return sanitizeRightTrayState({ ...current, collapsedPanelIds: Array.from(collapsed) });
+    });
+  }
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (selectedId && shouldDeleteSelectionFromKey(event)) {
         event.preventDefault();
@@ -1115,134 +1139,145 @@ export default function App() {
     </section>
   ) : undefined;
 
-  const rightTray = (
-    <aside className={rightTrayOpen ? 'right-tray open' : 'right-tray collapsed'} aria-label="Rechte Default-Tray-Leiste">
-      <button
-        type="button"
-        className="right-tray-toggle"
-        aria-label={rightTrayOpen ? 'Rechte Tray-Leiste zuklappen' : 'Rechte Tray-Leiste aufklappen'}
-        title={rightTrayOpen ? 'Default Tray zuklappen' : 'Default Tray aufklappen'}
-        onClick={() => setRightTrayOpen((open) => !open)}
-      >
-        {rightTrayOpen ? '›' : '‹'}
-      </button>
-      {rightTrayOpen && (
-        <div className="right-tray-content">
-          <header className="right-tray-title">
-            <strong>Default Tray</strong>
-            <span>klappbare rechte Leiste</span>
-          </header>
-          <details className="tray-section"><summary>Hermes Agent</summary><p>Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p><p>SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p></details>
-          {mouseBindingPanel}
-          <details className="tray-section" open>
-            <summary><HermesIcon id="inspector-clear" label="Inspector" size={16} /> Entity Info</summary>
-            <dl>
-              <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
-              <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
-              <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
-              <div><dt>Material</dt><dd>{selectedMaterialLabel}</dd></div>
-            </dl>
-          </details>
-          <details className="tray-section" open>
-            <summary>Zeichnen &amp; Maße</summary>
-            <label>
-              <span>Zeichenebene</span>
-              <select aria-label="Zeichenebene" value={drawingPlane} onChange={(event) => setDrawingPlane(event.currentTarget.value as DrawingPlane)}>
-                <option value="xy">{drawingPlaneLabels.xy}</option>
-                <option value="xz">{drawingPlaneLabels.xz}</option>
-                <option value="yz">{drawingPlaneLabels.yz}</option>
-              </select>
-            </label>
-            <div className={`drawing-plane-indicator ${activeDrawingPlaneAppearance.className}`} aria-label="Aktive Zeichenebene mit Achsfarben">
-              <strong>{activeDrawingPlaneAppearance.label}</strong>
-              <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[0] }}>{activeDrawingPlaneAppearance.axisNames[0]}</span>
-              <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[1] }}>{activeDrawingPlaneAppearance.axisNames[1]}</span>
-            </div>
-            <small>{activeDrawingPlaneAppearance.helperText}</small>
-            <p>Stufenloses Zeichnen ist aktiv: der Mauspunkt wird nicht mehr auf feste Rasterabstände gerundet.</p>
-            <label>
-              <input type="checkbox" checked={useRectangleDimensionMask} onChange={(event) => setUseRectangleDimensionMask(event.currentTarget.checked)} />
-              genaue Rechteck-Maßmaske verwenden
-            </label>
-            <div className="dimension-grid">
-              <label><span>Breite mm</span><input aria-label="Rechteck Breite mm" value={rectangleDimensionMask.width} onChange={(event) => handleRectangleDimensionMaskChange('width', event)} /></label>
-              <label><span>Tiefe/Höhe mm</span><input aria-label="Rechteck Tiefe oder Höhe mm" value={rectangleDimensionMask.depth} onChange={(event) => handleRectangleDimensionMaskChange('depth', event)} /></label>
-            </div>
-            <small>{useRectangleDimensionMask ? (rectangleMaskResult.ok ? `Aktiv: ${rectangleMaskResult.width} mm × ${rectangleMaskResult.depth} mm, Richtung kommt von der Maus.` : rectangleMaskResult.error) : 'Aus: zweite Mausklick-Position bestimmt die Größe frei.'}</small>
-          </details>
-          <details className="tray-section"><summary><HermesIcon id="outliner-clear" label="Outliner" size={16} /> Outliner</summary><p>{model.allEntities().length} Elemente im Modell.</p></details>
-          <details className="tray-section"><summary><HermesIcon id="component-clear" label="Komponenten" size={16} /> Components</summary><p>{model.allComponents().length} Komponenten im Modell.</p></details>
-          <details className="tray-section"><summary><HermesIcon id="styles-clear" label="Styles" size={16} /> Styles</summary><p>Schlichter CAD-Stil mit Achsen, Kanten und millimetersicherem Raster.</p></details>
-          <details className="tray-section">
-            <summary><HermesIcon id="tags-clear" label="Tags" size={16} /> Tags</summary>
-            <p>Tags: {tagCatalog.length} · sichtbar: {tagCatalog.filter((tag) => tag.visible).length}</p>
-            <ul>
-              {tagCatalog.map((tag) => <li key={tag.id}>{tag.name}</li>)}
-            </ul>
-            <small>Tag-Sichtbarkeit ist im Modell vorbereitet; UI-Umschalter folgen separat.</small>
-          </details>
-          <details className="tray-section"><summary>Shadows</summary><p>Schatten und Tageslicht bleiben als Ansichtsfunktion vorgemerkt.</p></details>
-          <details className="tray-section"><summary><HermesIcon id="scenes-clear" label="Szenen" size={16} /> Scenes</summary><p>Szenen und Ansichten werden hier gesammelt.</p></details>
-          <details className="tray-section"><summary>Instructor</summary><p>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p></details>
-          <details className="tray-section materials-section" open>
-            <summary><HermesIcon id="materials-clear" label="Materialien" size={16} /> Materials</summary>
-            <p>Auswahl mit Material belegen: erst Fläche oder Körper auswählen, dann Farbfeld anklicken.</p>
-            <div className="materials-toolbar" aria-label="Material-Auswahl">
-              <span>Materialordner: {materialLibrary?.rootLabel ?? 'Standard-Farbfelder'}</span>
-              <span>Startmaterialien: {materialSwatches.length}</span>
-              <label className="material-folder-button">
-                Ordner vom PC wählen
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"
-                  onChange={(event) => {
-                    void openMaterialFolder(event.currentTarget.files);
-                    event.currentTarget.value = '';
-                  }}
-                  {...{ webkitdirectory: '', directory: '' }}
-                />
-              </label>
-            </div>
-            {materialLibrary && materialLibrary.categories.length > 0 && (
-              <select
-                className="material-category-select"
-                aria-label="Material-Kategorie"
-                value={visibleMaterialCategory}
-                onChange={(event) => setSelectedMaterialCategory(event.currentTarget.value)}
-              >
-                {materialLibrary.categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            )}
-            <div className="material-grid" aria-label="Material-Farbfelder">
-              {visibleMaterialEntries.length > 0 ? visibleMaterialEntries.map((entry) => (
-                <button
-                  key={entry.relativePath}
-                  type="button"
-                  className="material-swatch material-image-swatch"
-                  aria-label={`Material ${entry.name}`}
-                  title={`${entry.category} / ${entry.name}`}
-                  style={entry.previewUrl ? { backgroundImage: `url(${entry.previewUrl})` } : undefined}
-                  onClick={() => applyMaterialToSelection(materialFromImageEntry(entry))}
-                />
-              )) : materialSwatches.map((swatch, index) => (
-                <button
-                  key={`${swatch.color}-${index}`}
-                  type="button"
-                  className="material-swatch"
-                  aria-label={`Material ${swatch.name}`}
-                  title={`${swatch.category} / ${swatch.name}`}
-                  style={{ backgroundColor: swatch.color }}
-                  onClick={() => applyMaterialToSelection(materialFromSwatch(swatch))}
-                />
-              ))}
-            </div>
-          </details>
+  const rightTrayContents: RightTrayPanelContent = {
+    'entity-info': (
+      <dl>
+        <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
+        <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
+        <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
+        <div><dt>Material</dt><dd>{selectedMaterialLabel}</dd></div>
+      </dl>
+    ),
+    outliner: <p>{model.allEntities().length} Elemente im Modell.</p>,
+    components: <p>{model.allComponents().length} Komponenten im Modell.</p>,
+    tags: (
+      <>
+        <p>Tags: {tagCatalog.length} · sichtbar: {tagCatalog.filter((tag) => tag.visible).length}</p>
+        <ul>
+          {tagCatalog.map((tag) => <li key={tag.id}>{tag.name}</li>)}
+        </ul>
+        <small>Tag-Sichtbarkeit ist im Modell vorbereitet; UI-Umschalter folgen separat.</small>
+      </>
+    ),
+    materials: (
+      <>
+        <p>Auswahl mit Material belegen: erst Fläche oder Körper auswählen, dann Farbfeld anklicken.</p>
+        <div className="materials-toolbar" aria-label="Material-Auswahl">
+          <span>Materialordner: {materialLibrary?.rootLabel ?? 'Standard-Farbfelder'}</span>
+          <span>Startmaterialien: {materialSwatches.length}</span>
+          <label className="material-folder-button">
+            Ordner vom PC wählen
+            <input
+              type="file"
+              multiple
+              accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"
+              onChange={(event) => {
+                void openMaterialFolder(event.currentTarget.files);
+                event.currentTarget.value = '';
+              }}
+              {...{ webkitdirectory: '', directory: '' }}
+            />
+          </label>
         </div>
-      )}
-    </aside>
+        {materialLibrary && materialLibrary.categories.length > 0 && (
+          <select
+            className="material-category-select"
+            aria-label="Material-Kategorie"
+            value={visibleMaterialCategory}
+            onChange={(event) => setSelectedMaterialCategory(event.currentTarget.value)}
+          >
+            {materialLibrary.categories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+        )}
+        <div className="material-grid" aria-label="Material-Farbfelder">
+          {visibleMaterialEntries.length > 0 ? visibleMaterialEntries.map((entry) => (
+            <button
+              key={entry.relativePath}
+              type="button"
+              className="material-swatch material-image-swatch"
+              aria-label={`Material ${entry.name}`}
+              title={`${entry.category} / ${entry.name}`}
+              style={entry.previewUrl ? { backgroundImage: `url(${entry.previewUrl})` } : undefined}
+              onClick={() => applyMaterialToSelection(materialFromImageEntry(entry))}
+            />
+          )) : materialSwatches.map((swatch, index) => (
+            <button
+              key={`${swatch.color}-${index}`}
+              type="button"
+              className="material-swatch"
+              aria-label={`Material ${swatch.name}`}
+              title={`${swatch.category} / ${swatch.name}`}
+              style={{ backgroundColor: swatch.color }}
+              onClick={() => applyMaterialToSelection(materialFromSwatch(swatch))}
+            />
+          ))}
+        </div>
+      </>
+    ),
+    scenes: <p>Szenen und Ansichten werden hier gesammelt.</p>,
+    'display-styles': (
+      <>
+        <p>SketchUp 2025 Recherche: Umgebungen, PBR-Materialien und Generate Textures sind als eigene Hermes-CAD-Ideen vorgemerkt.</p>
+        <label>
+          <span>Zeichenebene</span>
+          <select aria-label="Zeichenebene" value={drawingPlane} onChange={(event) => setDrawingPlane(event.currentTarget.value as DrawingPlane)}>
+            <option value="xy">{drawingPlaneLabels.xy}</option>
+            <option value="xz">{drawingPlaneLabels.xz}</option>
+            <option value="yz">{drawingPlaneLabels.yz}</option>
+          </select>
+        </label>
+        <div className={`drawing-plane-indicator ${activeDrawingPlaneAppearance.className}`} aria-label="Aktive Zeichenebene mit Achsfarben">
+          <strong>{activeDrawingPlaneAppearance.label}</strong>
+          <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[0] }}>{activeDrawingPlaneAppearance.axisNames[0]}</span>
+          <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[1] }}>{activeDrawingPlaneAppearance.axisNames[1]}</span>
+        </div>
+        <small>{activeDrawingPlaneAppearance.helperText}</small>
+        <p>Schlichter Hermes-CAD-Stil mit Achsen, Kanten und millimetersicherem Raster. Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p>
+        <label>
+          <input type="checkbox" checked={useRectangleDimensionMask} onChange={(event) => setUseRectangleDimensionMask(event.currentTarget.checked)} />
+          genaue Rechteck-Maßmaske verwenden
+        </label>
+        <div className="dimension-grid">
+          <label><span>Breite mm</span><input aria-label="Rechteck Breite mm" value={rectangleDimensionMask.width} onChange={(event) => handleRectangleDimensionMaskChange('width', event)} /></label>
+          <label><span>Tiefe/Höhe mm</span><input aria-label="Rechteck Tiefe oder Höhe mm" value={rectangleDimensionMask.depth} onChange={(event) => handleRectangleDimensionMaskChange('depth', event)} /></label>
+        </div>
+        <small>{useRectangleDimensionMask ? (rectangleMaskResult.ok ? `Aktiv: ${rectangleMaskResult.width} mm × ${rectangleMaskResult.depth} mm, Richtung kommt von der Maus.` : rectangleMaskResult.error) : 'Aus: zweite Mausklick-Position bestimmt die Größe frei.'}</small>
+        {mouseBindingPanel}
+      </>
+    ),
+    'hermes-agent': (
+      <>
+        <p>Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p>
+        <p>Hermes antwortet wie im Telegram-Chat und kann bei Bedarf CAD-Befehle ausführen.</p>
+        <button type="button" onClick={connectHermesAgent}>Hermes Agent verbinden</button>
+        <button type="button" onClick={() => openFloatingWindow('hermesAgent')}>Hermes Zeichnungsmodus-Fenster öffnen</button>
+        <button type="button" onClick={() => openFloatingWindow('rubyConsole')}>Ruby-Konsole als Fenster öffnen</button>
+        <small>{agentBridgeStatus}</small>
+      </>
+    )
+  };
+
+  const rightTrayIcons: RightTrayPanelIcons = {
+    'entity-info': <HermesIcon id="inspector-clear" label="Inspector" size={16} />,
+    outliner: <HermesIcon id="outliner-clear" label="Outliner" size={16} />,
+    components: <HermesIcon id="component-clear" label="Komponenten" size={16} />,
+    tags: <HermesIcon id="tags-clear" label="Tags" size={16} />,
+    materials: <HermesIcon id="materials-clear" label="Materialien" size={16} />,
+    scenes: <HermesIcon id="scenes-clear" label="Szenen" size={16} />,
+    'display-styles': <HermesIcon id="styles-clear" label="Anzeige / Styles" size={16} />,
+    'hermes-agent': <HermesIcon id="hermes-agent-clear" label="Hermes Agent" size={16} />
+  };
+
+  const rightTray = (
+    <RightTray
+      state={rightTrayState}
+      contents={rightTrayContents}
+      icons={rightTrayIcons}
+      onOpenChange={(open) => setRightTrayState((current) => sanitizeRightTrayState({ ...current, open }))}
+      onPanelToggle={toggleRightTrayPanel}
+    />
   );
 
   function renderWindowContent(id: FloatingWindowId) {
@@ -1295,7 +1330,7 @@ export default function App() {
   }
 
   return (
-    <main className={`app-shell icon-rail-left sketchup-surface ${rightTrayOpen ? 'right-tray-open' : 'right-tray-closed'}`}>
+    <main className={`app-shell icon-rail-left sketchup-surface ${rightTrayState.open ? 'right-tray-open' : 'right-tray-closed'}`}>
       <header className={activeMenu ? 'top-toolbar workspace-open' : 'top-toolbar workspace-collapsed'} aria-label="Schnell-Werkzeugleiste">
         <nav className="classic-menu" aria-label="Klassischer CAD-Arbeitsplatz">
           <strong>Klassischer CAD-Arbeitsplatz</strong>
@@ -1379,7 +1414,7 @@ export default function App() {
           );
         })}
       </aside>
-      <section className="workspace">
+      <section className="workspace viewport-priority">
         <div className="viewport-placeholder">
           <React.Suspense fallback={<div className="viewport-loading" aria-live="polite">3D-Viewport wird geladen …</div>}>
             <LazyThreeViewport
