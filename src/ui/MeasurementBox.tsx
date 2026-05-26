@@ -6,9 +6,18 @@ type MeasurementBoxProps = {
   status?: string;
   onValueChange: (value: string) => void;
   onApply: () => void;
+  onCancel?: () => void;
 };
 
-export function MeasurementBox({ activeMeasurement, value, status, onValueChange, onApply }: MeasurementBoxProps) {
+type MeasurementBoxKey = { key: string };
+
+export function shouldMeasurementBoxHandleKey(event: MeasurementBoxKey): { type: 'apply' | 'cancel' | 'text' } {
+  if (event.key === 'Enter') return { type: 'apply' };
+  if (event.key === 'Escape') return { type: 'cancel' };
+  return { type: 'text' };
+}
+
+export function MeasurementBox({ activeMeasurement, value, status, onValueChange, onApply, onCancel }: MeasurementBoxProps) {
   return (
     <form
       className="measurement-field measurement-box-active"
@@ -26,7 +35,15 @@ export function MeasurementBox({ activeMeasurement, value, status, onValueChange
         <input
           value={value}
           onChange={(event) => onValueChange(event.currentTarget.value)}
-          placeholder="1200 · 1200,600 · 100,0,0"
+          onKeyDown={(event) => {
+            const action = shouldMeasurementBoxHandleKey(event);
+            if (action.type === 'cancel') {
+              event.stopPropagation();
+              onCancel?.();
+            }
+            if (action.type !== 'text') event.preventDefault();
+          }}
+          placeholder="1200 · 1200,600 · <100,0,0> · 45°"
           aria-label="Maß oder Koordinaten in Millimeter"
         />
       </label>

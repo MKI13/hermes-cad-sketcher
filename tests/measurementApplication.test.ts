@@ -4,6 +4,22 @@ import { SketchModel } from '../src/core/model';
 import { applyMeasurementBoxInputToModel } from '../src/core/measurementApplication';
 
 describe('measurement input model application', () => {
+  it('creates an exact line from a pending start point and mouse direction', () => {
+    const model = new SketchModel();
+
+    const result = applyMeasurementBoxInputToModel(model, {
+      tool: 'line',
+      rawInput: '1200mm',
+      drawingPlane: 'xy',
+      pendingStartPoint: vec(10, 20, 0),
+      directionPoint: vec(20, 20, 0)
+    });
+
+    expect(result).toMatchObject({ ok: true, action: 'created', entityType: 'edge' });
+    const line = model.allEntities()[0];
+    expect(line).toMatchObject({ type: 'edge', start: vec(10, 20, 0), end: vec(1210, 20, 0) });
+  });
+
   it('creates a rectangle immediately when rectangle dimensions are applied without a selection', () => {
     const model = new SketchModel();
 
@@ -71,6 +87,52 @@ describe('measurement input model application', () => {
 
     expect(boxResult).toMatchObject({ ok: true, action: 'resized', entityId: box.id, entityType: 'box' });
     expect(boxModel.getEntity(box.id)).toMatchObject({ type: 'box', width: 700, height: 200 });
+  });
+
+  it('moves the selected entity from scalar and bracketed vector measurements', () => {
+    const scalarModel = new SketchModel();
+    const scalarBox = scalarModel.createBox(vec(10, 20, 0), 600, 400, 200);
+
+    const scalarResult = applyMeasurementBoxInputToModel(scalarModel, {
+      tool: 'move',
+      rawInput: '100',
+      drawingPlane: 'xy',
+      selectedId: scalarBox.id
+    });
+
+    expect(scalarResult).toMatchObject({ ok: true, action: 'moved', entityId: scalarBox.id, entityType: 'box' });
+    expect(scalarModel.getEntity(scalarBox.id)).toMatchObject({ type: 'box', origin: vec(110, 20, 0) });
+
+    const vectorResult = applyMeasurementBoxInputToModel(scalarModel, {
+      tool: 'move',
+      rawInput: '[1000,500,0]',
+      drawingPlane: 'xy',
+      selectedId: scalarBox.id
+    });
+
+    expect(vectorResult).toMatchObject({ ok: true, action: 'moved', entityId: scalarBox.id, entityType: 'box' });
+    expect(scalarModel.getEntity(scalarBox.id)).toMatchObject({ type: 'box', origin: vec(1110, 520, 0) });
+  });
+
+  it('rotates the selected entity from degree measurements', () => {
+    const model = new SketchModel();
+    const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+
+    const result = applyMeasurementBoxInputToModel(model, {
+      tool: 'rotate',
+      rawInput: '90',
+      drawingPlane: 'xy',
+      selectedId: line.id
+    });
+
+    expect(result).toMatchObject({ ok: true, action: 'rotated', entityId: line.id, entityType: 'edge' });
+    const rotated = model.getEntity(line.id);
+    expect(rotated).toMatchObject({ type: 'edge' });
+    if (rotated?.type !== 'edge') throw new Error('Expected rotated line');
+    expect(rotated.start.x).toBeCloseTo(50);
+    expect(rotated.start.y).toBeCloseTo(-50);
+    expect(rotated.end.x).toBeCloseTo(50);
+    expect(rotated.end.y).toBeCloseTo(50);
   });
 
   it('rejects Push/Pull measurement when no rectangle face or body is selected', () => {

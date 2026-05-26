@@ -32,6 +32,7 @@ import type { MaterialDefinition } from './core/materials';
 import { shouldApplyDxfImportReport, statusFromDxfImportReport } from './ui/dxfImportPolicy';
 import { drawingPlaneAppearance } from './ui/drawingPlaneAppearance';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
+import type { MeasurementDraftContext } from './ui/ThreeViewport';
 import { HermesIcon, type HermesIconId } from './ui/HermesIcon';
 import { RightTray, RIGHT_TRAY_STORAGE_KEY, sanitizeRightTrayState, type RightTrayPanelId, type RightTrayPanelContent, type RightTrayPanelIcons, type RightTrayState } from './ui/RightTray';
 import './styles.css';
@@ -143,6 +144,7 @@ export default function App() {
   const [selectedBoxFace, setSelectedBoxFace] = useState<FaceSelection | undefined>();
   const [lastMeasurement, setLastMeasurement] = useState('noch keine Messung');
   const [liveMeasurement, setLiveMeasurement] = useState<string | undefined>();
+  const [measurementDraftContext, setMeasurementDraftContext] = useState<MeasurementDraftContext | undefined>();
   const [measurementBoxValue, setMeasurementBoxValue] = useState('');
   const [measurementBoxStatus, setMeasurementBoxStatus] = useState('mm · Enter übernimmt das Maß für das aktive Werkzeug');
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
@@ -337,6 +339,7 @@ export default function App() {
   }
 
   function createLineFromViewport(start: Vec3, end: Vec3) {
+    setMeasurementDraftContext(undefined);
     const draft = createLineDraft(start, end);
     if (!draft.ok) return;
     let measurement: string | undefined;
@@ -349,6 +352,7 @@ export default function App() {
   }
 
   function createRectangleFromViewport(first: Vec3, second: Vec3, plane: DrawingPlane) {
+    setMeasurementDraftContext(undefined);
     const draft = createRectangleDraft(first, second, plane);
     if (!draft.ok) return;
     let measurement: string | undefined;
@@ -361,6 +365,7 @@ export default function App() {
   }
 
   function createBoxFromViewport(origin: Vec3) {
+    setMeasurementDraftContext(undefined);
     const draft = createBoxDraft(origin, boxDimensions);
     if (!draft.ok) return;
     let measurement: string | undefined;
@@ -373,6 +378,7 @@ export default function App() {
   }
 
   function measureFromViewport(start: Vec3, end: Vec3) {
+    setMeasurementDraftContext(undefined);
     const measured = formatTapeMeasurement(model, start, end);
     setLastMeasurement(measured);
     setLiveMeasurement(`Maßband: ${measured}`);
@@ -454,8 +460,51 @@ export default function App() {
         return;
       }
 
+      if (parsed.kind === 'angle') {
+        setRotateAngleDegrees(String(parsed.degrees));
+        if (!selectedId) {
+          setMeasurementBoxStatus(`Drehwinkel vorbereitet: ${parsed.degrees}°. Erst Objekt auswählen.`);
+          return;
+        }
+        mutate((m) => {
+          const applied = applyMeasurementBoxInputToModel(m, {
+            tool: 'rotate',
+            rawInput: raw,
+            drawingPlane,
+            selectedId
+          });
+          if (!applied.ok) throw new Error(applied.error);
+          const updated = m.getEntity(applied.entityId);
+          if (updated) setLiveMeasurement(formatEntityMeasurement(updated));
+          setSelectedId(applied.entityId);
+        });
+        setMeasurementBoxStatus(`Gedreht um ${parsed.degrees}°.`);
+        return;
+      }
+
       if (parsed.kind === 'distance') {
         if (tool === 'line') {
+          if (measurementDraftContext?.tool === 'line') {
+            let createdLineId: string | undefined;
+            mutate((m) => {
+              const applied = applyMeasurementBoxInputToModel(m, {
+                tool: 'line',
+                rawInput: raw,
+                drawingPlane,
+                pendingStartPoint: measurementDraftContext.start,
+                directionPoint: measurementDraftContext.pointer
+              });
+              if (!applied.ok) throw new Error(applied.error);
+              createdLineId = applied.entityId;
+              const updated = m.getEntity(applied.entityId);
+              if (updated) setLiveMeasurement(formatEntityMeasurement(updated));
+              setSelectedId(applied.entityId);
+            });
+            setMeasurementDraftContext(undefined);
+            setMeasurementBoxStatus(`Linie exakt erstellt: ${parsed.value} mm.`);
+            if (createdLineId) setProjectStatus(`Linie exakt per Maßeingabe erstellt: ${createdLineId}`);
+            return;
+          }
           if (!selectedId || selected?.type !== 'edge') {
             setMeasurementBoxStatus(`Linienmaß ${parsed.value} mm vorbereitet. Eine vorhandene Linie auswählen oder neue Linie zeichnen.`);
             setLiveMeasurement(`Linienmaß: ${parsed.value} mm`);
@@ -506,6 +555,13 @@ export default function App() {
     } catch (error) {
       setMeasurementBoxStatus(error instanceof Error ? error.message : 'Maß konnte nicht angewendet werden.');
     }
+  }
+
+  function cancelMeasurementBoxInput() {
+    setMeasurementBoxValue('');
+    setMeasurementDraftContext(undefined);
+    setMeasurementBoxStatus('Maßeingabe abgebrochen.');
+    setLiveMeasurement(undefined);
   }
 
   function handleViewportSelect(entityId: string | undefined, faceSelection?: FaceSelection) {
@@ -1429,6 +1485,7 @@ export default function App() {
               onMove={moveFromViewport}
               onPushPull={applyPushPullSelection}
               onMeasurementPreview={setLiveMeasurement}
+              onMeasurementDraftContext={setMeasurementDraftContext}
               mouseBindings={mouseBindings}
               onMouseBindingAction={handleMouseBindingAction}
               onContextMenuCommand={handleViewportContextMenuCommand}
@@ -1452,6 +1509,7 @@ export default function App() {
             status={measurementBoxStatus}
             onValueChange={setMeasurementBoxValue}
             onApply={applyMeasurementBoxInput}
+            onCancel={cancelMeasurementBoxInput}
           />
         </div>
         <footer className="statusbar">

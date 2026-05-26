@@ -17,7 +17,7 @@ describe('MeasurementBox', () => {
 
     expect(markup).toContain('Aktive Maßeingabe');
     expect(markup).toContain('value="1200"');
-    expect(markup).toContain('placeholder="1200 · 1200,600 · 100,0,0"');
+    expect(markup).toContain('placeholder="1200 · 1200,600 · &lt;100,0,0&gt; · 45°"');
     expect(markup).toContain('Linie: 1200 mm');
     expect(markup).toContain('Bereit');
   });

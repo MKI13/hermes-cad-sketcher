@@ -30,6 +30,7 @@ type ThreeViewportProps = {
   onMove?: (entityId: string, delta: Vec3) => void;
   onPushPull?: (entityId: string, delta: number, faceSelection?: FaceSelection) => void;
   onMeasurementPreview?: (message: string | undefined) => void;
+  onMeasurementDraftContext?: (context: MeasurementDraftContext | undefined) => void;
   mouseBindings?: MouseBindings;
   onMouseBindingAction?: (action: MouseAction) => void;
   onContextMenuCommand?: (command: ViewportContextMenuCommand) => void;
@@ -37,7 +38,11 @@ type ThreeViewportProps = {
   rectangleDimensions?: RectangleDimensions;
 };
 
-export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
+export type MeasurementDraftContext =
+  | { tool: 'line'; start: Vec3; pointer: Vec3 }
+  | { tool: 'rectangle'; start: Vec3; pointer: Vec3; plane: DrawingPlane };
+
+export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onMeasurementPreview, onMeasurementDraftContext, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
@@ -63,6 +68,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const onMoveRef = useRef(onMove);
   const onPushPullRef = useRef(onPushPull);
   const onMeasurementPreviewRef = useRef(onMeasurementPreview);
+  const onMeasurementDraftContextRef = useRef(onMeasurementDraftContext);
   const mouseBindingsRef = useRef<MouseBindings>({});
   const onMouseBindingActionRef = useRef(onMouseBindingAction);
   const onContextMenuCommandRef = useRef(onContextMenuCommand);
@@ -79,6 +85,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   onMoveRef.current = onMove;
   onPushPullRef.current = onPushPull;
   onMeasurementPreviewRef.current = onMeasurementPreview;
+  onMeasurementDraftContextRef.current = onMeasurementDraftContext;
   mouseBindingsRef.current = (mouseBindings ?? {}) as MouseBindings;
   onMouseBindingActionRef.current = onMouseBindingAction;
   onContextMenuCommandRef.current = onContextMenuCommand;
@@ -237,6 +244,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       const draft = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       if (draft) {
         onMeasurementPreviewRef.current?.(draft);
+        if (toolStateRef.current.mode === 'drawing' && activeToolRef.current === 'line' && previewPoint) {
+          onMeasurementDraftContextRef.current?.({ tool: 'line', start: toolStateRef.current.pendingPoint, pointer: previewPoint });
+        } else if (toolStateRef.current.mode === 'drawing' && activeToolRef.current === 'rectangle' && previewPoint) {
+          onMeasurementDraftContextRef.current?.({ tool: 'rectangle', start: toolStateRef.current.pendingPoint, pointer: previewPoint, plane: toolStateRef.current.plane });
+        }
         return;
       }
       if (previewPoint && pushPullDragRef.current) {
@@ -245,6 +257,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         return;
       }
       onMeasurementPreviewRef.current?.(undefined);
+      onMeasurementDraftContextRef.current?.(undefined);
     };
 
     const pointForPushPullDrag = (event: PointerEvent | MouseEvent, state: PushPullDragState): Vec3 | undefined => {
@@ -422,6 +435,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       updateDrawingPreview();
       setSnapCue(undefined);
       onMeasurementPreviewRef.current?.(undefined);
+      onMeasurementDraftContextRef.current?.(undefined);
       const selection = pickSelectionAtPointer(event);
       const contextSelectedId = selection.entityId ?? selectedIdRef.current;
       if (selection.entityId) rememberSelection(selection.entityId, selection.faceSelection);
@@ -441,6 +455,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         updateDrawingPreview();
         setSnapCue(undefined);
         onMeasurementPreviewRef.current?.(undefined);
+        onMeasurementDraftContextRef.current?.(undefined);
       }
     };
 
