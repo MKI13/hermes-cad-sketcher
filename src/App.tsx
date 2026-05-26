@@ -160,6 +160,7 @@ export default function App() {
   const selectedMeasurement = selected ? formatEntityMeasurement(selected) : undefined;
   const selectedFaceLabel = selectedBoxFace && selectedBoxFace.entityId === selectedId ? faceSelectionLabel(selectedBoxFace) : faceSelectionLabel();
   const activeMeasurement = formatActiveMeasurement({ draft: liveMeasurement, selected: selectedMeasurement, last: lastMeasurement });
+  const activeBoxFace = selectedBoxFace && selectedBoxFace.entityId === selectedId ? selectedBoxFace.face : undefined;
   const rectangleMaskResult = parseRectangleDimensionMask(rectangleDimensionMask);
   const activeRectangleDimensions = useRectangleDimensionMask && rectangleMaskResult.ok ? { width: rectangleMaskResult.width, depth: rectangleMaskResult.depth } : undefined;
   const drawingPlaneLabels: Record<DrawingPlane, string> = {
@@ -386,7 +387,7 @@ export default function App() {
           if (!applied.ok) throw new Error(applied.error);
           const updated = m.getEntity(applied.entityId);
           if (!updated) throw new Error('Rechteck konnte nicht erstellt oder geändert werden.');
-          action = applied.action;
+          action = applied.action === 'resized' ? 'resized' : 'created';
           setSelectedId(updated.id);
           setLiveMeasurement(formatEntityMeasurement(updated));
         });
@@ -411,7 +412,7 @@ export default function App() {
           if (!applied.ok) throw new Error(applied.error);
           const updated = m.getEntity(applied.entityId);
           if (!updated || updated.type !== 'box') throw new Error('Körper konnte nicht erstellt oder geändert werden.');
-          action = applied.action;
+          action = applied.action === 'resized' ? 'resized' : 'created';
           setSelectedId(updated.id);
           setSelectedDimensions(boxDimensionsToInput(updated));
           setLiveMeasurement(formatEntityMeasurement(updated));
@@ -451,18 +452,31 @@ export default function App() {
 
         if (tool === 'pushPull') {
           setPushPullDeltaHeight(String(parsed.value));
-          if (!selectedId || selected?.type !== 'box') {
+          if (!selectedId || (selected?.type !== 'box' && selected?.type !== 'face')) {
             setMeasurementBoxStatus(`Push/Pull-Distanz ${parsed.value} mm vorbereitet. Erst Körper oder Fläche auswählen.`);
             return;
           }
+          let appliedAction: 'extruded' | 'resized' | undefined;
           mutate((m) => {
-            const face = selectedBoxFace?.entityId === selectedId ? selectedBoxFace.face : 'top';
-            const updated = m.pushPullBoxFace(selectedId, face, parsed.value);
-            setSelectedId(selectedId);
+            const applied = applyMeasurementBoxInputToModel(m, {
+              tool: 'pushPull',
+              rawInput: raw,
+              drawingPlane,
+              selectedId,
+              selectedBoxFace: selected?.type === 'box' ? activeBoxFace : undefined
+            });
+            if (!applied.ok) throw new Error(applied.error);
+            const updated = m.getEntity(applied.entityId);
+            if (!updated || updated.type !== 'box') throw new Error('Push/Pull konnte keinen Körper erzeugen oder ändern.');
+            appliedAction = applied.action === 'extruded' ? 'extruded' : 'resized';
+            setSelectedId(updated.id);
+            setSelectedBoxFace(undefined);
             setSelectedDimensions(boxDimensionsToInput(updated));
             setLiveMeasurement(formatEntityMeasurement(updated));
           });
-          setMeasurementBoxStatus(`Push/Pull um ${parsed.value} mm angewendet.`);
+          setMeasurementBoxStatus(appliedAction === 'extruded'
+            ? `Fläche per Push/Pull zu Körper extrudiert: ${parsed.value} mm.`
+            : `Push/Pull um ${parsed.value} mm angewendet.`);
           return;
         }
 
@@ -527,16 +541,43 @@ export default function App() {
   }
 
   function applyPushPullDelta() {
-    if (!selectedId || selected?.type !== 'box') return;
+    if (!selectedId || (selected?.type !== 'box' && selected?.type !== 'face')) return;
     const parsed = parsePushPullDelta(pushPullDeltaHeight);
     if (!parsed.ok) return;
-    mutate((m) => {
-      const face = selectedBoxFace?.entityId === selectedId ? selectedBoxFace.face : 'top';
-      const updated = m.pushPullBoxFace(selectedId, face, parsed.deltaHeight);
-      setSelectedId(selectedId);
-      setSelectedDimensions(boxDimensionsToInput(updated));
-      setLiveMeasurement(formatEntityMeasurement(updated));
-    });
+    if (selected.type === 'face') {
+      try {
+        let extruded = false;
+        mutate((m) => {
+          const box = m.extrudeFaceToBox(selectedId, parsed.deltaHeight);
+          setSelectedId(box.id);
+          setSelectedBoxFace(undefined);
+          setSelectedDimensions(boxDimensionsToInput(box));
+          setLiveMeasurement(formatEntityMeasurement(box));
+          extruded = true;
+        });
+        if (extruded) {
+          setFaceExtrusionStatus('Fläche per Push/Pull zu Körper extrudiert');
+          setProjectStatus('Fläche per Push/Pull zu Körper extrudiert');
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Fläche konnte nicht per Push/Pull extrudiert werden.';
+        setFaceExtrusionStatus(message);
+        setProjectStatus(message);
+      }
+      return;
+    }
+    try {
+      mutate((m) => {
+        const face = activeBoxFace ?? 'top';
+        const updated = m.pushPullBoxFace(selectedId, face, parsed.deltaHeight);
+        setSelectedId(selectedId);
+        setSelectedDimensions(boxDimensionsToInput(updated));
+        setLiveMeasurement(formatEntityMeasurement(updated));
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Push/Pull konnte nicht angewendet werden.';
+      setProjectStatus(message);
+    }
   }
 
   function applySelectedDimensions() {
@@ -934,9 +975,11 @@ export default function App() {
         <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
         <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />
         <PushPullPanel
-          disabled={!selectedId || selected?.type !== 'box'}
+          disabled={!selectedId || (selected?.type !== 'box' && selected?.type !== 'face')}
           selectedType={selected?.type}
           selectedBox={selected?.type === 'box' ? selected : undefined}
+          selectedBoxFace={activeBoxFace}
+          selectedFace={selected?.type === 'face' ? selected : undefined}
           deltaHeight={pushPullDeltaHeight}
           onDeltaHeightChange={setPushPullDeltaHeight}
           onApply={applyPushPullDelta}
@@ -1181,7 +1224,7 @@ export default function App() {
     if (id === 'history') return <><div className="history-controls" aria-label="Verlauf"><button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}><HermesIcon id="undo-clear" label="Rückgängig" size={18} /> Rückgängig</button><button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}><HermesIcon id="redo-clear" label="Wiederholen" size={18} /> Wiederholen</button></div><button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button><button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}><HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen</button></>;
     if (id === 'move') return <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />;
     if (id === 'rotate') return <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />;
-    if (id === 'pushPull') return <PushPullPanel disabled={!selectedId || selected?.type !== 'box'} selectedType={selected?.type} selectedBox={selected?.type === 'box' ? selected : undefined} deltaHeight={pushPullDeltaHeight} onDeltaHeightChange={setPushPullDeltaHeight} onApply={applyPushPullDelta} />;
+    if (id === 'pushPull') return <PushPullPanel disabled={!selectedId || (selected?.type !== 'box' && selected?.type !== 'face')} selectedType={selected?.type} selectedBox={selected?.type === 'box' ? selected : undefined} selectedBoxFace={activeBoxFace} selectedFace={selected?.type === 'face' ? selected : undefined} deltaHeight={pushPullDeltaHeight} onDeltaHeightChange={setPushPullDeltaHeight} onApply={applyPushPullDelta} />;
     if (id === 'dimensions') return <SelectedDimensionsPanel disabled={!selectedId || selected?.type !== 'box'} selectedType={selected?.type} dimensions={selectedDimensions} onDimensionsChange={setSelectedDimensions} onApply={applySelectedDimensions} />;
     if (id === 'extrude') return <FaceExtrudePanel disabled={!selectedId || selected?.type !== 'face'} selectedType={selected?.type} selectedFace={selected?.type === 'face' ? selected : undefined} height={extrudeHeight} onHeightChange={(height) => { setExtrudeHeight(height); setFaceExtrusionStatus(''); }} onApply={applyFaceExtrusion} statusMessage={faceExtrusionStatus} />;
     if (id === 'inspector') return <InspectorPanel inspection={selectedInspection} />;

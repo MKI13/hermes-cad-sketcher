@@ -131,17 +131,16 @@ Eine Erweiterung gilt erst als fertig, wenn alle Punkte erfüllt sind:
 
 Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn eine Erweiterung fertig ist, verschiebe sie in die erledigte Liste.
 
-1. **Push/Pull für Flächen erweitern**
-   - Aktuell gibt es ein präzises Push/Pull-Panel für die Höhe ausgewählter Boxkörper.
-   - Nächster Schritt: Rechtecke und beliebige Flächen kontrolliert zu Körpern extrudieren.
-   - Später: Box-Flächen in Breite/Tiefe/Höhe gezielt ziehen.
+1. **Push/Pull für freie/komplexe Flächen erweitern**
+   - Rechteckflächen auf X/Y, X/Z und Y/Z können im v1-Scope bereits kontrolliert zu Boxkörpern extrudiert werden.
+   - Nächster Schritt: beliebige freie Flächen erst nach Kernel-/Geometrietests unterstützen.
    - Negative oder Null-Endmaße sauber blockieren.
    - Maße müssen in Millimeter stabil bleiben.
 
-2. **Körper-Faces für Zieh-/Push-Pull-Werkzeuge ausbauen**
-   - Jeder Körper muss für die Bedienung klare Seiten/Faces bereitstellen: oben, unten, vorne, hinten, links, rechts.
-   - Faces sollen auswählbar und für Ziehen/Push/Pull nutzbar sein, damit Maße in Millimeter direkt verändert werden können.
-   - Boxkörper rendern bereits Seitenflächen; der nächste Schritt ist eine stabile Modell-/Command-Schicht für gezieltes Face-Ziehen in Breite, Tiefe und Höhe.
+2. **Körper-Faces für weitere Zieh-/Push-Pull-Werkzeuge ausbauen**
+   - Boxkörper stellen für die Bedienung klare Seiten/Faces bereit: oben, unten, vorne, hinten, links, rechts.
+   - Faces sind auswählbar und für Ziehen/Push/Pull nutzbar, damit Maße in Millimeter direkt verändert werden können.
+   - Nächster Schritt ist eine allgemeinere Modell-/Command-Schicht für spätere nicht-Box-Körper und komplexere Face-Operationen.
    - Null- oder Negativmaße müssen weiterhin blockiert werden.
 
 3. **Komponenten als Instanzen verbessern**
@@ -220,7 +219,7 @@ Diese Liste soll nach jedem erfolgreichen Feature-Commit gepflegt werden.
 - **Box-Dimensionspanel** — Standardmaße für neue Boxkörper in Millimeter setzen und ungültige Maße blockieren.
 - **Präzises Verschieben** — ausgewählte Elemente per ΔX/ΔY/ΔZ in Millimeter transformieren.
 - **Präzises Drehen** — ausgewählte Elemente per Grad-Eingabe um die Z-Achse drehen; Boxen bleiben dabei um ihren sichtbaren Mittelpunkt stabil.
-- **Präzises Push/Pull für Boxhöhe und Boxseiten** — ausgewählte Boxkörper per ΔH in Millimeter höher oder niedriger machen; auswählbare Boxseiten können Breite/Tiefe entlang ihrer lokalen Face-Richtung ändern. Ungültige oder auf Null führende Werte werden blockiert.
+- **Präzises Push/Pull für Boxhöhe, Boxseiten und Rechteckflächen** — ausgewählte Boxkörper per ΔH in Millimeter höher oder niedriger machen; auswählbare Boxseiten können Breite/Tiefe entlang ihrer lokalen Face-Richtung ändern; ausgewählte axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z können mit positiver Push/Pull-Distanz zu Boxkörpern extrudiert werden. Ungültige oder auf Null führende Werte werden blockiert.
 - **Ruby-Konsole / Hermes-CAD-Befehls-DSL** — sichere interne Bedienkonsole für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`; keine Systembefehle, keine SketchUp-Ruby-API und keine `.rb/.rbz` Plugin-Kompatibilität.
 - **Agent-Chat-Brücke** — Hermes oder ein anderer AI Agent kann direkte CAD-Befehle oder einfache Sätze wie „erstelle box …“ und „verschiebe auswahl …“ live gegen dieselbe geprüfte Befehlslogik ausführen.
 - **Auswahlbasierte Agent-Skripte** — Mehrzeilige Agent-Antworten wie `select box_1` gefolgt von einem nackten `delete` werden korrekt auf die aktuelle Auswahl angewendet. Mutierende Befehle ohne explizite Element-ID nutzen die aktuelle Auswahl, wenn eine vorhanden ist; ohne Auswahl bleibt der Befehl fail-closed. Dafür gibt es einen Regressionstest in `tests/cadCommandConsole.test.ts`.
