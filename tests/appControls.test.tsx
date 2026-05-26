@@ -210,4 +210,13 @@ describe('App controls', () => {
     expect(css).toContain('.viewport-placeholder { position: relative; overflow: hidden; min-height: 0;');
   });
 
+
+  it('shows cut-list material readiness in the entity info tray', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Zuschnittdaten');
+    expect(markup).toContain('Materialdaten fehlen');
+    expect(markup).toContain('Faserrichtung fehlt');
+  });
+
 });

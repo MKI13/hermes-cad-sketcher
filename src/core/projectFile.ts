@@ -1,5 +1,6 @@
 import { SketchModel, type SketchModelSnapshot } from './model';
 import { distance, sub, vec, type Vec3 } from './geometry';
+import { isPartMaterialPayload } from './woodworkingMaterials';
 
 export const PROJECT_FILE_VERSION = 1;
 export const PROJECT_FILE_FORMAT = 'hermes-cad-sketcher';
@@ -113,6 +114,7 @@ function hasValidEntityTagAndMaterialMetadata(value: Record<string, unknown>, kn
   if ('tagId' in value && value.tagId !== undefined && (typeof value.tagId !== 'string' || !knownTagIds.has(value.tagId))) return false;
   if ('materialId' in value && value.materialId !== undefined && (typeof value.materialId !== 'string' || !knownMaterialIds.has(value.materialId))) return false;
   if ('material' in value && value.material !== undefined && !isValidLegacyMaterialAssignment(value.material, knownMaterialIds)) return false;
+  if ('partMaterial' in value && value.partMaterial !== undefined && !isPartMaterialPayload(value.partMaterial)) return false;
   return true;
 }
 

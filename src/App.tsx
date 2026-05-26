@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SketchModel, type BoxFaceName, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
+import { SketchModel, partMaterialReadinessForEntity, type BoxFaceName, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { parseMeasurementBoxInput } from './core/measurementInput';
@@ -210,6 +210,8 @@ export default function App() {
   const tagCatalog = model.allTags();
   const materialCatalog = model.allMaterials();
   const selectedMaterialLabel = materialLabelForEntity(selected, materialCatalog);
+  const selectedPartMaterialReadiness = partMaterialReadinessForEntity(selected);
+  const selectedPartMaterialStatus = selectedPartMaterialReadiness.ready ? 'bereit für Zuschnittliste' : selectedPartMaterialReadiness.messages.join(' · ');
   const visibleMaterialCategory = selectedMaterialCategory ?? materialLibrary?.categories[0];
   const visibleMaterialEntries = materialLibrary?.entries.filter((entry) => !visibleMaterialCategory || entry.category === visibleMaterialCategory) ?? [];
   const mouseBindingPanel = (
@@ -1146,6 +1148,7 @@ export default function App() {
         <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
         <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
         <div><dt>Material</dt><dd>{selectedMaterialLabel}</dd></div>
+        <div><dt>Zuschnittdaten</dt><dd>{selectedPartMaterialStatus}</dd></div>
       </dl>
     ),
     outliner: <p>{model.allEntities().length} Elemente im Modell.</p>,

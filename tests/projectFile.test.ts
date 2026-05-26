@@ -241,3 +241,46 @@ describe('Hermes CAD project files', () => {
     }))).toThrow('Projektdatei enthält ungültige Elemente.');
   });
 });
+
+
+
+describe('woodworking material project payloads', () => {
+  it('round-trips part-level material, grain and edge-banding metadata', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 720, 560, 19);
+    model.assignPartMaterial(box.id, {
+      materialId: 'spanplatte-weiss-19',
+      materialName: 'Spanplatte weiß 19 mm',
+      boardType: 'beschichtete Spanplatte',
+      thicknessMm: 19,
+      grainDirection: 'length',
+      edging: { front: { materialName: 'ABS weiß', thicknessMm: 2 } },
+      faceOverrides: { top: { materialId: 'white-laminate', materialName: 'Weiß Deckschicht', reason: 'sichtbare Oberfläche' } }
+    });
+
+    const roundTrip = importProjectFile(exportProjectFile(model));
+
+    expect(roundTrip.snapshot()).toEqual(model.snapshot());
+    expect(roundTrip.getEntity(box.id)?.partMaterial).toMatchObject({
+      materialName: 'Spanplatte weiß 19 mm',
+      grainDirection: 'length',
+      edging: { front: { materialName: 'ABS weiß', thicknessMm: 2 } }
+    });
+  });
+
+  it('rejects malformed part material metadata instead of importing ambiguous cut-list data', () => {
+    const model = new SketchModel();
+    model.createBox(vec(0, 0, 0), 720, 560, 19);
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [{ ...parsed.model.entities[0], partMaterial: { materialId: 'bad id', materialName: 'Bad', thicknessMm: 19, grainDirection: 'length' } }] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, entities: [{ ...parsed.model.entities[0], partMaterial: { materialId: 'spanplatte', materialName: 'Spanplatte', thicknessMm: -1, grainDirection: 'sideways' } }] }
+    }))).toThrow('Projektdatei enthält ungültige Elemente.');
+  });
+});
