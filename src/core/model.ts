@@ -20,8 +20,71 @@ export type EntityId = string;
 export type ComponentId = string;
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
 export type MaterialAssignment = { materialId?: MaterialId; name?: string; color?: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
+export type WoodworkingKind = 'assembly' | 'panel' | 'bar' | 'hardware' | 'cut' | 'helper';
+export type WoodworkingPrefix = 'ASM' | 'PLT' | 'BAR' | 'HW' | 'CUT' | 'REF';
+export type WoodworkingMetadata = Readonly<{ kind: WoodworkingKind; prefix: WoodworkingPrefix; role?: string }>;
+export type WoodworkingDimensions = Readonly<{ length: number; width: number; thickness: number }>;
 
-type CadMetadata = { layer?: string; hidden?: boolean; tagId?: TagId; materialId?: MaterialId; material?: MaterialAssignment };
+const woodworkingPrefixes: Record<WoodworkingKind, WoodworkingPrefix> = {
+  assembly: 'ASM',
+  panel: 'PLT',
+  bar: 'BAR',
+  hardware: 'HW',
+  cut: 'CUT',
+  helper: 'REF'
+};
+
+export function woodworkingPrefixFor(kind: WoodworkingKind): WoodworkingPrefix {
+  return woodworkingPrefixes[kind];
+}
+
+export function createWoodworkingMetadata(kind: WoodworkingKind, role?: string): WoodworkingMetadata {
+  const prefix = woodworkingPrefixFor(kind);
+  if (!prefix) throw new Error(`Unbekannte Schreiner-Klassifizierung: ${String(kind)}`);
+  const trimmedRole = role?.trim();
+  return trimmedRole ? { kind, prefix, role: trimmedRole } : { kind, prefix };
+}
+
+export function isBoardCutListKind(kind: WoodworkingKind): boolean {
+  return kind === 'panel' || kind === 'bar';
+}
+
+export function isValidWoodworkingMetadata(value: unknown): value is WoodworkingMetadata {
+  if (!isRecord(value)) return false;
+  if (!isWoodworkingKind(value.kind)) return false;
+  if (value.prefix !== woodworkingPrefixFor(value.kind)) return false;
+  if ('role' in value && value.role !== undefined && (typeof value.role !== 'string' || value.role.trim().length === 0)) return false;
+  return true;
+}
+
+export function suggestWoodworkingName(kind: WoodworkingKind, label: string, dimensions?: WoodworkingDimensions): string {
+  const prefix = woodworkingPrefixFor(kind);
+  if (!prefix) throw new Error(`Unbekannte Schreiner-Klassifizierung: ${String(kind)}`);
+  const safeLabel = safeWoodworkingNamePart(label);
+  const dimensionSuffix = dimensions ? `_${formatWoodworkingDimension(dimensions.length)}x${formatWoodworkingDimension(dimensions.width)}x${formatWoodworkingDimension(dimensions.thickness)}` : '';
+  return `${prefix}_${safeLabel}${dimensionSuffix}`;
+}
+
+function isWoodworkingKind(value: unknown): value is WoodworkingKind {
+  return typeof value === 'string' && Object.hasOwn(woodworkingPrefixes, value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function safeWoodworkingNamePart(value: string): string {
+  const safe = value.trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!safe) throw new Error('Schreiner-Name braucht eine Bezeichnung.');
+  return safe;
+}
+
+function formatWoodworkingDimension(value: number): string {
+  if (!isPositiveFinite(value)) throw new Error('Schreiner-Maße müssen positiv sein.');
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+type CadMetadata = { layer?: string; hidden?: boolean; tagId?: TagId; materialId?: MaterialId; material?: MaterialAssignment; woodworking?: WoodworkingMetadata };
 export type ToolName = 'select' | 'line' | 'rectangle' | 'box' | 'move' | 'pushPull' | 'rotate' | 'tape';
 
 export type EdgeEntity = CadMetadata & { id: EntityId; type: 'edge'; start: Vec3; end: Vec3; componentId?: ComponentId };
@@ -53,6 +116,7 @@ export type Component = {
   id: ComponentId;
   name: string;
   entityIds: EntityId[];
+  woodworking?: WoodworkingMetadata;
 };
 
 export type SketchModelSnapshot = {
@@ -331,6 +395,20 @@ export class SketchModel {
     const tagged = { ...entity, tagId } as Entity;
     this.entities.set(id, tagged);
     return tagged;
+  }
+
+  assignWoodworkingClassification(id: EntityId, kind: WoodworkingKind, role?: string): Entity {
+    const entity = this.requireEntity(id);
+    const classified = { ...entity, woodworking: createWoodworkingMetadata(kind, role) } as Entity;
+    this.entities.set(id, classified);
+    return classified;
+  }
+
+  assignComponentWoodworkingClassification(id: ComponentId, kind: WoodworkingKind, role?: string): Component {
+    const component = this.requireComponent(id);
+    const classified = { ...component, woodworking: createWoodworkingMetadata(kind, role) };
+    this.components.set(id, classified);
+    return classified;
   }
 
   upsertMaterial(material: MaterialDefinition): MaterialDefinition {
