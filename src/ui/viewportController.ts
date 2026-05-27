@@ -27,6 +27,7 @@ export type ScreenPoint = Readonly<{
 
 const MIN_POLAR = 0.1;
 const MAX_POLAR = Math.PI - 0.1;
+export const AXIS_GUIDE_PICK_THRESHOLD = 96;
 
 export function createOrbitCameraState(input?: Partial<OrbitCameraState>): OrbitCameraState {
   return {

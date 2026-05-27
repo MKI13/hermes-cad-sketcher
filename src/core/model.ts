@@ -255,6 +255,17 @@ export class SketchModel {
     return entity;
   }
 
+  createFaceFromClosedLineLoop(closingEdgeId: EntityId): FaceEntity | undefined {
+    const closing = this.entities.get(closingEdgeId);
+    if (!closing || closing.type !== 'edge') return undefined;
+    const edges = [...this.entities.values()].filter((entity): entity is EdgeEntity => entity.type === 'edge');
+    const rectangle = findClosedRectangleLoop(edges, closing);
+    if (!rectangle) return undefined;
+    const vertices = rectangleVertices(rectangle.origin, rectangle.width, rectangle.depth, rectangle.plane);
+    if ([...this.entities.values()].some((entity) => entity.type === 'face' && sameVertexSet(entity.vertices, vertices))) return undefined;
+    return this.createRectangle(rectangle.origin, rectangle.width, rectangle.depth, {}, rectangle.plane);
+  }
+
   resizeLineLength(id: EntityId, lengthMm: number): EdgeEntity {
     if (!isPositiveFinite(lengthMm)) throw new Error('Eine Linie braucht eine positive Länge.');
     const entity = this.requireEntityEditable(id);
@@ -611,6 +622,111 @@ function uniqueMaterialId(baseId: string, materials: readonly MaterialDefinition
     const candidate = `${prefixed}-${index}`;
     if (!existingIds.has(candidate)) return candidate;
   }
+}
+
+type RectangleLoop = Readonly<{ origin: Vec3; width: number; depth: number; plane: DrawingPlane }>;
+type PlaneSpec = Readonly<{ plane: DrawingPlane; a: 'x' | 'y' | 'z'; b: 'x' | 'y' | 'z'; c: 'x' | 'y' | 'z' }>;
+
+const POINT_EPSILON = 1e-6;
+const rectanglePlaneSpecs: readonly PlaneSpec[] = [
+  { plane: 'xy', a: 'x', b: 'y', c: 'z' },
+  { plane: 'xz', a: 'x', b: 'z', c: 'y' },
+  { plane: 'yz', a: 'y', b: 'z', c: 'x' }
+];
+
+function findClosedRectangleLoop(edges: readonly EdgeEntity[], closing: EdgeEntity): RectangleLoop | undefined {
+  for (const spec of rectanglePlaneSpecs) {
+    const loop = findClosedRectangleLoopOnPlane(edges, closing, spec);
+    if (loop) return loop;
+  }
+  return undefined;
+}
+
+function findClosedRectangleLoopOnPlane(edges: readonly EdgeEntity[], closing: EdgeEntity, spec: PlaneSpec): RectangleLoop | undefined {
+  if (!nearlyEqual(closing.start[spec.c], closing.end[spec.c])) return undefined;
+  const constant = closing.start[spec.c];
+  const planeEdges = edges.filter((edge) => isEdgeOnPlane(edge, spec, constant) && isPlaneAxisAlignedEdge(edge, spec));
+  if (!planeEdges.some((edge) => edge.id === closing.id)) return undefined;
+  const aValues = uniqueSorted(planeEdges.flatMap((edge) => [edge.start[spec.a], edge.end[spec.a]]));
+  const bValues = uniqueSorted(planeEdges.flatMap((edge) => [edge.start[spec.b], edge.end[spec.b]]));
+
+  for (const minA of aValues) {
+    for (const maxA of aValues.filter((value) => value > minA + POINT_EPSILON)) {
+      for (const minB of bValues) {
+        for (const maxB of bValues.filter((value) => value > minB + POINT_EPSILON)) {
+          const corners = [
+            pointForPlane(spec, minA, minB, constant),
+            pointForPlane(spec, maxA, minB, constant),
+            pointForPlane(spec, maxA, maxB, constant),
+            pointForPlane(spec, minA, maxB, constant)
+          ];
+          if (!edgeMatchesAnySide(closing, corners)) continue;
+          if (!allRectangleSidesExist(planeEdges, corners)) continue;
+          return { origin: corners[0], width: maxA - minA, depth: maxB - minB, plane: spec.plane };
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function isEdgeOnPlane(edge: EdgeEntity, spec: PlaneSpec, constant: number): boolean {
+  return nearlyEqual(edge.start[spec.c], constant) && nearlyEqual(edge.end[spec.c], constant);
+}
+
+function isPlaneAxisAlignedEdge(edge: EdgeEntity, spec: PlaneSpec): boolean {
+  const sameA = nearlyEqual(edge.start[spec.a], edge.end[spec.a]);
+  const sameB = nearlyEqual(edge.start[spec.b], edge.end[spec.b]);
+  return sameA !== sameB;
+}
+
+function allRectangleSidesExist(edges: readonly EdgeEntity[], corners: readonly Vec3[]): boolean {
+  return corners.every((corner, index) => edgeExists(edges, corner, corners[(index + 1) % corners.length]));
+}
+
+function edgeExists(edges: readonly EdgeEntity[], first: Vec3, second: Vec3): boolean {
+  return edges.some((edge) => sameSegment(edge.start, edge.end, first, second));
+}
+
+function edgeMatchesAnySide(edge: EdgeEntity, corners: readonly Vec3[]): boolean {
+  return corners.some((corner, index) => sameSegment(edge.start, edge.end, corner, corners[(index + 1) % corners.length]));
+}
+
+function sameSegment(a1: Vec3, a2: Vec3, b1: Vec3, b2: Vec3): boolean {
+  return (samePoint(a1, b1) && samePoint(a2, b2)) || (samePoint(a1, b2) && samePoint(a2, b1));
+}
+
+function sameVertexSet(first: readonly Vec3[], second: readonly Vec3[]): boolean {
+  if (first.length !== second.length) return false;
+  const remaining = [...second];
+  for (const point of first) {
+    const index = remaining.findIndex((candidate) => samePoint(point, candidate));
+    if (index === -1) return false;
+    remaining.splice(index, 1);
+  }
+  return remaining.length === 0;
+}
+
+function samePoint(first: Vec3, second: Vec3): boolean {
+  return nearlyEqual(first.x, second.x) && nearlyEqual(first.y, second.y) && nearlyEqual(first.z, second.z);
+}
+
+function nearlyEqual(first: number, second: number): boolean {
+  return Math.abs(first - second) <= POINT_EPSILON;
+}
+
+function uniqueSorted(values: readonly number[]): number[] {
+  const unique: number[] = [];
+  for (const value of [...values].sort((a, b) => a - b)) {
+    if (!unique.some((existing) => nearlyEqual(existing, value))) unique.push(value);
+  }
+  return unique;
+}
+
+function pointForPlane(spec: PlaneSpec, a: number, b: number, c: number): Vec3 {
+  if (spec.plane === 'xy') return vec(a, b, c);
+  if (spec.plane === 'xz') return vec(a, c, b);
+  return vec(c, a, b);
 }
 
 function rectangleFacePlane(vertices: Vec3[]): DrawingPlane | undefined {

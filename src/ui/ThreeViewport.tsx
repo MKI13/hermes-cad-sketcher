@@ -5,6 +5,7 @@ import { type DrawingPlane, type EntityId, type SketchModel, type ToolName, type
 import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick, type ToolCommand, type ToolPreview, type ToolState } from '../core/toolState';
 import { secondPointForRectangleDimensions, type RectangleDimensions } from './drawingController';
 import {
+  AXIS_GUIDE_PICK_THRESHOLD,
   applyOrbitToCamera,
   createModelGroup,
   createOrbitCameraState,
@@ -293,7 +294,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       const screenPoint = screenPointForEvent(event);
       const modelHit = screenPointToObjectPoint(screenPoint, camera, modelGroup.children);
       if (modelHit) return modelHit.point;
-      const axisHit = screenPointToObjectPoint(screenPoint, camera, originGuides.children, 18);
+      const axisHit = screenPointToObjectPoint(screenPoint, camera, originGuides.children, AXIS_GUIDE_PICK_THRESHOLD);
       if (axisHit) return axisHit.point;
       return screenPointToDrawingPlane(screenPoint, camera, drawingPlaneRef.current);
     };

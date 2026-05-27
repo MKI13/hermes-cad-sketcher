@@ -6,6 +6,7 @@ import { vec } from '../src/core/geometry';
 import { SketchModel } from '../src/core/model';
 import { importAsciiStl } from '../src/core/stl';
 import {
+  AXIS_GUIDE_PICK_THRESHOLD,
   createOrbitCameraState,
   orbitCameraDrag,
   panOrbitCameraDrag,
@@ -237,6 +238,13 @@ endsolid ref
     expect(picked?.point.x).toBeCloseTo(0, 6);
     expect(picked?.point.y).toBeCloseTo(0, 6);
     expect(picked?.point.z).toBeCloseTo(300, 6);
+  });
+
+  it('uses a forgiving visible-axis pick threshold so the blue axis can be drawn on', async () => {
+    expect(AXIS_GUIDE_PICK_THRESHOLD).toBeGreaterThanOrEqual(80);
+    const source = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
+
+    expect(source).toContain('originGuides.children, AXIS_GUIDE_PICK_THRESHOLD');
   });
 
   it('projects the center of the screen onto the millimeter ground plane', () => {

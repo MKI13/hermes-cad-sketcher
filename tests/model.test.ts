@@ -16,6 +16,36 @@ describe('SketchModel geometry tools', () => {
     expect(face.vertices).toEqual([vec(10, 20, 0), vec(1010, 20, 0), vec(1010, 520, 0), vec(10, 520, 0)]);
   });
 
+  it('turns a closed line rectangle on the blue axis plane into an extrudable face', () => {
+    const model = new SketchModel();
+    model.createLine(vec(0, 0, 0), vec(1000, 0, 0));
+    model.createLine(vec(1000, 0, 0), vec(1000, 0, 720));
+    model.createLine(vec(1000, 0, 720), vec(0, 0, 720));
+    const closing = model.createLine(vec(0, 0, 720), vec(0, 0, 0));
+
+    const face = model.createFaceFromClosedLineLoop(closing.id);
+
+    expect(face).toMatchObject({ type: 'face', vertices: [vec(0, 0, 0), vec(1000, 0, 0), vec(1000, 0, 720), vec(0, 0, 720)] });
+    if (!face) throw new Error('Expected closed blue-axis line loop to create a face');
+    const box = model.extrudeFaceToBox(face.id, 500);
+    expect(box).toMatchObject({ type: 'box', origin: vec(0, 0, 0), width: 1000, depth: 500, height: 720 });
+  });
+
+  it('does not create a duplicate face for the same closed line rectangle', () => {
+    const model = new SketchModel();
+    model.createLine(vec(0, 0, 0), vec(1000, 0, 0));
+    model.createLine(vec(1000, 0, 0), vec(1000, 500, 0));
+    model.createLine(vec(1000, 500, 0), vec(0, 500, 0));
+    const closing = model.createLine(vec(0, 500, 0), vec(0, 0, 0));
+
+    const first = model.createFaceFromClosedLineLoop(closing.id);
+    const second = model.createFaceFromClosedLineLoop(closing.id);
+
+    expect(first?.type).toBe('face');
+    expect(second).toBeUndefined();
+    expect(model.allEntities().filter((entity) => entity.type === 'face')).toHaveLength(1);
+  });
+
   it('extrudes an xy rectangle face into a box and removes the source face', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1000, 500, {}, 'xy');

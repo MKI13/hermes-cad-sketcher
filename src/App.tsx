@@ -356,8 +356,10 @@ export default function App() {
     let measurement: string | undefined;
     mutate((m) => {
       const entity = m.createLine(draft.start, draft.end);
-      setSelectedId(entity.id);
-      measurement = formatEntityMeasurement(entity);
+      const closedFace = m.createFaceFromClosedLineLoop(entity.id);
+      const selectedEntity = closedFace ?? entity;
+      setSelectedId(selectedEntity.id);
+      measurement = formatEntityMeasurement(selectedEntity);
     });
     setLiveMeasurement(measurement);
   }
