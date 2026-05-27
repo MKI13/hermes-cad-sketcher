@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { distance, type Vec3, vec } from '../core/geometry';
+import { findSnapPoint, type SnapResult as CoreSnapResult } from '../core/snapping';
 import { entityBoundingBox, formatMillimeters, isAxisAlignedRectangleFace, isPositiveFinite, previewPushPullBoxFace, type BoxEntity, type BoxFaceName, type Entity, type EntityId, type FaceEntity, type SketchModel, type ToolName } from '../core/model';
 import { type ToolState } from '../core/toolState';
 import { type MouseAction } from './mouseBindings';
@@ -10,9 +11,9 @@ const MIN_ZOOM_RADIUS = 150;
 const MAX_ZOOM_RADIUS = 100000;
 const WHEEL_STEP_FACTOR = 0.85;
 
-export type SnapPointKind = 'endpoint' | 'midpoint';
-export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
-export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: SnapPointKind })>;
+export type SnapPointKind = 'endpoint' | 'midpoint' | 'axis:x' | 'axis:y' | 'axis:z';
+export type SnapPoint = Readonly<{ entityId: EntityId; kind: Exclude<SnapPointKind, `axis:${string}`>; point: Vec3 }>;
+export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: Exclude<SnapPointKind, `axis:${string}`> })>;
 export type FaceSelection = Readonly<{ entityId: EntityId; face: BoxFaceName }>;
 export type ViewportEntityAction = 'entityInfo' | 'erase' | 'hide' | 'makeGroup' | 'makeComponent' | 'area';
 export type ViewportContextMenuCommand =
@@ -127,8 +128,32 @@ export function createOriginGuideGroup(length = 3000): THREE.Group {
   return group;
 }
 
-export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' {
-  return kind === 'endpoint' ? 'Endpoint' : 'Midpoint';
+export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' | 'Achse X' | 'Achse Y' | 'Achse Z' {
+  if (kind === 'endpoint') return 'Endpoint';
+  if (kind === 'midpoint') return 'Midpoint';
+  if (kind === 'axis:x') return 'Achse X';
+  if (kind === 'axis:y') return 'Achse Y';
+  return 'Achse Z';
+}
+
+export function findViewportSnapPoint(input: {
+  model: Pick<SketchModel, 'allEntities'>;
+  pointer: Vec3;
+  toolState: ToolState;
+  activeTool: ToolName;
+  gridSize?: number;
+  tolerance?: number;
+}): CoreSnapResult {
+  const startPoint = input.toolState.mode === 'drawing' && input.toolState.tool === input.activeTool
+    ? input.toolState.pendingPoint
+    : undefined;
+  return findSnapPoint({
+    model: input.model,
+    pointer: input.pointer,
+    gridSize: input.gridSize,
+    tolerance: input.tolerance,
+    startPoint
+  });
 }
 
 export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: Vec3): string | undefined {

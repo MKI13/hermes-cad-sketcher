@@ -8,6 +8,7 @@ import { importAsciiStl } from '../src/core/stl';
 import {
   createOrbitCameraState,
   orbitCameraDrag,
+  panOrbitCameraDrag,
   cameraPositionFromOrbit,
   createModelGroup,
   disposeObjectTree,
@@ -33,6 +34,17 @@ describe('interactive Three.js viewport foundation', () => {
     const next = orbitCameraDrag(initial, { deltaX: 0, deltaY: -10000, viewportWidth: 1000, viewportHeight: 1000 });
 
     expect(next.polar).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it('pans the orbit camera target without changing radius or orbit angles', () => {
+    const initial = createOrbitCameraState({ target: vec(100, 200, 300), radius: 2000, azimuth: Math.PI / 4, polar: Math.PI / 3 });
+
+    const next = panOrbitCameraDrag(initial, { deltaX: 80, deltaY: -40, viewportWidth: 1000, viewportHeight: 800 });
+
+    expect(next.radius).toBe(initial.radius);
+    expect(next.azimuth).toBe(initial.azimuth);
+    expect(next.polar).toBe(initial.polar);
+    expect(next.target).not.toEqual(initial.target);
   });
 
   it('converts orbit state to a Three.js camera position using x/z ground axes and y height', () => {
@@ -101,6 +113,16 @@ describe('interactive Three.js viewport foundation', () => {
     expect(source).not.toContain('createModelGroup({ allEntities: () => [preview.entity] } as SketchModel, undefined)');
     expect(source).toContain('createModelGroup({ allEntities: () => [preview.entity] }');
     expect(source).toContain('model.allMaterials()');
+  });
+
+  it('wires configured pan mouse drags to viewport panning instead of forwarding them as tool actions', async () => {
+    const source = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
+
+    expect(source).toContain('panOrbitCameraDrag');
+    expect(source).toContain("if (action === 'orbit' || action === 'pan')");
+    expect(source).toContain("mode: action");
+    expect(source).toContain("drag.mode === 'pan' ? panOrbitCameraDrag");
+    expect(source).not.toContain("if (action === 'pan') onMouseBindingActionRef.current");
   });
 
   it('renders STL reference meshes as transparent wireframe mesh geometry', () => {

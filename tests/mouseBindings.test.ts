@@ -24,12 +24,14 @@ describe('user configurable mouse bindings', () => {
     expect(MOUSE_INPUTS.map((input) => input.id)).toContain('wheel');
     expect(mouseActionLabel('tool:move')).toBe('Werkzeug Verschieben wählen');
     expect(mouseActionLabel('contextMenu')).toBe('Arbeitsflächen-Kontextmenü');
+    expect(mouseActionLabel('pan' as MouseAction)).toBe('Ansicht verschieben');
   });
 
   it('sanitizes per-user bindings while keeping unknown or unsafe values at defaults', () => {
     const sanitized = sanitizeMouseBindings({
       'button:3': 'tool:move',
       'button:4': 'undo',
+      'button:5': 'pan',
       'button:9': 'delete',
       'button:99': 'tool:box',
       wheel: 'orbit',
@@ -38,6 +40,7 @@ describe('user configurable mouse bindings', () => {
 
     expect(sanitized['button:3']).toBe('tool:move');
     expect(sanitized['button:4']).toBe('undo');
+    expect(sanitized['button:5']).toBe('pan');
     expect(sanitized['button:9']).toBe('delete');
     expect((sanitized as Record<string, MouseAction | undefined>)['button:99']).toBeUndefined();
     expect(sanitized.wheel).toBe('zoom');
