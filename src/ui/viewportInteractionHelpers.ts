@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { distance, type Vec3, vec } from '../core/geometry';
+import { collectInferenceCandidates, createInference, type Inference, type InferenceCandidate } from '../core/inference';
 import { entityBoundingBox, formatMillimeters, isAxisAlignedRectangleFace, isPositiveFinite, previewPushPullBoxFace, type BoxEntity, type BoxFaceName, type Entity, type EntityId, type FaceEntity, type SketchModel, type ToolName } from '../core/model';
 import { type ToolState } from '../core/toolState';
 import { type MouseAction } from './mouseBindings';
@@ -13,6 +14,7 @@ const WHEEL_STEP_FACTOR = 0.85;
 export type SnapPointKind = 'endpoint' | 'midpoint';
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
 export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: SnapPointKind })>;
+export type InferenceResult = Readonly<{ point: Vec3; inference: Inference }>;
 export type FaceSelection = Readonly<{ entityId: EntityId; face: BoxFaceName }>;
 export type ViewportEntityAction = 'entityInfo' | 'erase' | 'hide' | 'makeGroup' | 'makeComponent' | 'area';
 export type ViewportContextMenuCommand =
@@ -127,8 +129,8 @@ export function createOriginGuideGroup(length = 3000): THREE.Group {
   return group;
 }
 
-export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' {
-  return kind === 'endpoint' ? 'Endpoint' : 'Midpoint';
+export function snapCueLabel(kind: SnapPointKind): 'Endpunkt' | 'Mitte' {
+  return kind === 'endpoint' ? 'Endpunkt' : 'Mitte';
 }
 
 export function formatDraftMeasurement(state: ToolState, tool: ToolName, point: Vec3): string | undefined {
@@ -169,21 +171,25 @@ export function formatActiveMeasurement(input: { draft?: string; hovered?: strin
 }
 
 export function collectSnapPoints(model: Pick<SketchModel, 'allEntities'>): SnapPoint[] {
-  return model.allEntities().flatMap((entity) => snapPointsForEntity(entity));
+  return collectInferenceCandidates(model)
+    .filter((candidate): candidate is InferenceCandidate & { kind: SnapPointKind } => candidate.kind === 'endpoint' || candidate.kind === 'midpoint')
+    .map(({ entityId, kind, point }) => ({ entityId, kind, point }));
 }
 
 export function snapPointToModel(point: Vec3, model: Pick<SketchModel, 'allEntities'>, tolerance = 35): SnapResult {
-  let best: SnapPoint | undefined;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const candidate of collectSnapPoints(model)) {
-    const currentDistance = distance(point, candidate.point);
-    if (currentDistance < bestDistance) {
-      best = candidate;
-      bestDistance = currentDistance;
-    }
-  }
-  if (!best || bestDistance > tolerance) return { point, snapped: false };
-  return { point: best.point, snapped: true, entityId: best.entityId, kind: best.kind };
+  const inference = createInference(point, collectInferenceCandidates(model), { tolerance });
+  if (inference.kind !== 'endpoint' && inference.kind !== 'midpoint') return { point, snapped: false };
+  return { point: inference.point, snapped: true, entityId: inference.entityId, kind: inference.kind };
+}
+
+export function inferPointToModel(
+  point: Vec3,
+  model: Pick<SketchModel, 'allEntities'>,
+  options: { tolerance?: number; anchor?: Vec3; axisLock?: 'x' | 'y' | 'z'; heldInference?: Inference; shiftHeld?: boolean } = {}
+): InferenceResult {
+  const next = createInference(point, collectInferenceCandidates(model), options);
+  const inference = options.shiftHeld && options.heldInference ? options.heldInference : next;
+  return { point: inference.point, inference };
 }
 
 export function getFaceSelectionFromObject(object: THREE.Object3D | undefined): FaceSelection | undefined {
@@ -224,45 +230,6 @@ function previewFaceExtrusion(entity: FaceEntity, height: number): BoxEntity {
     throw new Error('Extrusion braucht eine rechteckige Fläche mit positiver Breite und Tiefe.');
   }
   return { id: entity.id, type: 'box', origin: box.min, width, depth, height: boxHeight, rotationZ: 0, componentId: entity.componentId };
-}
-
-function snapPointsForEntity(entity: Entity): SnapPoint[] {
-  if (entity.type === 'edge') return segmentSnapPoints(entity.id, entity.start, entity.end);
-  if (entity.type === 'face') {
-    return entity.vertices.flatMap((point, index) => segmentSnapPoints(entity.id, point, entity.vertices[(index + 1) % entity.vertices.length]));
-  }
-  if (entity.type === 'box') {
-    const { origin, width, depth, height } = entity;
-    const corners = [
-      origin,
-      vec(origin.x + width, origin.y, origin.z),
-      vec(origin.x + width, origin.y + depth, origin.z),
-      vec(origin.x, origin.y + depth, origin.z),
-      vec(origin.x, origin.y, origin.z + height),
-      vec(origin.x + width, origin.y, origin.z + height),
-      vec(origin.x + width, origin.y + depth, origin.z + height),
-      vec(origin.x, origin.y + depth, origin.z + height)
-    ];
-    const edges: Array<[Vec3, Vec3]> = [
-      [corners[0], corners[1]], [corners[1], corners[2]], [corners[2], corners[3]], [corners[3], corners[0]],
-      [corners[4], corners[5]], [corners[5], corners[6]], [corners[6], corners[7]], [corners[7], corners[4]],
-      [corners[0], corners[4]], [corners[1], corners[5]], [corners[2], corners[6]], [corners[3], corners[7]]
-    ];
-    const unique = new Map<string, SnapPoint>();
-    for (const [start, end] of edges) {
-      for (const point of segmentSnapPoints(entity.id, start, end)) unique.set(`${point.kind}:${point.point.x}:${point.point.y}:${point.point.z}`, point);
-    }
-    return [...unique.values()];
-  }
-  return [];
-}
-
-function segmentSnapPoints(entityId: EntityId, start: Vec3, end: Vec3): SnapPoint[] {
-  return [
-    { entityId, kind: 'endpoint', point: start },
-    { entityId, kind: 'endpoint', point: end },
-    { entityId, kind: 'midpoint', point: vec((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2) }
-  ];
 }
 
 function isBoxFaceName(value: unknown): value is BoxFaceName {

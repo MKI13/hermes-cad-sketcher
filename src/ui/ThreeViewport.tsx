@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
+import { axisLockFromArrowKey, describeInference, type AxisLock, type Inference } from '../core/inference';
 import { type DrawingPlane, type EntityId, type SketchModel, type ToolName, type BoxFaceName } from '../core/model';
 import { cancelToolState, createInitialToolState, getDrawingPreview, handleGroundClick, type ToolCommand, type ToolPreview, type ToolState } from '../core/toolState';
 import { secondPointForRectangleDimensions, type RectangleDimensions } from './drawingController';
@@ -11,12 +12,14 @@ import {
   disposeObjectTree,
   getEntityIdFromObject,
   orbitCameraDrag,
+  projectCadPointToScreen,
   screenPointToDrawingPlane,
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapCueLabel, snapPointToModel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, inferPointToModel, pushPullPreviewMeasurement, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 import { beginPushPullDrag, finishPushPullDrag, pointForPushPullPointerDelta, updatePushPullDrag, type PushPullDragState } from './pushPullInteraction';
+import { InferenceOverlay } from './InferenceOverlay';
 
 type ThreeViewportProps = {
   model: SketchModel;
@@ -40,7 +43,7 @@ type ThreeViewportProps = {
 export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onMeasurementPreview, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
-  const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string } | undefined>();
+  const [inferenceCue, setInferenceCue] = useState<{ cursor: { x: number; y: number }; inference: Inference; snapPoint?: { x: number; y: number }; axisLine?: { start: { x: number; y: number }; end: { x: number; y: number } } } | undefined>();
   const [pushPullDrag, setPushPullDrag] = useState<PushPullDragState | undefined>();
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
@@ -52,6 +55,9 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const pushPullDragRef = useRef<PushPullDragState | undefined>(undefined);
   const pushPullPointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
+  const axisLockRef = useRef<AxisLock | undefined>(undefined);
+  const lastInferenceRef = useRef<Inference | undefined>(undefined);
+  const shiftHeldRef = useRef(false);
   const activeToolRef = useRef(activeTool);
   const selectedIdRef = useRef(selectedId);
   const selectedFaceRef = useRef<FaceSelection | undefined>(undefined);
@@ -232,11 +238,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       render();
     };
 
-    const updateMeasurementPreview = (groundPoint?: Vec3) => {
+    const updateMeasurementPreview = (groundPoint?: Vec3, inference?: Inference) => {
       const previewPoint = groundPoint ? rectangleAwarePoint(groundPoint) : undefined;
       const draft = previewPoint ? formatDraftMeasurement(toolStateRef.current, activeToolRef.current, previewPoint) : undefined;
       if (draft) {
-        onMeasurementPreviewRef.current?.(draft);
+        onMeasurementPreviewRef.current?.(inference && inference.kind !== 'free' ? `${draft} · ${describeInference(inference)}` : draft);
         return;
       }
       if (previewPoint && pushPullDragRef.current) {
@@ -281,7 +287,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         camera,
         drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint ? rectangleAwarePoint(rawGroundPoint) : undefined;
+      const state = toolStateRef.current;
+      const anchor = state.mode === 'drawing' || state.mode === 'moving' ? state.pendingPoint : undefined;
+      const inferred = rawGroundPoint ? inferPointToModel(rawGroundPoint, model, { anchor, axisLock: axisLockRef.current, heldInference: lastInferenceRef.current, shiftHeld: shiftHeldRef.current }) : undefined;
+      if (inferred && !shiftHeldRef.current) lastInferenceRef.current = inferred.inference;
+      const groundPoint = inferred ? rectangleAwarePoint(inferred.point) : undefined;
       const usesGroundPoint =
         activeToolRef.current === 'line' ||
         activeToolRef.current === 'rectangle' ||
@@ -299,7 +309,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         if (drag) {
           setActivePushPullDrag(drag, { x: event.clientX, y: event.clientY });
           updateDrawingPreview(groundPoint);
-          updateMeasurementPreview(groundPoint);
+          updateMeasurementPreview(groundPoint, inferred?.inference);
           return;
         }
       }
@@ -314,7 +324,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       toolStateRef.current = cancelToolState(toolStateRef.current);
       setActivePushPullDrag(undefined);
       updateDrawingPreview();
-      setSnapCue(undefined);
+      setInferenceCue(undefined);
       updateMeasurementPreview();
       const selection = pickSelectionAtPointer(event);
       rememberSelection(selection.entityId, selection.faceSelection);
@@ -366,15 +376,35 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
         camera,
         drawingPlaneRef.current
       );
-      const groundPoint = rawGroundPoint;
+      let groundPoint = rawGroundPoint;
+      let inference: Inference | undefined;
       if (rawGroundPoint) {
-        const snap = snapPointToModel(rawGroundPoint, model);
-        setSnapCue(snap.snapped ? { x: event.clientX - rect.left + 14, y: event.clientY - rect.top - 18, label: snapCueLabel(snap.kind) } : undefined);
+        const state = toolStateRef.current;
+        const anchor = state.mode === 'drawing' || state.mode === 'moving' ? state.pendingPoint : undefined;
+        const inferred = inferPointToModel(rawGroundPoint, model, {
+          anchor,
+          axisLock: axisLockRef.current,
+          heldInference: lastInferenceRef.current,
+          shiftHeld: shiftHeldRef.current
+        });
+        groundPoint = inferred.point;
+        inference = inferred.inference;
+        if (!shiftHeldRef.current) lastInferenceRef.current = inferred.inference;
+        const cursor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        const viewport = { width: rect.width, height: rect.height };
+        const snapPoint = 'entityId' in inferred.inference ? projectCadPointToScreen(inferred.inference.point, camera, viewport) : undefined;
+        const axisLine = 'axis' in inferred.inference
+          ? {
+              start: projectCadPointToScreen(inferred.inference.axisLine.start, camera, viewport),
+              end: projectCadPointToScreen(inferred.inference.axisLine.end, camera, viewport)
+            }
+          : undefined;
+        setInferenceCue(inferred.inference.kind === 'free' ? undefined : { cursor, inference: inferred.inference, snapPoint, axisLine });
       } else {
-        setSnapCue(undefined);
+        setInferenceCue(undefined);
       }
       updateDrawingPreview(groundPoint);
-      updateMeasurementPreview(groundPoint);
+      updateMeasurementPreview(groundPoint, inference);
     };
 
     const wheel = (event: WheelEvent) => {
@@ -420,7 +450,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       toolStateRef.current = cancelToolState(toolStateRef.current);
       setActivePushPullDrag(undefined);
       updateDrawingPreview();
-      setSnapCue(undefined);
+      setInferenceCue(undefined);
       onMeasurementPreviewRef.current?.(undefined);
       const selection = pickSelectionAtPointer(event);
       const contextSelectedId = selection.entityId ?? selectedIdRef.current;
@@ -436,12 +466,30 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     const keyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         toolStateRef.current = cancelToolState(toolStateRef.current);
+        axisLockRef.current = undefined;
+        lastInferenceRef.current = undefined;
         setActivePushPullDrag(undefined);
         setContextMenu(undefined);
         updateDrawingPreview();
-        setSnapCue(undefined);
+        setInferenceCue(undefined);
         onMeasurementPreviewRef.current?.(undefined);
       }
+      const target = event.target instanceof HTMLElement ? event.target : undefined;
+      const axisLock = axisLockFromArrowKey(event.key, {
+        targetTagName: target?.tagName,
+        targetIsContentEditable: target?.isContentEditable,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        altKey: event.altKey
+      });
+      if (axisLock) {
+        axisLockRef.current = axisLock;
+        event.preventDefault();
+      }
+      if (event.key === 'Shift') shiftHeldRef.current = true;
+    };
+    const keyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') shiftHeldRef.current = false;
     };
 
     renderer.domElement.addEventListener('pointerdown', pointerDown);
@@ -452,6 +500,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     renderer.domElement.addEventListener('contextmenu', contextMenu);
     window.addEventListener('resize', resize);
     window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
     resize();
 
     return () => {
@@ -463,6 +512,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       renderer.domElement.removeEventListener('wheel', wheel);
       renderer.domElement.removeEventListener('contextmenu', contextMenu);
       window.removeEventListener('keydown', keyDown);
+      window.removeEventListener('keyup', keyUp);
       clearDrawingPreview();
       if (modelGroup.parent) modelGroup.parent.remove(modelGroup);
       if (originGuides.parent) originGuides.parent.remove(originGuides);
@@ -499,8 +549,8 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
           ))}
         </section>
       )}
-      {snapCue && <div className="snap-cue" aria-label={`Fanghinweis ${snapCue.label}`} style={{ left: snapCue.x, top: snapCue.y }}>{snapCue.label}</div>}
-      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Escape: Aktion abbrechen.</div>
+      {inferenceCue && <InferenceOverlay cursor={inferenceCue.cursor} inference={inferenceCue.inference} snapPoint={inferenceCue.snapPoint} axisLine={inferenceCue.axisLine} />}
+      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Pfeile: Achsensperre X/Y/Z, Shift: Inferenz halten, Escape: Aktion abbrechen.</div>
     </div>
   );
 }

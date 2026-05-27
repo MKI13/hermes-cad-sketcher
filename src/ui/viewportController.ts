@@ -141,6 +141,16 @@ export function screenPointToGround(point: ScreenPoint, camera: THREE.Perspectiv
   return screenPointToDrawingPlane(point, camera, 'xy');
 }
 
+export function projectCadPointToScreen(point: Vec3, camera: THREE.PerspectiveCamera, viewport: Pick<ScreenPoint, 'width' | 'height'>): { x: number; y: number } {
+  const width = Math.max(1, viewport.width);
+  const height = Math.max(1, viewport.height);
+  const projected = cadPointToThreePoint(point).project(camera);
+  return {
+    x: ((projected.x + 1) / 2) * width,
+    y: ((1 - projected.y) / 2) * height
+  };
+}
+
 export function screenPointToDrawingPlane(point: ScreenPoint, camera: THREE.PerspectiveCamera, plane: DrawingPlane): Vec3 | undefined {
   const width = Math.max(1, point.width);
   const height = Math.max(1, point.height);
@@ -162,6 +172,10 @@ function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
 
 function threePointToCadPoint(point: THREE.Vector3): Vec3 {
   return { x: point.x, y: point.z, z: point.y };
+}
+
+function cadPointToThreePoint(point: Vec3): THREE.Vector3 {
+  return new THREE.Vector3(point.x, point.z, point.y);
 }
 
 function clamp(value: number, min: number, max: number): number {
