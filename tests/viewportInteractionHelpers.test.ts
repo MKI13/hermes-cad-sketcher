@@ -12,6 +12,7 @@ import {
   formatEntityMeasurement,
   findViewportSnapPoint,
   snapCueLabel,
+  linePreviewColor,
   zoomOrbitTowardPoint
 } from '../src/ui/viewportInteractionHelpers';
 import { createOrbitCameraState } from '../src/ui/viewportController';
@@ -84,6 +85,13 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(formatEntityMeasurement(face)).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
     expect(formatEntityMeasurement(verticalFace)).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
     expect(formatActiveMeasurement({ hovered: formatEntityMeasurement(face), selected: formatEntityMeasurement(edge), last: 'noch keine Messung' })).toBe('Fläche: 2.16 m² · 2400 mm × 900 mm');
+  });
+
+  it('colors line previews black by default and with axis colors when aligned', () => {
+    expect(linePreviewColor(vec(0, 0, 0), vec(100, 50, 0))).toBe(0x000000);
+    expect(linePreviewColor(vec(0, 0, 0), vec(100, 0, 0))).toBe(0xdc2626);
+    expect(linePreviewColor(vec(0, 0, 0), vec(0, 100, 0))).toBe(0x16a34a);
+    expect(linePreviewColor(vec(0, 0, 0), vec(0, 0, 100))).toBe(0x2563eb);
   });
 
   it('uses SketchUp-style inference labels for endpoint and midpoint cues without forcing snapping', () => {

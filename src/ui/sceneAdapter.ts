@@ -13,7 +13,8 @@ export function entityToObject(entity: Entity, materials: readonly MaterialDefin
   const materialColor = entity.material?.color ?? materialDefinition?.color;
   if (entity.type === 'edge') {
     const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(entity.start.x, entity.start.z, entity.start.y), new THREE.Vector3(entity.end.x, entity.end.z, entity.end.y)]);
-    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: materialColor ?? 0x0f172a }));
+    const edgeColor = entity.material?.color ?? (entity.materialId && entity.materialId !== 'default' ? materialDefinition?.color : undefined);
+    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: edgeColor ?? 0x000000 }));
   }
   if (entity.type === 'face') {
     const geometry = new THREE.BufferGeometry().setFromPoints(entity.vertices.map(cadPointToThree));

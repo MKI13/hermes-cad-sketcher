@@ -17,7 +17,7 @@ import {
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, findViewportSnapPoint, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, pushPullPreviewMeasurement, snapCueLabel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type SnapPointKind, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, findViewportSnapPoint, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, linePreviewColor, pushPullPreviewMeasurement, snapCueLabel, zoomOrbitTowardPoint, buildViewportContextMenuItems, type FaceSelection, type SnapPointKind, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
 import { beginPushPullDrag, finishPushPullDrag, pointForPushPullPointerDelta, updatePushPullDrag, type PushPullDragState } from './pushPullInteraction';
 import { type SnapResult as CoreSnapResult } from '../core/snapping';
 
@@ -189,7 +189,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
       if (preview.type === 'linePreview') {
         const geometry = new THREE.BufferGeometry().setFromPoints([toPreviewVector(preview.start), toPreviewVector(preview.end)]);
-        return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x2563eb, transparent: true, opacity: 0.9 }));
+        return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: linePreviewColor(preview.start, preview.end), transparent: true, opacity: 0.95 }));
       }
 
       const corners = rectanglePreviewCorners(preview.first, preview.second, preview.plane);

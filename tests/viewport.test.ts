@@ -156,6 +156,19 @@ endsolid ref
     }
   });
 
+  it('renders ordinary unselected line entities in black', () => {
+    const model = new SketchModel();
+    const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+
+    const group = createModelGroup(model);
+    const object = group.children.find((child) => child.userData.entityId === line.id);
+
+    expect(object).toBeInstanceOf(THREE.Line);
+    if (object instanceof THREE.Line && !Array.isArray(object.material)) {
+      expect(object.material.color.getHex()).toBe(0x000000);
+    }
+  });
+
   it('marks only the selected entity object for viewport highlighting', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 100, 200, 300);

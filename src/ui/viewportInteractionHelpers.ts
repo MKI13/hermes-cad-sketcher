@@ -136,6 +136,19 @@ export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' | 'Ac
   return 'Achse Z';
 }
 
+export function linePreviewColor(start: Vec3, end: Vec3, tolerance = 1e-6): number {
+  const dx = Math.abs(end.x - start.x);
+  const dy = Math.abs(end.y - start.y);
+  const dz = Math.abs(end.z - start.z);
+  const alignedX = dx > tolerance && dy <= tolerance && dz <= tolerance;
+  const alignedY = dy > tolerance && dx <= tolerance && dz <= tolerance;
+  const alignedZ = dz > tolerance && dx <= tolerance && dy <= tolerance;
+  if (alignedX) return 0xdc2626;
+  if (alignedY) return 0x16a34a;
+  if (alignedZ) return 0x2563eb;
+  return 0x000000;
+}
+
 export function findViewportSnapPoint(input: {
   model: Pick<SketchModel, 'allEntities'>;
   pointer: Vec3;

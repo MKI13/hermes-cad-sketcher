@@ -75,5 +75,9 @@ export function handleGroundClick(state: ToolState, tool: ToolName, point: Vec3,
         ? { type: 'createRectangle', first: state.pendingPoint, second: point, plane: state.plane }
         : { type: 'measureDistance', start: state.pendingPoint, end: point };
 
-  return { state: createInitialToolState(), command };
+  const nextState = tool === 'line'
+    ? { mode: 'drawing' as const, tool, pendingPoint: point, plane: state.plane }
+    : createInitialToolState();
+
+  return { state: nextState, command };
 }

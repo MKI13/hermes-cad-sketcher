@@ -8,14 +8,18 @@ describe('pure CAD tool state', () => {
     expect(createInitialToolState()).toEqual({ mode: 'idle', pendingPoint: undefined });
   });
 
-  it('stores first line point then commits a line command on second point', () => {
+  it('stores first line point then keeps the second point as the next line anchor', () => {
     const first = handleGroundClick(createInitialToolState(), 'line', vec(0, 0, 0));
     expect(first.state).toEqual({ mode: 'drawing', pendingPoint: vec(0, 0, 0), tool: 'line', plane: 'xy' });
     expect(first.command).toBeUndefined();
 
     const second = handleGroundClick(first.state, 'line', vec(1000, 0, 0));
-    expect(second.state).toEqual({ mode: 'idle', pendingPoint: undefined });
+    expect(second.state).toEqual({ mode: 'drawing', pendingPoint: vec(1000, 0, 0), tool: 'line', plane: 'xy' });
     expect(second.command).toEqual({ type: 'createLine', start: vec(0, 0, 0), end: vec(1000, 0, 0) });
+
+    const third = handleGroundClick(second.state, 'line', vec(1000, 500, 0));
+    expect(third.state).toEqual({ mode: 'drawing', pendingPoint: vec(1000, 500, 0), tool: 'line', plane: 'xy' });
+    expect(third.command).toEqual({ type: 'createLine', start: vec(1000, 0, 0), end: vec(1000, 500, 0) });
   });
 
   it('stores first rectangle point then commits normalized rectangle corners', () => {
@@ -41,10 +45,12 @@ describe('pure CAD tool state', () => {
     expect(result.state.mode).toBe('idle');
   });
 
-  it('cancels pending drawing state with Escape semantics', () => {
+  it('cancels pending and chained drawing state with Escape semantics', () => {
     const first = handleGroundClick(createInitialToolState(), 'line', vec(0, 0, 0));
+    const chained = handleGroundClick(first.state, 'line', vec(1000, 0, 0));
 
     expect(cancelToolState(first.state)).toEqual({ mode: 'idle', pendingPoint: undefined });
+    expect(cancelToolState(chained.state)).toEqual({ mode: 'idle', pendingPoint: undefined });
   });
 
   it('resets pending state when switching tools before clicking again', () => {
