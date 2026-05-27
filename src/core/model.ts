@@ -640,7 +640,15 @@ function transformEntityForInstance(entity: Entity, instance: ComponentInstance)
   if (entity.type === 'referenceMesh') {
     return { ...entity, id, triangles: entity.triangles.map((triangle) => ({ vertices: transformVertices(triangle.vertices, transform) })), componentId: undefined };
   }
-  return { ...entity, id, origin: transformPoint(entity.origin, transform), rotationZ: entity.rotationZ + transform.rotationZ, componentId: undefined };
+  const sourceCenter = boxLocalCenter(entity);
+  const transformedCenter = transformPoint(sourceCenter, transform);
+  return {
+    ...entity,
+    id,
+    origin: vec(transformedCenter.x - entity.width / 2, transformedCenter.y - entity.depth / 2, transformedCenter.z - entity.height / 2),
+    rotationZ: entity.rotationZ + transform.rotationZ,
+    componentId: undefined
+  };
 }
 
 function transformPoint(point: Vec3, transform: ComponentTransform): Vec3 {

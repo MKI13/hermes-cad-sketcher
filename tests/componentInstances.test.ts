@@ -4,6 +4,20 @@ import { exportDxf } from '../src/core/dxf';
 import { entityBoundingBox, SketchModel, worldEntitiesForModel } from '../src/core/model';
 import { exportProjectFile, importProjectFile } from '../src/core/projectFile';
 
+function expectDxfLine(dxf: string, start: { x: number; y: number; z?: number }, end: { x: number; y: number; z?: number }) {
+  const line = [
+    '0', 'LINE',
+    '8', '0',
+    '10', String(start.x),
+    '20', String(start.y),
+    '30', String(start.z ?? 0),
+    '11', String(end.x),
+    '21', String(end.y),
+    '31', String(end.z ?? 0)
+  ].join('\n');
+  expect(dxf).toContain(line);
+}
+
 function boxById(model: SketchModel, id: string) {
   const entity = model.getEntity(id);
   expect(entity?.type).toBe('box');
@@ -98,8 +112,13 @@ describe('component definitions and instances', () => {
     const leftBox = worldEntities.find((entity) => entity.id === `${left.id}:${board.id}`);
     const rightBox = worldEntities.find((entity) => entity.id === `${right.id}:${board.id}`);
     expect(leftBox).toMatchObject({ type: 'box', origin: vec(1000, 0, 0), width: 600, depth: 300, height: 18, rotationZ: 0 });
-    expect(rightBox).toMatchObject({ type: 'box', origin: vec(2000, 0, 0), width: 600, depth: 300, height: 18, rotationZ: Math.PI / 2 });
-    expect(rightBox ? entityBoundingBox(rightBox).size : undefined).toMatchObject({ x: 300, y: 600, z: 18 });
+    expect(rightBox).toMatchObject({ type: 'box', width: 600, depth: 300, height: 18, rotationZ: Math.PI / 2 });
+    const rightBounds = rightBox ? entityBoundingBox(rightBox) : undefined;
+    expect(rightBounds?.min.x).toBeCloseTo(1700, 6);
+    expect(rightBounds?.max.x).toBeCloseTo(2000, 6);
+    expect(rightBounds?.min.y).toBeCloseTo(0, 6);
+    expect(rightBounds?.max.y).toBeCloseTo(600, 6);
+    expect(rightBounds?.size).toMatchObject({ x: 300, y: 600, z: 18 });
   });
 
 
@@ -146,6 +165,20 @@ describe('component definitions and instances', () => {
     expect(model.allEntities()).toHaveLength(1);
     expect(dxf).toContain('800');
     expect((dxf.match(/LINE/g) ?? []).length).toBe(12);
+  });
+
+  it('exports rotated component-instance boxes at their transformed world coordinates', () => {
+    const model = new SketchModel();
+    const board = model.createBox(vec(0, 0, 0), 600, 300, 18);
+    const definition = model.createComponentDefinition('Seitenwand', [board.id]);
+    model.createComponentInstance(definition.id, 'rechts', { translation: vec(2000, 0, 0), rotationZ: Math.PI / 2 });
+
+    const dxf = exportDxf(model);
+
+    expectDxfLine(dxf, { x: 2000, y: 0 }, { x: 2000, y: 600 });
+    expectDxfLine(dxf, { x: 2000, y: 600 }, { x: 1700, y: 600 });
+    expectDxfLine(dxf, { x: 1700, y: 600 }, { x: 1700, y: 0 });
+    expectDxfLine(dxf, { x: 1700, y: 0 }, { x: 2000, y: 0 });
   });
 
   it('rejects scaled component instances for woodworking-safe repeated part defaults', () => {
