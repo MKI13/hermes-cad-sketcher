@@ -229,9 +229,10 @@ function closestPointOnFace(point: Vec3, vertices: readonly Vec3[]): Vec3 {
   if (!normal) return centerOf(vertices);
   const planePoint = vertices[0];
   const normalLengthSquared = dot(normal, normal);
-  const projectedToPlane = sub(point, scale(normal, dot(sub(point, planePoint), normal) / normalLengthSquared));
-  if (pointInPolygon3(pointedFinite(projectedToPlane), vertices, normal)) return pointedFinite(projectedToPlane);
-  return closestPointOnFaceBoundary(point, vertices);
+  const projectedToPlane = cleanPoint(sub(point, scale(normal, dot(sub(point, planePoint), normal) / normalLengthSquared)));
+  if (pointInPolygon3(projectedToPlane, vertices, normal)) return projectedToPlane;
+  const boundaryPoint = closestPointOnFaceBoundary(projectedToPlane, vertices);
+  return cleanPoint(boundaryPoint);
 }
 
 function faceNormal(vertices: readonly Vec3[]): Vec3 | undefined {
@@ -285,7 +286,7 @@ function cross(a: Vec3, b: Vec3): Vec3 {
   );
 }
 
-function pointedFinite(point: Vec3): Vec3 {
+function cleanPoint(point: Vec3): Vec3 {
   return vec(roundTiny(point.x), roundTiny(point.y), roundTiny(point.z));
 }
 
