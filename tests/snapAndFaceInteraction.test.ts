@@ -33,6 +33,20 @@ describe('SketchUp-like snapping and box face interaction', () => {
     expect(findSnapPoint({ model, pointer: vec(97, 17, 153), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 20, 150), kind: 'axis', axis: 'z' });
   });
 
+  it('Shift-held axis lock keeps the matching dominant axis even away from the axis line', () => {
+    const model = new SketchModel();
+
+    expect(findSnapPoint({ model, pointer: vec(246, 91, 4), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(250, 20, 0), kind: 'axis', axis: 'x' });
+    expect(findSnapPoint({ model, pointer: vec(126, 218, 77), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(100, 200, 0), kind: 'axis', axis: 'y' });
+  });
+
+  it('keeps exact endpoint values before Shift axis lock when the pointer reaches an edge endpoint', () => {
+    const model = new SketchModel();
+    const edge = model.createLine(vec(100, 100, 0), vec(500, 100, 0));
+
+    expect(findSnapPoint({ model, pointer: vec(503, 102, 0), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(500, 100, 0), kind: 'endpoint', entityId: edge.id });
+  });
+
   it('uses the same snap result that the viewport should pass into drawing commands', () => {
     const model = new SketchModel();
     const edge = model.createLine(vec(100, 100, 0), vec(500, 100, 0));

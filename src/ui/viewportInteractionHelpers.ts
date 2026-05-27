@@ -54,6 +54,17 @@ export function pushPullPreviewMeasurement(entity: BoxEntity, delta: number): st
   return `Push/Pull-Vorschau: ${formatMillimeters(delta)} · ${formatEntityMeasurement(entity)}`;
 }
 
+export function placeViewportContextMenu(input: { pointerX: number; pointerY: number; hostWidth: number; hostHeight: number; itemCount: number; menuWidth?: number; margin?: number }): { x: number; y: number } {
+  const margin = input.margin ?? 8;
+  const menuWidth = input.menuWidth ?? 230;
+  const menuHeight = 56 + input.itemCount * 32;
+  const x = Math.max(margin, Math.min(input.pointerX, input.hostWidth - menuWidth - margin));
+  const roomBelow = input.hostHeight - input.pointerY - margin;
+  const preferredY = roomBelow >= menuHeight ? input.pointerY : input.pointerY - menuHeight;
+  const y = Math.max(margin, Math.min(preferredY, input.hostHeight - menuHeight - margin));
+  return { x, y };
+}
+
 export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
   const items: ViewportContextMenuItem[] = [
     { label: 'Auswahl-Werkzeug', command: { type: 'mouseAction', action: 'tool:select' } },
@@ -156,6 +167,7 @@ export function findViewportSnapPoint(input: {
   activeTool: ToolName;
   gridSize?: number;
   tolerance?: number;
+  forceAxisLock?: boolean;
 }): CoreSnapResult {
   const startPoint = input.toolState.mode === 'drawing' && input.toolState.tool === input.activeTool
     ? input.toolState.pendingPoint
@@ -165,7 +177,8 @@ export function findViewportSnapPoint(input: {
     pointer: input.pointer,
     gridSize: input.gridSize,
     tolerance: input.tolerance,
-    startPoint
+    startPoint,
+    forceAxisLock: input.forceAxisLock
   });
 }
 

@@ -5,6 +5,7 @@ import { SketchModel } from '../src/core/model';
 import { createInitialToolState, handleGroundClick } from '../src/core/toolState';
 import {
   buildViewportContextMenuItems,
+  placeViewportContextMenu,
   createOriginGuideGroup,
   createWorkspaceGrid,
   formatActiveMeasurement,
@@ -114,10 +115,15 @@ describe('SketchUp-like viewport interaction helpers', () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile('src/ui/ThreeViewport.tsx', 'utf8'));
 
     expect(source).toContain('findViewportSnapPoint');
-    expect(source).toContain('resolveViewportSnap(rawGroundPoint)');
+    expect(source).toContain('resolveViewportSnap(rawGroundPoint, event.shiftKey)');
     expect(source).toContain('const groundPoint = snap?.point;');
     expect(source).toContain('snapCueLabel(cueKind)');
     expect(source).not.toContain('const snap = snapPointToModel(rawGroundPoint, model);');
+  });
+
+  it('places a tall context menu above the pointer when there is no room below', () => {
+    expect(placeViewportContextMenu({ pointerX: 620, pointerY: 760, hostWidth: 800, hostHeight: 800, itemCount: 14 })).toEqual({ x: 562, y: 256 });
+    expect(placeViewportContextMenu({ pointerX: 40, pointerY: 40, hostWidth: 800, hostHeight: 800, itemCount: 6 })).toEqual({ x: 40, y: 40 });
   });
 
   it('builds a right-click workspace menu with general drawing tools and selected-model editing functions', () => {

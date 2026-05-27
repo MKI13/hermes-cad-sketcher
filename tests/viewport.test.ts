@@ -247,6 +247,15 @@ endsolid ref
     expect(source).toContain('originGuides.children, AXIS_GUIDE_PICK_THRESHOLD');
   });
 
+  it('renders a visible snap point marker for endpoint and midpoint cues', async () => {
+    const viewportSource = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
+    const cssSource = await readFile('src/styles.css', 'utf8');
+
+    expect(viewportSource).toContain('snap-point-marker');
+    expect(viewportSource).toContain('snapCue.kind');
+    expect(cssSource).toContain('.snap-point-marker');
+  });
+
   it('projects the center of the screen onto the millimeter ground plane', () => {
     const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
     camera.position.set(123.4, 1000, 1456.7);
