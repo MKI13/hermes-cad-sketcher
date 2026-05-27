@@ -79,7 +79,7 @@ describe('App controls', () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain('aria-label="Aktive Maßeingabe"');
-    expect(markup).toContain('placeholder="600,400,720 · 1200,600 · 1200"');
+    expect(markup).toContain('placeholder="600,400,720 · 1200,600 · 1200 · &lt;100,0,0&gt; · 45°"');
     expect(markup).toContain('Enter übernimmt das Maß für das aktive Werkzeug');
   });
 

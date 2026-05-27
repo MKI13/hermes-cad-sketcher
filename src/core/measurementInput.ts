@@ -5,13 +5,17 @@ export type MeasurementBoxParseResult =
   | { ok: true; kind: 'rectangle'; width: number; depth: number }
   | { ok: true; kind: 'box'; width: number; depth: number; height: number }
   | { ok: true; kind: 'vector'; x: number; y: number; z: number }
+  | { ok: true; kind: 'angle'; degrees: number }
   | { ok: false; error: string };
 
 function parseNumbers(raw: string): number[] | undefined {
   const cleaned = raw
     .trim()
     .toLowerCase()
+    .replace(/^<|>$/g, '')
+    .replace(/^\[|\]$/g, '')
     .replace(/mm\b/g, '')
+    .replace(/°/g, '')
     .replace(/×/g, ',')
     .replace(/x/g, ',')
     .replace(/;/g, ',')
@@ -43,9 +47,14 @@ export function parseMeasurementBoxInput(tool: ToolName, raw: string): Measureme
   }
 
   if (tool === 'move') {
-    if (values.length > 3) return { ok: false, error: 'Verschieben braucht maximal X,Y,Z, z. B. 100,0,0.' };
+    if (values.length > 3) return { ok: false, error: 'Verschieben braucht maximal X,Y,Z, z. B. <100,0,0>.' };
     const [x = 0, y = 0, z = 0] = values;
     return { ok: true, kind: 'vector', x, y, z };
+  }
+
+  if (tool === 'rotate') {
+    if (values.length !== 1) return { ok: false, error: 'Drehen braucht genau einen Winkel in Grad, z. B. 45.' };
+    return { ok: true, kind: 'angle', degrees: values[0] };
   }
 
   if (tool === 'line' || tool === 'tape') {
