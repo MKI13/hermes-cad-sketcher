@@ -158,16 +158,28 @@ export function screenPointToGround(point: ScreenPoint, camera: THREE.Perspectiv
 }
 
 export function screenPointToDrawingPlane(point: ScreenPoint, camera: THREE.PerspectiveCamera, plane: DrawingPlane): Vec3 | undefined {
-  const width = Math.max(1, point.width);
-  const height = Math.max(1, point.height);
-  const pointer = new THREE.Vector2((point.x / width) * 2 - 1, -(point.y / height) * 2 + 1);
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(pointer, camera);
+  const raycaster = raycasterForScreenPoint(point, camera);
   const groundPlane = threePlaneForDrawingPlane(plane);
   const hit = new THREE.Vector3();
   const hasHit = raycaster.ray.intersectPlane(groundPlane, hit);
   if (!hasHit) return undefined;
   return threePointToCadPoint(hit);
+}
+
+export function screenPointToObjectPoint(point: ScreenPoint, camera: THREE.PerspectiveCamera, objects: readonly THREE.Object3D[], lineThreshold = 12): { point: Vec3; object: THREE.Object3D } | undefined {
+  const raycaster = raycasterForScreenPoint(point, camera);
+  raycaster.params.Line.threshold = lineThreshold;
+  const hit = raycaster.intersectObjects([...objects], true)[0];
+  return hit ? { point: threePointToCadPoint(hit.point), object: hit.object } : undefined;
+}
+
+function raycasterForScreenPoint(point: ScreenPoint, camera: THREE.PerspectiveCamera): THREE.Raycaster {
+  const width = Math.max(1, point.width);
+  const height = Math.max(1, point.height);
+  const pointer = new THREE.Vector2((point.x / width) * 2 - 1, -(point.y / height) * 2 + 1);
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster;
 }
 
 function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
@@ -176,7 +188,7 @@ function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
   return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 }
 
-function threePointToCadPoint(point: THREE.Vector3): Vec3 {
+export function threePointToCadPoint(point: THREE.Vector3): Vec3 {
   return { x: point.x, y: point.z, z: point.y };
 }
 

@@ -13,6 +13,7 @@ import {
   orbitCameraDrag,
   panOrbitCameraDrag,
   screenPointToDrawingPlane,
+  screenPointToObjectPoint,
   type OrbitCameraState
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
@@ -283,6 +284,20 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       return undefined;
     };
 
+    const screenPointForEvent = (event: PointerEvent | MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height };
+    };
+
+    const pickFreeDrawingPointAtPointer = (event: PointerEvent | MouseEvent): Vec3 | undefined => {
+      const screenPoint = screenPointForEvent(event);
+      const modelHit = screenPointToObjectPoint(screenPoint, camera, modelGroup.children);
+      if (modelHit) return modelHit.point;
+      const axisHit = screenPointToObjectPoint(screenPoint, camera, originGuides.children, 18);
+      if (axisHit) return axisHit.point;
+      return screenPointToDrawingPlane(screenPoint, camera, drawingPlaneRef.current);
+    };
+
     const pickMeasurementAtPointer = (event: PointerEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -305,12 +320,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     };
 
     const performActiveToolAction = (event: PointerEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const rawGroundPoint = screenPointToDrawingPlane(
-        { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
-        camera,
-        drawingPlaneRef.current
-      );
+      const rawGroundPoint = pickFreeDrawingPointAtPointer(event);
       const groundPoint = rawGroundPoint ? rectangleAwarePoint(resolveViewportSnap(rawGroundPoint).point) : undefined;
       const usesGroundPoint =
         activeToolRef.current === 'line' ||
@@ -392,11 +402,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
       const pushPullDrag = pushPullDragRef.current;
       const dragPoint = pushPullDrag ? pointForPushPullDrag(event, pushPullDrag) : undefined;
-      const rawGroundPoint = dragPoint ?? screenPointToDrawingPlane(
-        { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height },
-        camera,
-        drawingPlaneRef.current
-      );
+      const rawGroundPoint = dragPoint ?? pickFreeDrawingPointAtPointer(event);
       const snap = rawGroundPoint ? resolveViewportSnap(rawGroundPoint) : undefined;
       const groundPoint = snap?.point;
       if (snap) {

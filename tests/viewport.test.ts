@@ -16,7 +16,9 @@ import {
   isSelectedObject,
   snapToGrid,
   screenPointToDrawingPlane,
-  screenPointToGround
+  screenPointToGround,
+  screenPointToObjectPoint,
+  threePointToCadPoint
 } from '../src/ui/viewportController';
 
 describe('interactive Three.js viewport foundation', () => {
@@ -200,6 +202,28 @@ endsolid ref
   it('snaps ground points to the configured millimeter grid', () => {
     expect(snapToGrid(vec(124, 276, 0), 50)).toEqual(vec(100, 300, 0));
     expect(snapToGrid(vec(-124, -276, 0), 100)).toEqual(vec(-100, -300, 0));
+  });
+
+  it('converts arbitrary Three.js hit points back into CAD x/y/z coordinates', () => {
+    expect(threePointToCadPoint(new THREE.Vector3(10, 30, 20))).toEqual(vec(10, 20, 30));
+  });
+
+  it('can pick a model surface point above the base plane for free drawing anchors', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+    camera.position.set(0, 1000, 1000);
+    camera.lookAt(new THREE.Vector3(0, 300, 0));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const surface = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+    surface.position.set(0, 300, 0);
+    surface.rotation.x = -Math.PI / 2;
+    surface.updateMatrixWorld();
+
+    const picked = screenPointToObjectPoint({ x: 500, y: 500, width: 1000, height: 1000 }, camera, [surface]);
+
+    expect(picked?.point.x).toBeCloseTo(0, 6);
+    expect(picked?.point.y).toBeCloseTo(0, 6);
+    expect(picked?.point.z).toBeCloseTo(300, 6);
   });
 
   it('projects the center of the screen onto the millimeter ground plane', () => {
