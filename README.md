@@ -57,7 +57,9 @@ Vorhanden im Code:
 - Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
 - normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
 - Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben
-- Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²
+- Pfeiltasten-Achsenfixierung beim Zeichnen: ↑ Blau/Z, → Rot/X, ← Grün/Y und ↓ löst die Fixierung
+- Rechtsklick-Arbeitsflächenmenü mit einklappbaren Gruppen für Zeichnen, Auswahlbearbeitung und Fenster
+- Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²; Zahlen können ohne Fokus direkt getippt und mit Enter übernommen werden
 - AI-Chat als eigenes Fenster, standardmäßig geschlossen, damit er die Arbeitsfläche nicht blockiert
 - Zeichnen direkt auf dem Millimeter-Raster:
   - Linie über zwei Klicks

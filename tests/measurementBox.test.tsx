@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MeasurementBox } from '../src/ui/MeasurementBox';
+import { MeasurementBox, resolveGlobalMeasurementKey } from '../src/ui/MeasurementBox';
 
 function findElementByType(node: React.ReactNode, type: string): React.ReactElement<Record<string, unknown>> | undefined {
   if (!React.isValidElement(node)) return undefined;
@@ -34,6 +34,17 @@ describe('MeasurementBox', () => {
     expect(markup).toContain('Bereit');
     expect(markup).toContain('type="submit"');
     expect(markup).toContain('OK');
+  });
+
+  it('captures numeric measurement typing globally without stealing form fields or arrow locks', () => {
+    expect(resolveGlobalMeasurementKey({ key: '4' }, '123')).toEqual({ type: 'value', value: '1234' });
+    expect(resolveGlobalMeasurementKey({ key: ',' }, '1200')).toEqual({ type: 'value', value: '1200,' });
+    expect(resolveGlobalMeasurementKey({ key: 'Backspace' }, '1200')).toEqual({ type: 'value', value: '120' });
+    expect(resolveGlobalMeasurementKey({ key: 'Enter' }, '120')).toEqual({ type: 'apply' });
+    expect(resolveGlobalMeasurementKey({ key: 'Escape' }, '120')).toEqual({ type: 'cancel' });
+    expect(resolveGlobalMeasurementKey({ key: 'ArrowUp' }, '120')).toEqual({ type: 'ignore' });
+    expect(resolveGlobalMeasurementKey({ key: '7', targetTagName: 'INPUT' }, '120')).toEqual({ type: 'ignore' });
+    expect(resolveGlobalMeasurementKey({ key: '7', ctrlKey: true }, '120')).toEqual({ type: 'ignore' });
   });
 
   it('calls onApply when Enter is pressed inside the command input', () => {

@@ -19,6 +19,7 @@ import {
   screenPointToDrawingPlane,
   screenPointToGround,
   screenPointToObjectPoint,
+  screenPointToAxisLockedPoint,
   threePointToCadPoint
 } from '../src/ui/viewportController';
 
@@ -254,6 +255,31 @@ endsolid ref
     expect(viewportSource).toContain('snap-point-marker');
     expect(viewportSource).toContain('snapCue.kind');
     expect(cssSource).toContain('.snap-point-marker');
+  });
+
+
+
+  it('projects arrow-key axis locks from the screen ray onto the requested CAD axis', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+    camera.position.set(1200, 900, 1500);
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const start = vec(100, 200, 300);
+
+    const bluePoint = screenPointToAxisLockedPoint({ x: 500, y: 420, width: 1000, height: 1000 }, camera, start, 'z');
+    const redPoint = screenPointToAxisLockedPoint({ x: 620, y: 500, width: 1000, height: 1000 }, camera, start, 'x');
+    const greenPoint = screenPointToAxisLockedPoint({ x: 380, y: 500, width: 1000, height: 1000 }, camera, start, 'y');
+
+    expect(bluePoint?.x).toBeCloseTo(start.x, 6);
+    expect(bluePoint?.y).toBeCloseTo(start.y, 6);
+    expect(Math.abs((bluePoint?.z ?? start.z) - start.z)).toBeGreaterThan(1);
+    expect(redPoint?.y).toBeCloseTo(start.y, 6);
+    expect(redPoint?.z).toBeCloseTo(start.z, 6);
+    expect(Math.abs((redPoint?.x ?? start.x) - start.x)).toBeGreaterThan(1);
+    expect(greenPoint?.x).toBeCloseTo(start.x, 6);
+    expect(greenPoint?.z).toBeCloseTo(start.z, 6);
+    expect(Math.abs((greenPoint?.y ?? start.y) - start.y)).toBeGreaterThan(1);
   });
 
   it('projects the center of the screen onto the millimeter ground plane', () => {

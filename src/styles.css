@@ -107,6 +107,16 @@ button { font: inherit; }
 .viewport-context-menu strong { color: #f8fafc; font-size: 13px; padding: 3px 5px 6px; border-bottom: 1px solid rgba(148, 163, 184, 0.28); }
 .viewport-context-menu button { border: 1px solid transparent; border-radius: 8px; background: transparent; color: #e2e8f0; text-align: left; padding: 7px 8px; cursor: pointer; }
 .viewport-context-menu button:hover { background: #0369a1; border-color: #38bdf8; }
+.viewport-context-menu-group { border: 1px solid rgba(148, 163, 184, 0.24); border-radius: 8px; overflow: hidden; }
+.viewport-context-menu-group summary { list-style: none; cursor: pointer; padding: 7px 8px; color: #fbbf24; font-size: 12px; font-weight: 800; background: rgba(30, 41, 59, 0.92); }
+.viewport-context-menu-group summary::-webkit-details-marker { display: none; }
+.viewport-context-menu-group summary::before { content: '▸'; display: inline-block; margin-right: 6px; }
+.viewport-context-menu-group[open] summary::before { content: '▾'; }
+.viewport-context-menu-group button { display: block; width: 100%; }
+.axis-lock-cue { position: absolute; left: 16px; top: 16px; z-index: 6; pointer-events: none; border: 1px solid rgba(15,23,42,0.35); border-radius: 999px; background: rgba(255,255,255,0.94); color: #0f172a; padding: 6px 10px; font-size: 12px; font-weight: 800; box-shadow: 0 8px 22px rgba(15,23,42,0.2); }
+.axis-lock-x { border-color: #dc2626; box-shadow: 0 0 0 2px rgba(220,38,38,0.18); }
+.axis-lock-y { border-color: #16a34a; box-shadow: 0 0 0 2px rgba(22,163,74,0.18); }
+.axis-lock-z { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.18); }
 .snap-cue { position: absolute; z-index: 6; pointer-events: none; display: inline-flex; align-items: center; gap: 4px; padding: 2px 5px; border: 1px solid #94a3b8; border-radius: 3px; background: rgba(255,255,255,0.96); color: #111827; font-size: 11px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22); }
 .snap-point-marker { width: 7px; height: 7px; border: 2px solid #0f172a; border-radius: 999px; background: #facc15; box-shadow: 0 0 0 2px rgba(255,255,255,0.92); }
 .viewport-error { position: absolute; left: 24px; top: 24px; right: 24px; z-index: 3; display: flex; flex-direction: column; gap: 6px; max-width: 360px; background: rgba(127, 29, 29, 0.9); color: #fee2e2; border: 1px solid rgba(252, 165, 165, 0.6); border-radius: 14px; padding: 14px 16px; box-shadow: 0 18px 45px #0f172a33; overflow-wrap: anywhere; }

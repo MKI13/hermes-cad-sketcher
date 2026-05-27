@@ -12,7 +12,7 @@ import { runAgentChatCommand, runCadConsoleScript } from './core/cadCommands';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
 import { inspectEntity } from './core/inspection';
 import { InspectorPanel } from './ui/InspectorPanel';
-import { MeasurementBox } from './ui/MeasurementBox';
+import { MeasurementBox, resolveGlobalMeasurementKey } from './ui/MeasurementBox';
 import { createBoxDraft, createLineDraft, createRectangleDraft, DEFAULT_BOX_DIMENSIONS, parseRectangleDimensionMask, updateRectangleDimensionMaskValue, type RectangleDimensionKey, type RectangleDimensionMask } from './ui/drawingController';
 import { SelectedDimensionsPanel, boxDimensionsToInput, parseSelectedBoxDimensions, type DimensionInput } from './ui/SelectedDimensionsPanel';
 import { FaceExtrudePanel, parseExtrudeHeight, validateExtrudableFace } from './ui/FaceExtrudePanel';
@@ -960,6 +960,34 @@ export default function App() {
       return sanitizeRightTrayState({ ...current, collapsedPanelIds: Array.from(collapsed) });
     });
   }
+
+
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = resolveGlobalMeasurementKey({
+        key: event.key,
+        targetTagName: event.target instanceof HTMLElement ? event.target.tagName : undefined,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        altKey: event.altKey
+      }, measurementBoxValue);
+      if (action.type === 'ignore') return;
+      event.preventDefault();
+      if (action.type === 'value') {
+        setMeasurementBoxValue(action.value);
+        setMeasurementBoxStatus('Maß wird getippt. Enter übernimmt es für das aktive Werkzeug.');
+        return;
+      }
+      if (action.type === 'cancel') {
+        cancelMeasurementBoxInput();
+        return;
+      }
+      applyMeasurementBoxInput();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [measurementBoxValue, tool, selectedId, selected?.id, selected?.type, selectedBoxFace, drawingPlane, measurementDraftContext, model]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

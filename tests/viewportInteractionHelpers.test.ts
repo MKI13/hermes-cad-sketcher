@@ -5,6 +5,7 @@ import { SketchModel } from '../src/core/model';
 import { createInitialToolState, handleGroundClick } from '../src/core/toolState';
 import {
   buildViewportContextMenuItems,
+  buildViewportContextMenuGroups,
   placeViewportContextMenu,
   createOriginGuideGroup,
   createWorkspaceGrid,
@@ -115,7 +116,7 @@ describe('SketchUp-like viewport interaction helpers', () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile('src/ui/ThreeViewport.tsx', 'utf8'));
 
     expect(source).toContain('findViewportSnapPoint');
-    expect(source).toContain('resolveViewportSnap(rawGroundPoint, event.shiftKey)');
+    expect(source).toContain('resolveViewportSnap(rawGroundPoint, event.shiftKey, axisLockRef.current)');
     expect(source).toContain('const groundPoint = snap?.point;');
     expect(source).toContain('snapCueLabel(cueKind)');
     expect(source).not.toContain('const snap = snapPointToModel(rawGroundPoint, model);');
@@ -124,6 +125,23 @@ describe('SketchUp-like viewport interaction helpers', () => {
   it('places a tall context menu above the pointer when there is no room below', () => {
     expect(placeViewportContextMenu({ pointerX: 620, pointerY: 760, hostWidth: 800, hostHeight: 800, itemCount: 14 })).toEqual({ x: 562, y: 256 });
     expect(placeViewportContextMenu({ pointerX: 40, pointerY: 40, hostWidth: 800, hostHeight: 800, itemCount: 6 })).toEqual({ x: 40, y: 40 });
+  });
+
+
+
+  it('groups right-click workspace commands into collapsible drawing, edit and window sections', () => {
+    const groups = buildViewportContextMenuGroups({ selectedEntityType: 'box' });
+
+    expect(groups.map((group) => group.label)).toEqual(['Zeichnen', 'Auswahl bearbeiten', 'Fenster']);
+    expect(groups.find((group) => group.label === 'Zeichnen')?.items.map((item) => item.label)).toEqual([
+      'Auswahl-Werkzeug',
+      'Linie zeichnen',
+      'Rechteck zeichnen',
+      'Körper setzen',
+      'Maßband'
+    ]);
+    expect(groups.find((group) => group.label === 'Auswahl bearbeiten')?.items.map((item) => item.label)).toEqual(expect.arrayContaining(['Entity Info', 'Erase', 'Hide', 'Make Group', 'Make Component', 'Area', 'Auswahl löschen']));
+    expect(groups.find((group) => group.label === 'Fenster')?.items.map((item) => item.label)).toEqual(expect.arrayContaining(['Verlauf und Auswahl', 'Auswahl verschieben', 'Auswahl drehen', 'Körperhöhe ziehen', 'Körpermaße bearbeiten']));
   });
 
   it('builds a right-click workspace menu with general drawing tools and selected-model editing functions', () => {

@@ -11,6 +11,33 @@ type MeasurementBoxProps = {
 
 type MeasurementBoxKey = { key: string };
 
+export type GlobalMeasurementKeyEvent = {
+  key: string;
+  targetTagName?: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+};
+
+export type GlobalMeasurementKeyAction =
+  | { type: 'value'; value: string }
+  | { type: 'apply' }
+  | { type: 'cancel' }
+  | { type: 'ignore' };
+
+const GLOBAL_MEASUREMENT_TEXT_KEYS = new Set(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '.', ';', 'x', 'X', '-', '+', '<', '>', '[', ']', ' ']);
+
+export function resolveGlobalMeasurementKey(event: GlobalMeasurementKeyEvent, currentValue: string): GlobalMeasurementKeyAction {
+  const targetTagName = event.targetTagName?.toUpperCase();
+  if (targetTagName === 'INPUT' || targetTagName === 'TEXTAREA' || targetTagName === 'SELECT') return { type: 'ignore' };
+  if (event.ctrlKey || event.metaKey || event.altKey) return { type: 'ignore' };
+  if (event.key === 'Enter') return currentValue.trim() ? { type: 'apply' } : { type: 'ignore' };
+  if (event.key === 'Escape') return currentValue ? { type: 'cancel' } : { type: 'ignore' };
+  if (event.key === 'Backspace') return currentValue ? { type: 'value', value: currentValue.slice(0, -1) } : { type: 'ignore' };
+  if (GLOBAL_MEASUREMENT_TEXT_KEYS.has(event.key)) return { type: 'value', value: `${currentValue}${event.key}` };
+  return { type: 'ignore' };
+}
+
 export function shouldMeasurementBoxHandleKey(event: MeasurementBoxKey): { type: 'apply' | 'cancel' | 'text' } {
   if (event.key === 'Enter') return { type: 'apply' };
   if (event.key === 'Escape') return { type: 'cancel' };

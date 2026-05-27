@@ -15,10 +15,12 @@ import {
   panOrbitCameraDrag,
   screenPointToDrawingPlane,
   screenPointToObjectPoint,
-  type OrbitCameraState
+  screenPointToAxisLockedPoint,
+  type OrbitCameraState,
+  type ViewportAxisLock
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
-import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, findViewportSnapPoint, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, linePreviewColor, pushPullPreviewMeasurement, snapCueLabel, zoomOrbitTowardPoint, buildViewportContextMenuItems, placeViewportContextMenu, type FaceSelection, type SnapPointKind, type ViewportContextMenuCommand, type ViewportContextMenuItem } from './viewportInteractionHelpers';
+import { createOriginGuideGroup, createPushPullPreview, createWorkspaceGrid, findViewportSnapPoint, formatDraftMeasurement, formatEntityMeasurement, getFaceSelectionFromObject, linePreviewColor, pushPullPreviewMeasurement, snapCueLabel, zoomOrbitTowardPoint, buildViewportContextMenuGroups, placeViewportContextMenu, type FaceSelection, type SnapPointKind, type ViewportContextMenuCommand, type ViewportContextMenuGroup } from './viewportInteractionHelpers';
 import { beginPushPullDrag, finishPushPullDrag, pointForPushPullPointerDelta, updatePushPullDrag, type PushPullDragState } from './pushPullInteraction';
 import { type SnapResult as CoreSnapResult } from '../core/snapping';
 
@@ -48,8 +50,9 @@ export type MeasurementDraftContext =
 
 export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onMeasurementPreview, onMeasurementDraftContext, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ViewportContextMenuItem[] } | undefined>();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; groups: ViewportContextMenuGroup[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string; kind?: SnapPointKind } | undefined>();
+  const [axisLock, setAxisLock] = useState<ViewportAxisLock | undefined>();
   const [pushPullDrag, setPushPullDrag] = useState<PushPullDragState | undefined>();
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
@@ -64,6 +67,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
   const activeToolRef = useRef(activeTool);
   const selectedIdRef = useRef(selectedId);
   const selectedFaceRef = useRef<FaceSelection | undefined>(undefined);
+  const axisLockRef = useRef<ViewportAxisLock | undefined>(undefined);
   const onSelectRef = useRef(onSelect);
   const onCreateLineRef = useRef(onCreateLine);
   const onCreateRectangleRef = useRef(onCreateRectangle);
@@ -100,6 +104,11 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
     pushPullDragRef.current = drag;
     pushPullPointerStartRef.current = drag ? pointer : undefined;
     setPushPullDrag(drag);
+  };
+
+  const setActiveAxisLock = (next: ViewportAxisLock | undefined) => {
+    axisLockRef.current = next;
+    setAxisLock(next);
   };
 
   useEffect(() => {
@@ -270,14 +279,15 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       return pointForPushPullPointerDelta(state, { x: event.clientX - start.x, y: event.clientY - start.y });
     };
 
-    const resolveViewportSnap = (rawGroundPoint: Vec3, forceAxisLock = false): CoreSnapResult => findViewportSnapPoint({
+    const resolveViewportSnap = (rawGroundPoint: Vec3, forceAxisLock = false, axisLock = axisLockRef.current): CoreSnapResult => findViewportSnapPoint({
       model,
       pointer: rawGroundPoint,
       toolState: toolStateRef.current,
       activeTool: activeToolRef.current,
       gridSize: 50,
       tolerance: 35,
-      forceAxisLock
+      forceAxisLock,
+      axisLock
     });
 
     const axisCueKind = (snap: CoreSnapResult): SnapPointKind | undefined => {
@@ -291,8 +301,13 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       return { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height };
     };
 
-    const pickFreeDrawingPointAtPointer = (event: PointerEvent | MouseEvent): Vec3 | undefined => {
+    const pickFreeDrawingPointAtPointer = (event: PointerEvent | MouseEvent, axisLock = axisLockRef.current): Vec3 | undefined => {
       const screenPoint = screenPointForEvent(event);
+      const toolState = toolStateRef.current;
+      if (axisLock && toolState.mode === 'drawing' && toolState.tool === activeToolRef.current) {
+        const lockedPoint = screenPointToAxisLockedPoint(screenPoint, camera, toolState.pendingPoint, axisLock);
+        if (lockedPoint) return lockedPoint;
+      }
       const modelHit = screenPointToObjectPoint(screenPoint, camera, modelGroup.children);
       if (modelHit) return modelHit.point;
       const axisHit = screenPointToObjectPoint(screenPoint, camera, originGuides.children, AXIS_GUIDE_PICK_THRESHOLD);
@@ -323,7 +338,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
 
     const performActiveToolAction = (event: PointerEvent) => {
       const rawGroundPoint = pickFreeDrawingPointAtPointer(event);
-      const groundPoint = rawGroundPoint ? rectangleAwarePoint(resolveViewportSnap(rawGroundPoint, event.shiftKey).point) : undefined;
+      const groundPoint = rawGroundPoint ? rectangleAwarePoint(resolveViewportSnap(rawGroundPoint, event.shiftKey, axisLockRef.current).point) : undefined;
       const usesGroundPoint =
         activeToolRef.current === 'line' ||
         activeToolRef.current === 'rectangle' ||
@@ -405,7 +420,7 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       const pushPullDrag = pushPullDragRef.current;
       const dragPoint = pushPullDrag ? pointForPushPullDrag(event, pushPullDrag) : undefined;
       const rawGroundPoint = dragPoint ?? pickFreeDrawingPointAtPointer(event);
-      const snap = rawGroundPoint ? resolveViewportSnap(rawGroundPoint, event.shiftKey) : undefined;
+      const snap = rawGroundPoint ? resolveViewportSnap(rawGroundPoint, event.shiftKey, axisLockRef.current) : undefined;
       const groundPoint = snap?.point;
       if (snap) {
         const cueKind = axisCueKind(snap);
@@ -472,23 +487,45 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
       if (selection.entityId) rememberSelection(selection.entityId, selection.faceSelection);
       const selectedEntityType = contextSelectedId ? model.getEntity(contextSelectedId)?.type : undefined;
       const hostRect = host.getBoundingClientRect();
-      const items = buildViewportContextMenuItems({ selectedEntityType });
+      const groups = buildViewportContextMenuGroups({ selectedEntityType });
+      const itemCount = groups.reduce((total, group) => total + group.items.length + 1, 0);
       setContextMenu({
         ...placeViewportContextMenu({
           pointerX: event.clientX - hostRect.left,
           pointerY: event.clientY - hostRect.top,
           hostWidth: hostRect.width,
           hostHeight: hostRect.height,
-          itemCount: items.length
+          itemCount
         }),
-        items
+        groups
       });
     };
+    const axisFromArrowKey = (key: string): ViewportAxisLock | undefined => {
+      if (key === 'ArrowUp') return 'z';
+      if (key === 'ArrowRight') return 'x';
+      if (key === 'ArrowLeft') return 'y';
+      return undefined;
+    };
+
     const keyDown = (event: KeyboardEvent) => {
+      const nextAxisLock = axisFromArrowKey(event.key);
+      if (nextAxisLock) {
+        event.preventDefault();
+        setActiveAxisLock(nextAxisLock);
+        onMeasurementPreviewRef.current?.(`Achse fixiert: ${snapCueLabel(`axis:${nextAxisLock}`)} · Pfeil unten löst.`);
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveAxisLock(undefined);
+        onMeasurementPreviewRef.current?.('Achsenfixierung gelöst.');
+        return;
+      }
       if (event.key === 'Escape') {
         toolStateRef.current = cancelToolState(toolStateRef.current);
         setActivePushPullDrag(undefined);
         setContextMenu(undefined);
+        setActiveAxisLock(undefined);
         updateDrawingPreview();
         setSnapCue(undefined);
         onMeasurementPreviewRef.current?.(undefined);
@@ -544,20 +581,26 @@ export function ThreeViewport({ model, activeTool, selectedId, onSelect, onCreat
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <strong>Arbeitsfläche bearbeiten</strong>
-          {contextMenu.items.map((item) => (
-            <button key={item.label} type="button" onClick={() => runContextMenuCommand(item.command)}>
-              {item.label}
-            </button>
+          {contextMenu.groups.map((group, index) => (
+            <details key={group.label} className="viewport-context-menu-group" open={index === 0}>
+              <summary>{group.label}</summary>
+              {group.items.map((item) => (
+                <button key={item.label} type="button" onClick={() => runContextMenuCommand(item.command)}>
+                  {item.label}
+                </button>
+              ))}
+            </details>
           ))}
         </section>
       )}
+      {axisLock && <div className={`axis-lock-cue axis-lock-${axisLock}`} aria-label={`Achsenfixierung ${snapCueLabel(`axis:${axisLock}`)}`}>Fixiert: {snapCueLabel(`axis:${axisLock}`)} · ↓ löst</div>}
       {snapCue && (
         <div className="snap-cue" aria-label={`Fanghinweis ${snapCue.label}`} style={{ left: snapCue.x, top: snapCue.y }}>
           {(snapCue.kind === 'endpoint' || snapCue.kind === 'midpoint') && <span className="snap-point-marker" aria-hidden="true" />}
           {snapCue.label}
         </div>
       )}
-      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom am Mauspunkt. Escape: Aktion abbrechen.</div>
+      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Pfeile: ↑ Blau, → Rot, ← Grün, ↓ lösen. Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom. Escape: Aktion abbrechen.</div>
     </div>
   );
 }

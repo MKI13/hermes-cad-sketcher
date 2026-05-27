@@ -15,13 +15,14 @@ export type SnapOptions = Readonly<{
   tolerance?: number;
   startPoint?: Vec3;
   forceAxisLock?: boolean;
+  axisLock?: 'x' | 'y' | 'z';
 }>;
 
-export function findSnapPoint({ model, pointer, gridSize = 50, tolerance = 35, startPoint, forceAxisLock = false }: SnapOptions): SnapResult {
+export function findSnapPoint({ model, pointer, gridSize = 50, tolerance = 35, startPoint, forceAxisLock = false, axisLock }: SnapOptions): SnapResult {
   const entitySnap = nearestModelSnapPoint(pointer, model, tolerance);
   if (entitySnap) return { point: entitySnap.point, kind: entitySnap.kind, entityId: entitySnap.entityId };
 
-  const axisSnap = startPoint ? snapAlongDominantAxis(pointer, startPoint, gridSize, tolerance, forceAxisLock) : undefined;
+  const axisSnap = startPoint ? snapAlongDominantAxis(pointer, startPoint, gridSize, tolerance, forceAxisLock, axisLock) : undefined;
   if (axisSnap) return axisSnap;
 
   return { point: snapToGrid(pointer, gridSize), kind: 'grid' };
@@ -53,13 +54,13 @@ function nearestModelSnapPoint(pointer: Vec3, model: Pick<SketchModel, 'allEntit
   return best && bestDistance <= tolerance ? best : undefined;
 }
 
-function snapAlongDominantAxis(pointer: Vec3, startPoint: Vec3, gridSize: number, tolerance: number, forceAxisLock = false): Extract<SnapResult, { kind: 'axis' }> | undefined {
+function snapAlongDominantAxis(pointer: Vec3, startPoint: Vec3, gridSize: number, tolerance: number, forceAxisLock = false, axisLock?: 'x' | 'y' | 'z'): Extract<SnapResult, { kind: 'axis' }> | undefined {
   const delta = {
     x: Math.abs(pointer.x - startPoint.x),
     y: Math.abs(pointer.y - startPoint.y),
     z: Math.abs(pointer.z - startPoint.z)
   };
-  const axis = dominantAxis(delta);
+  const axis = axisLock ?? dominantAxis(delta);
   if (!axis || delta[axis] <= tolerance) return undefined;
 
   const offAxisDistance = Math.sqrt(
@@ -67,7 +68,7 @@ function snapAlongDominantAxis(pointer: Vec3, startPoint: Vec3, gridSize: number
     (axis === 'y' ? 0 : (pointer.y - startPoint.y) ** 2) +
     (axis === 'z' ? 0 : (pointer.z - startPoint.z) ** 2)
   );
-  if (!forceAxisLock && offAxisDistance > tolerance) return undefined;
+  if (!axisLock && !forceAxisLock && offAxisDistance > tolerance) return undefined;
 
   const snapped = snapToGrid(pointer, gridSize);
   return {

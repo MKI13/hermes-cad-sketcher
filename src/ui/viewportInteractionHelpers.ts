@@ -21,6 +21,7 @@ export type ViewportContextMenuCommand =
   | Readonly<{ type: 'openWindow'; windowId: FloatingWindowId }>
   | Readonly<{ type: 'entityAction'; action: ViewportEntityAction }>;
 export type ViewportContextMenuItem = Readonly<{ label: string; command: ViewportContextMenuCommand }>;
+export type ViewportContextMenuGroup = Readonly<{ label: string; items: ViewportContextMenuItem[] }>;
 export type PushPullPreviewResult =
   | Readonly<{ ok: true; entity: BoxEntity; sourceEntityId: EntityId; delta: number }>
   | Readonly<{ ok: false; error: string }>;
@@ -65,43 +66,56 @@ export function placeViewportContextMenu(input: { pointerX: number; pointerY: nu
   return { x, y };
 }
 
-export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
-  const items: ViewportContextMenuItem[] = [
+export function buildViewportContextMenuGroups(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuGroup[] {
+  const drawing: ViewportContextMenuItem[] = [
     { label: 'Auswahl-Werkzeug', command: { type: 'mouseAction', action: 'tool:select' } },
     { label: 'Linie zeichnen', command: { type: 'mouseAction', action: 'tool:line' } },
     { label: 'Rechteck zeichnen', command: { type: 'mouseAction', action: 'tool:rectangle' } },
     { label: 'Körper setzen', command: { type: 'mouseAction', action: 'tool:box' } },
-    { label: 'Maßband', command: { type: 'mouseAction', action: 'tool:tape' } },
+    { label: 'Maßband', command: { type: 'mouseAction', action: 'tool:tape' } }
+  ];
+  const edit: ViewportContextMenuItem[] = [];
+  const windows: ViewportContextMenuItem[] = [
     { label: 'Verlauf und Auswahl', command: { type: 'openWindow', windowId: 'history' } }
   ];
 
-  if (!input.selectedEntityType) return items;
-
-  items.push(
-    { label: 'Entity Info', command: { type: 'entityAction', action: 'entityInfo' } },
-    { label: 'Erase', command: { type: 'entityAction', action: 'erase' } },
-    { label: 'Hide', command: { type: 'entityAction', action: 'hide' } },
-    { label: 'Make Group', command: { type: 'entityAction', action: 'makeGroup' } },
-    { label: 'Make Component', command: { type: 'entityAction', action: 'makeComponent' } },
-    { label: 'Area', command: { type: 'entityAction', action: 'area' } },
-    { label: 'Auswahl verschieben', command: { type: 'openWindow', windowId: 'move' } },
-    { label: 'Auswahl drehen', command: { type: 'openWindow', windowId: 'rotate' } },
-    { label: 'Inspektor öffnen', command: { type: 'openWindow', windowId: 'inspector' } }
-  );
+  if (input.selectedEntityType) {
+    edit.push(
+      { label: 'Entity Info', command: { type: 'entityAction', action: 'entityInfo' } },
+      { label: 'Erase', command: { type: 'entityAction', action: 'erase' } },
+      { label: 'Hide', command: { type: 'entityAction', action: 'hide' } },
+      { label: 'Make Group', command: { type: 'entityAction', action: 'makeGroup' } },
+      { label: 'Make Component', command: { type: 'entityAction', action: 'makeComponent' } },
+      { label: 'Area', command: { type: 'entityAction', action: 'area' } },
+      { label: 'Auswahl löschen', command: { type: 'mouseAction', action: 'delete' } }
+    );
+    windows.push(
+      { label: 'Auswahl verschieben', command: { type: 'openWindow', windowId: 'move' } },
+      { label: 'Auswahl drehen', command: { type: 'openWindow', windowId: 'rotate' } },
+      { label: 'Inspektor öffnen', command: { type: 'openWindow', windowId: 'inspector' } }
+    );
+  }
 
   if (input.selectedEntityType === 'box') {
-    items.push(
+    windows.push(
       { label: 'Körperhöhe ziehen', command: { type: 'openWindow', windowId: 'pushPull' } },
       { label: 'Körpermaße bearbeiten', command: { type: 'openWindow', windowId: 'dimensions' } }
     );
   }
 
   if (input.selectedEntityType === 'face') {
-    items.push({ label: 'Fläche extrudieren', command: { type: 'openWindow', windowId: 'extrude' } });
+    windows.push({ label: 'Fläche extrudieren', command: { type: 'openWindow', windowId: 'extrude' } });
   }
 
-  items.push({ label: 'Auswahl löschen', command: { type: 'mouseAction', action: 'delete' } });
-  return items;
+  return [
+    { label: 'Zeichnen', items: drawing },
+    { label: 'Auswahl bearbeiten', items: edit },
+    { label: 'Fenster', items: windows }
+  ].filter((group) => group.items.length > 0);
+}
+
+export function buildViewportContextMenuItems(input: { selectedEntityType?: Entity['type'] }): ViewportContextMenuItem[] {
+  return buildViewportContextMenuGroups(input).flatMap((group) => group.items);
 }
 
 export function zoomOrbitTowardPoint(state: OrbitCameraState, focus: Vec3, wheelDeltaY: number): OrbitCameraState {
@@ -168,6 +182,7 @@ export function findViewportSnapPoint(input: {
   gridSize?: number;
   tolerance?: number;
   forceAxisLock?: boolean;
+  axisLock?: 'x' | 'y' | 'z';
 }): CoreSnapResult {
   const startPoint = input.toolState.mode === 'drawing' && input.toolState.tool === input.activeTool
     ? input.toolState.pendingPoint
@@ -178,7 +193,8 @@ export function findViewportSnapPoint(input: {
     gridSize: input.gridSize,
     tolerance: input.tolerance,
     startPoint,
-    forceAxisLock: input.forceAxisLock
+    forceAxisLock: input.forceAxisLock,
+    axisLock: input.axisLock
   });
 }
 

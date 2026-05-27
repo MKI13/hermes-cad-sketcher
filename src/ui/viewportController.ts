@@ -25,6 +25,8 @@ export type ScreenPoint = Readonly<{
   height: number;
 }>;
 
+export type ViewportAxisLock = 'x' | 'y' | 'z';
+
 const MIN_POLAR = 0.1;
 const MAX_POLAR = Math.PI - 0.1;
 export const AXIS_GUIDE_PICK_THRESHOLD = 96;
@@ -174,6 +176,16 @@ export function screenPointToObjectPoint(point: ScreenPoint, camera: THREE.Persp
   return hit ? { point: threePointToCadPoint(hit.point), object: hit.object } : undefined;
 }
 
+export function screenPointToAxisLockedPoint(point: ScreenPoint, camera: THREE.PerspectiveCamera, startPoint: Vec3, axis: ViewportAxisLock): Vec3 | undefined {
+  const raycaster = raycasterForScreenPoint(point, camera);
+  const rayOrigin = raycaster.ray.origin;
+  const rayDirection = raycaster.ray.direction.clone().normalize();
+  const axisOrigin = cadPointToThreeVector(startPoint);
+  const axisDirection = threeAxisDirection(axis);
+  const axisPoint = closestPointOnAxisToRay(rayOrigin, rayDirection, axisOrigin, axisDirection);
+  return axisPoint ? threePointToCadPoint(axisPoint) : undefined;
+}
+
 function raycasterForScreenPoint(point: ScreenPoint, camera: THREE.PerspectiveCamera): THREE.Raycaster {
   const width = Math.max(1, point.width);
   const height = Math.max(1, point.height);
@@ -191,6 +203,27 @@ function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
 
 export function threePointToCadPoint(point: THREE.Vector3): Vec3 {
   return { x: point.x, y: point.z, z: point.y };
+}
+
+function cadPointToThreeVector(point: Vec3): THREE.Vector3 {
+  return new THREE.Vector3(point.x, point.z, point.y);
+}
+
+function threeAxisDirection(axis: ViewportAxisLock): THREE.Vector3 {
+  if (axis === 'x') return new THREE.Vector3(1, 0, 0);
+  if (axis === 'y') return new THREE.Vector3(0, 0, 1);
+  return new THREE.Vector3(0, 1, 0);
+}
+
+function closestPointOnAxisToRay(rayOrigin: THREE.Vector3, rayDirection: THREE.Vector3, axisOrigin: THREE.Vector3, axisDirection: THREE.Vector3): THREE.Vector3 | undefined {
+  const diff = rayOrigin.clone().sub(axisOrigin);
+  const b = rayDirection.dot(axisDirection);
+  const d = rayDirection.dot(diff);
+  const e = axisDirection.dot(diff);
+  const denominator = 1 - b * b;
+  if (Math.abs(denominator) < 1e-9) return axisOrigin.clone().add(axisDirection.clone().multiplyScalar(e));
+  const axisScalar = (e - b * d) / denominator;
+  return axisOrigin.clone().add(axisDirection.clone().multiplyScalar(axisScalar));
 }
 
 function threeVectorToCadPoint(vector: THREE.Vector3): Vec3 {
