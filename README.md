@@ -73,9 +73,9 @@ Vorhanden im Code:
 - Löschen der Auswahl per Button oder Tastatur
 - Undo/Redo-Verlauf für Modelländerungen über Rückgängig/Wiederholen
 - Box-Dimensionspanel für neue Boxen
-- Komponenten/Gruppen und Komponenten-Duplizierung mit Millimeter-Versatz
+- Komponenten/Gruppen, klassische Komponenten-Duplizierung mit Millimeter-Versatz sowie neue Komponenten-Definitionen mit mehreren Instanzen, die je eigene Translation und Z-Rotation tragen
 - Maßband-Workflow mit Millimeteranzeige
-- `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
+- `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung; alte Komponenten sowie neue Komponenten-Definitionen/-Instanzen bleiben im Snapshot erhalten
 - DXF-Export-Grundlage in der UI, DXF-Dateiimport in der UI mit Importbericht, fail-closed Einheitenprüfung, einfacher DXF-LINE-Import und begrenzter DXF-LWPOLYLINE-Rechteckimport
 - ASCII-STL-Export für Boxkörper und ASCII-STL-Referenzmesh-Import ohne editierbare Solid-Konvertierung
 - Ruby-Konsole als sichere Hermes-CAD-Befehls-DSL für `line`, `rectangle`, `box`, `move`, `rotate_z`, `resize`, `push_pull`, `extrude`, `delete`, `component`, `duplicate_component`, `select` und `list`; agentisch per `box`/`extrude` erstellte Körper werden automatisch als eigene Komponenten geführt
@@ -192,6 +192,7 @@ Hermes CAD Sketcher kann später ein eigenes Erweiterungsformat bekommen, aber e
 Noch nicht fertig oder nur teilweise vorhanden:
 
 - freie Flächenbearbeitung wie in einem vollständigen CAD-System
+- vollständige UI-Bearbeitung für Komponenten-Instanzen, verschachtelte Komponenten und Edit-Kontextgrenzen; das Kernmodell kann Definitionen/Instanzen bereits speichern und für Viewport/Export expandieren
 - beliebig rotierte oder freie Flächenextrusion; aktuell ist nur axis-aligned Rechteck-zu-Box-Extrusion implementiert
 - Push/Pull für beliebige freie Flächen und komplexe Körperfaces; aktuell sind Boxseiten und axis-aligned Rechteck-zu-Box-Extrusion abgedeckt
 - vollständiger DXF-Import; aktuell nur einfacher LINE-Import und begrenzte geschlossene, achsenparallele Vierpunkt-LWPOLYLINE-Rechtecke

@@ -1,5 +1,5 @@
 import { type Vec3, distance, sub, vec } from './geometry';
-import { SketchModel, type BoxEntity, type ReferenceMeshEntity } from './model';
+import { SketchModel, boxWorldPoints, worldEntitiesForModel, type BoxEntity, type ReferenceMeshEntity } from './model';
 
 export type StlTriangle = Readonly<{
   vertices: [Vec3, Vec3, Vec3];
@@ -89,7 +89,7 @@ function crossProduct(a: Vec3, b: Vec3): Vec3 {
 
 export function exportAsciiStl(model: SketchModel, name = 'hermes-cad-sketcher'): string {
   const lines = [`solid ${sanitize(name)}`];
-  for (const entity of model.allEntities()) {
+  for (const entity of worldEntitiesForModel(model)) {
     if (entity.type === 'box') appendBox(lines, entity);
   }
   lines.push(`endsolid ${sanitize(name)}`);
@@ -97,17 +97,7 @@ export function exportAsciiStl(model: SketchModel, name = 'hermes-cad-sketcher')
 }
 
 function appendBox(out: string[], box: BoxEntity): void {
-  const o = box.origin;
-  const p = [
-    o,
-    vec(o.x + box.width, o.y, o.z),
-    vec(o.x + box.width, o.y + box.depth, o.z),
-    vec(o.x, o.y + box.depth, o.z),
-    vec(o.x, o.y, o.z + box.height),
-    vec(o.x + box.width, o.y, o.z + box.height),
-    vec(o.x + box.width, o.y + box.depth, o.z + box.height),
-    vec(o.x, o.y + box.depth, o.z + box.height)
-  ];
+  const p = boxWorldPoints(box);
   const faces = [
     [0, 1, 2], [0, 2, 3],
     [4, 6, 5], [4, 7, 6],
