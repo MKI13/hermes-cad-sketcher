@@ -18,6 +18,8 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 
 export type EntityId = string;
 export type ComponentId = string;
+export type ComponentDefinitionId = string;
+export type ComponentInstanceId = string;
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
 export type MaterialAssignment = { materialId?: MaterialId; name?: string; color?: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
 
@@ -48,6 +50,13 @@ export type BoxEntity = CadMetadata & {
 };
 export type BoxDimensions = Pick<BoxEntity, 'width' | 'depth' | 'height'>;
 export type Entity = EdgeEntity | FaceEntity | ReferenceMeshEntity | BoxEntity;
+export type WorldEntityMetadata = { componentInstanceId?: ComponentInstanceId; sourceEntityId?: EntityId };
+export type EditContext = Readonly<{ type: 'root' } | { type: 'component'; componentId: ComponentId }>;
+export type SelectionTarget = Readonly<
+  | { type: 'entity'; entityId: EntityId }
+  | { type: 'component'; componentId: ComponentId; hitEntityId: EntityId }
+  | { type: 'componentInstance'; componentInstanceId: ComponentInstanceId; sourceEntityId: EntityId }
+>;
 
 export type Component = {
   id: ComponentId;
@@ -55,12 +64,39 @@ export type Component = {
   entityIds: EntityId[];
 };
 
+export type ComponentDefinitionMetadata = {
+  localAxes?: { length: 'x' | 'y' | 'z'; width: 'x' | 'y' | 'z'; thickness: 'x' | 'y' | 'z' };
+};
+
+export type ComponentDefinition = ComponentDefinitionMetadata & {
+  id: ComponentDefinitionId;
+  name: string;
+  entityIds: EntityId[];
+  componentId?: ComponentId;
+};
+
+export type ComponentTransform = {
+  translation: Vec3;
+  rotationZ: number;
+  scale: Vec3;
+};
+
+export type ComponentInstance = {
+  id: ComponentInstanceId;
+  name: string;
+  definitionId: ComponentDefinitionId;
+  transform: ComponentTransform;
+};
+
 export type SketchModelSnapshot = {
   unit: 'mm';
   entities: Entity[];
   components: Component[];
+  componentDefinitions?: ComponentDefinition[];
+  componentInstances?: ComponentInstance[];
   tags?: TagDefinition[];
   materials?: MaterialDefinition[];
+  activePath?: ComponentId[];
 };
 
 let nextNumber = 1;
@@ -69,7 +105,12 @@ function nextId(prefix: string): string {
 }
 
 function bumpNextNumberPastSnapshot(snapshot: SketchModelSnapshot): void {
-  const ids = [...snapshot.entities.map((entity) => entity.id), ...snapshot.components.map((component) => component.id)];
+  const ids = [
+    ...snapshot.entities.map((entity) => entity.id),
+    ...snapshot.components.map((component) => component.id),
+    ...(snapshot.componentDefinitions ?? []).map((definition) => definition.id),
+    ...(snapshot.componentInstances ?? []).map((instance) => instance.id)
+  ];
   const highest = ids.reduce((max, id) => {
     const match = /_(\d+)$/.exec(id);
     return match ? Math.max(max, Number(match[1])) : max;
@@ -81,6 +122,10 @@ export class SketchModel {
   readonly unit = 'mm' as const;
   private entities = new Map<EntityId, Entity>();
   private components = new Map<ComponentId, Component>();
+  private activeContext: EditContext = { type: 'root' };
+  private componentDefinitions = new Map<ComponentDefinitionId, ComponentDefinition>();
+  private componentInstances = new Map<ComponentInstanceId, ComponentInstance>();
+  private syntheticWorldEntityIds = new Set<EntityId>();
   private tags: TagDefinition[] = defaultTags();
   private materials: MaterialDefinition[] = defaultMaterials();
 
@@ -90,18 +135,27 @@ export class SketchModel {
     model.materials = normalizeMaterialCatalog(snapshot.materials, { preserveStarterMaterials: true });
     for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(withDefaultEntityMetadata(entity)));
     for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
+    for (const definition of snapshot.componentDefinitions ?? []) model.componentDefinitions.set(definition.id, structuredClone(definition));
+    for (const instance of snapshot.componentInstances ?? []) model.componentInstances.set(instance.id, structuredClone({ ...instance, transform: normalizeComponentTransform(instance.transform) }));
+    model.refreshSyntheticWorldEntityIds();
+    const activeComponentId = snapshot.activePath?.at(-1);
+    if (activeComponentId && model.components.has(activeComponentId)) model.activeContext = { type: 'component', componentId: activeComponentId };
     bumpNextNumberPastSnapshot(snapshot);
     return model;
   }
 
   snapshot(): SketchModelSnapshot {
-    return {
+    const activePath = this.activePath();
+    const snapshot: SketchModelSnapshot = {
       unit: this.unit,
       entities: [...this.entities.values()].map((entity) => structuredClone(withDefaultEntityMetadata(entity))),
       components: [...this.components.values()].map((component) => structuredClone(component)),
+      componentDefinitions: [...this.componentDefinitions.values()].map((definition) => structuredClone(definition)),
+      componentInstances: [...this.componentInstances.values()].map((instance) => structuredClone(instance)),
       tags: this.tags.map((tag) => ({ ...tag })),
       materials: this.materials.map((material) => ({ ...material }))
     };
+    return activePath.length > 0 ? { ...snapshot, activePath } : snapshot;
   }
 
   allEntities(): Entity[] {
@@ -110,6 +164,14 @@ export class SketchModel {
 
   allComponents(): Component[] {
     return [...this.components.values()];
+  }
+
+  allComponentDefinitions(): ComponentDefinition[] {
+    return [...this.componentDefinitions.values()].map((definition) => structuredClone(definition));
+  }
+
+  allComponentInstances(): ComponentInstance[] {
+    return [...this.componentInstances.values()].map((instance) => structuredClone(instance));
   }
 
   allTags(): TagDefinition[] {
@@ -125,6 +187,42 @@ export class SketchModel {
     return entity ? withDefaultEntityMetadata(entity) : undefined;
   }
 
+  activeEditContext(): EditContext {
+    return this.activeContext.type === 'root' ? { type: 'root' } : { ...this.activeContext };
+  }
+
+  activePath(): ComponentId[] {
+    return this.activeContext.type === 'component' ? [this.activeContext.componentId] : [];
+  }
+
+  openComponent(id: ComponentId): Component {
+    const component = this.requireComponent(id);
+    this.activeContext = { type: 'component', componentId: id };
+    return structuredClone(component);
+  }
+
+  closeActiveContext(): EditContext {
+    this.activeContext = { type: 'root' };
+    return this.activeEditContext();
+  }
+
+  selectionTargetForEntity(id: EntityId): SelectionTarget {
+    const instanceHit = this.worldEntitySelectionHit(id);
+    if (instanceHit) return { type: 'componentInstance', ...instanceHit };
+    const entity = this.requireEntity(id);
+    if (entity.componentId && !this.isActiveComponentContext(entity.componentId)) {
+      this.requireComponent(entity.componentId);
+      return { type: 'component', componentId: entity.componentId, hitEntityId: id };
+    }
+    return { type: 'entity', entityId: id };
+  }
+
+  canEditEntity(id: EntityId): boolean {
+    if (this.worldEntitySelectionHit(id) || this.componentInstances.has(id)) return false;
+    const entity = this.requireEntity(id);
+    return !entity.componentId || this.isActiveComponentContext(entity.componentId);
+  }
+
   createLine(start: Vec3, end: Vec3, metadata: CadMetadata = {}): EdgeEntity {
     if (distance(start, end) <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
     const entity: EdgeEntity = withDefaultEntityMetadata({ id: nextId('edge'), type: 'edge', start, end, ...metadata });
@@ -134,7 +232,7 @@ export class SketchModel {
 
   resizeLineLength(id: EntityId, lengthMm: number): EdgeEntity {
     if (!isPositiveFinite(lengthMm)) throw new Error('Eine Linie braucht eine positive Länge.');
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     if (entity.type !== 'edge') throw new Error('Längenmaß braucht eine ausgewählte Linie.');
     const currentLength = distance(entity.start, entity.end);
     if (currentLength <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
@@ -154,7 +252,7 @@ export class SketchModel {
 
   resizeRectangleFace(id: EntityId, width: number, depth: number): FaceEntity {
     if (!isPositiveFinite(width) || !isPositiveFinite(depth)) throw new Error('Ein Rechteck braucht positive Breite und Tiefe.');
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     if (entity.type !== 'face') throw new Error('Rechteckmaß braucht eine ausgewählte Fläche.');
     const plane = rectangleFacePlane(entity.vertices);
     if (!plane) throw new Error('Rechteckmaß unterstützt nur axis-aligned Rechteckflächen.');
@@ -165,7 +263,7 @@ export class SketchModel {
 
   extrudeFaceToBox(id: EntityId, height: number): BoxEntity {
     if (!isPositiveFinite(height)) throw new Error('Extrusion braucht eine positive Höhe.');
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     if (entity.type !== 'face') throw new Error('Extrusion braucht eine ausgewählte Fläche.');
     const plane = rectangleFacePlane(entity.vertices);
     if (!plane) throw new Error('Extrusion unterstützt nur axis-aligned Rechteckflächen auf X/Y, X/Z oder Y/Z.');
@@ -232,6 +330,7 @@ export class SketchModel {
   }
 
   resizeBox(id: EntityId, dimensions: Partial<BoxDimensions>): BoxEntity {
+    this.requireEntityEditable(id);
     const entity = this.requireBox(id);
     const next = {
       width: dimensions.width ?? entity.width,
@@ -247,6 +346,7 @@ export class SketchModel {
   pushPullBoxFace(id: EntityId, deltaHeight: number): BoxEntity;
   pushPullBoxFace(id: EntityId, face: BoxFaceName, delta: number): BoxEntity;
   pushPullBoxFace(id: EntityId, faceOrDelta: BoxFaceName | number, maybeDelta?: number): BoxEntity {
+    this.requireEntityEditable(id);
     const entity = this.requireBox(id);
     const face = typeof faceOrDelta === 'number' ? 'top' : faceOrDelta;
     const delta = typeof faceOrDelta === 'number' ? faceOrDelta : maybeDelta ?? 0;
@@ -256,7 +356,8 @@ export class SketchModel {
   }
 
   moveEntity(id: EntityId, delta: Vec3): Entity {
-    const entity = this.requireEntity(id);
+    if (this.worldEntitySelectionHit(id)) throw new Error('Instanz-Geometrie ist nur eine Weltansicht. Bitte die Komponenten-Instanz oder Definition bearbeiten.');
+    const entity = this.requireEntityEditable(id);
     let moved: Entity;
     if (entity.type === 'edge') moved = { ...entity, start: add(entity.start, delta), end: add(entity.end, delta) };
     else if (entity.type === 'face') moved = { ...entity, vertices: entity.vertices.map((v) => add(v, delta)) };
@@ -267,7 +368,7 @@ export class SketchModel {
   }
 
   private rotateEntity(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     return rotateEntitySnapshot(entity, angleRadians, origin);
   }
 
@@ -278,18 +379,34 @@ export class SketchModel {
   }
 
   deleteEntity(id: EntityId): boolean {
+    if (this.worldEntitySelectionHit(id)) throw new Error('Instanz-Geometrie ist nur eine Weltansicht. Bitte die Komponenten-Instanz oder Definition bearbeiten.');
     if (!this.entities.has(id)) return false;
+    this.requireEntityEditable(id);
     this.entities.delete(id);
     for (const component of [...this.components.values()]) {
       const entityIds = component.entityIds.filter((entityId) => entityId !== id);
-      if (entityIds.length === 0) this.components.delete(component.id);
-      else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
+      if (entityIds.length === 0) {
+        this.components.delete(component.id);
+        if (this.isActiveComponentContext(component.id)) this.closeActiveContext();
+      } else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
+    }
+    for (const definition of [...this.componentDefinitions.values()]) {
+      const entityIds = definition.entityIds.filter((entityId) => entityId !== id);
+      if (entityIds.length === 0) {
+        this.componentDefinitions.delete(definition.id);
+        for (const instance of [...this.componentInstances.values()]) {
+          if (instance.definitionId === definition.id) this.componentInstances.delete(instance.id);
+        }
+      } else if (entityIds.length !== definition.entityIds.length) {
+        this.componentDefinitions.set(definition.id, { ...definition, entityIds });
+      }
     }
     return true;
   }
 
   hideEntity(id: EntityId): Entity {
-    const entity = this.requireEntity(id);
+    this.requireNotComponentInstanceId(id);
+    const entity = this.requireEntityEditable(id);
     const hidden = { ...entity, hidden: true } as Entity;
     this.entities.set(id, hidden);
     return hidden;
@@ -307,9 +424,10 @@ export class SketchModel {
   }
 
   applyMaterial(id: EntityId, material: MaterialAssignment): Entity {
+    this.requireNotComponentInstanceId(id);
     const materialId = material.materialId ?? this.findOrCreateLegacyMaterial(material);
     if (!materialById(materialId, this.materials)) throw new Error(`Material nicht gefunden: ${materialId}`);
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     const painted = { ...entity, materialId, material: material.name || material.color || material.previewUrl || material.textureDataUrl ? { ...material, materialId } : undefined } as Entity;
     this.entities.set(id, painted);
     return painted;
@@ -327,7 +445,7 @@ export class SketchModel {
       if (!normalized.some((tag) => tag.id === tagId)) throw new Error(`Tag nicht gefunden oder ungültig: ${tagId}`);
       this.tags = normalized;
     }
-    const entity = this.requireEntity(id);
+    const entity = this.requireEntityEditable(id);
     const tagged = { ...entity, tagId } as Entity;
     this.entities.set(id, tagged);
     return tagged;
@@ -392,6 +510,67 @@ export class SketchModel {
     return this.createComponent(name, copiedIds);
   }
 
+  createComponentDefinition(name: string, entityIds: EntityId[], metadata: ComponentDefinitionMetadata = {}): ComponentDefinition {
+    if (entityIds.length === 0) throw new Error('Eine Komponenten-Definition braucht mindestens ein Element.');
+    for (const id of entityIds) this.requireEntity(id);
+    const definition: ComponentDefinition = { id: nextId('definition'), name, entityIds: [...entityIds], ...(metadata.localAxes ? { localAxes: { ...metadata.localAxes } } : {}) };
+    this.componentDefinitions.set(definition.id, definition);
+    return structuredClone(definition);
+  }
+
+  createComponentDefinitionFromEntities(name: string, entityIds: EntityId[], metadata: ComponentDefinitionMetadata = {}): { definition: ComponentDefinition; firstInstance: ComponentInstance } {
+    const component = this.createComponent(name, entityIds);
+    const definition = this.createComponentDefinition(name, entityIds, metadata);
+    const definitionWithComponent = { ...definition, componentId: component.id };
+    this.componentDefinitions.set(definition.id, definitionWithComponent);
+    const firstInstance = this.createComponentInstance(definition.id, name, { translation: vec(0, 0, 0) });
+    return { definition: structuredClone(definitionWithComponent), firstInstance };
+  }
+
+  createComponentInstance(definitionId: ComponentDefinitionId, name: string, transform: Partial<ComponentTransform> = {}): ComponentInstance {
+    this.requireComponentDefinition(definitionId);
+    const instance: ComponentInstance = { id: nextId('instance'), name, definitionId, transform: normalizeComponentTransform(transform) };
+    this.componentInstances.set(instance.id, instance);
+    this.refreshSyntheticWorldEntityIds();
+    return structuredClone(instance);
+  }
+
+  moveComponentInstance(id: ComponentInstanceId, delta: Vec3): ComponentInstance {
+    const instance = this.requireComponentInstance(id);
+    const updated = { ...instance, transform: { ...instance.transform, translation: add(instance.transform.translation, delta) } };
+    this.componentInstances.set(id, updated);
+    return structuredClone(updated);
+  }
+
+  rotateComponentInstanceZ(id: ComponentInstanceId, angleRadians: number): ComponentInstance {
+    if (!Number.isFinite(angleRadians)) throw new Error('Instanz-Rotation braucht einen finiten Winkel.');
+    const instance = this.requireComponentInstance(id);
+    const updated = { ...instance, transform: { ...instance.transform, rotationZ: instance.transform.rotationZ + angleRadians } };
+    this.componentInstances.set(id, updated);
+    return structuredClone(updated);
+  }
+
+  duplicateComponentInstance(id: ComponentInstanceId, name: string, transform: Partial<ComponentTransform> = {}): ComponentInstance {
+    const source = this.requireComponentInstance(id);
+    return this.createComponentInstance(source.definitionId, name, { ...source.transform, ...transform });
+  }
+
+  makeComponentInstanceUnique(id: ComponentInstanceId, name: string): ComponentDefinition {
+    const instance = this.requireComponentInstance(id);
+    const source = this.requireComponentDefinition(instance.definitionId);
+    const copiedIds: EntityId[] = [];
+    for (const entityId of source.entityIds) {
+      const copy = cloneEntityForComponentDefinition(this.requireEntity(entityId));
+      copiedIds.push(copy.id);
+      this.entities.set(copy.id, copy);
+    }
+    const definition: ComponentDefinition = { ...source, id: nextId('definition'), name, entityIds: copiedIds };
+    this.componentDefinitions.set(definition.id, definition);
+    this.componentInstances.set(id, { ...instance, definitionId: definition.id });
+    this.refreshSyntheticWorldEntityIds();
+    return structuredClone(definition);
+  }
+
   measure(a: Vec3, b: Vec3): number {
     return distance(a, b);
   }
@@ -403,9 +582,39 @@ export class SketchModel {
     return add(box.min, { x: box.size.x / 2, y: box.size.y / 2, z: box.size.z / 2 });
   }
 
+  private worldEntitySelectionHit(id: EntityId): { componentInstanceId: ComponentInstanceId; sourceEntityId: EntityId } | undefined {
+    if (!this.syntheticWorldEntityIds.has(id)) return undefined;
+    const parsed = parseWorldEntityId(id);
+    if (!parsed) return undefined;
+    this.requireComponentInstance(parsed.componentInstanceId);
+    return parsed;
+  }
+
+  private refreshSyntheticWorldEntityIds(): void {
+    this.syntheticWorldEntityIds = new Set(worldEntitiesForModel(this).filter((entity) => entity.componentInstanceId && entity.sourceEntityId).map((entity) => entity.id));
+  }
+
+  private requireNotComponentInstanceId(id: EntityId): void {
+    if (this.componentInstances.has(id) || this.worldEntitySelectionHit(id)) {
+      throw new Error('Komponenten-Instanz ist geschützt. Bitte Instanz verschieben/drehen, Make Unique verwenden oder die Definition im Kontext bearbeiten.');
+    }
+  }
+
   private requireEntity(id: EntityId): Entity {
     const entity = this.entities.get(id);
     if (!entity) throw new Error(`Element nicht gefunden: ${id}`);
+    return entity;
+  }
+
+  private isActiveComponentContext(componentId: ComponentId): boolean {
+    return this.activeContext.type === 'component' && this.activeContext.componentId === componentId;
+  }
+
+  private requireEntityEditable(id: EntityId): Entity {
+    const entity = this.requireEntity(id);
+    if (entity.componentId && !this.isActiveComponentContext(entity.componentId)) {
+      throw new Error('Erst Gruppe oder Komponente bearbeiten, bevor innere Geometrie geändert wird.');
+    }
     return entity;
   }
 
@@ -415,11 +624,111 @@ export class SketchModel {
     return component;
   }
 
+  private requireComponentDefinition(id: ComponentDefinitionId): ComponentDefinition {
+    const definition = this.componentDefinitions.get(id);
+    if (!definition) throw new Error(`Komponenten-Definition nicht gefunden: ${id}`);
+    return definition;
+  }
+
+  private requireComponentInstance(id: ComponentInstanceId): ComponentInstance {
+    const instance = this.componentInstances.get(id);
+    if (!instance) throw new Error(`Komponenten-Instanz nicht gefunden: ${id}`);
+    return instance;
+  }
+
   private requireBox(id: EntityId): BoxEntity {
     const entity = this.requireEntity(id);
     if (entity.type !== 'box') throw new Error('Push/Pull ist im MVP nur für Körper aktiv.');
     return entity;
   }
+}
+
+function normalizeComponentTransform(transform: Partial<ComponentTransform> = {}): ComponentTransform {
+  const normalized = {
+    translation: transform.translation ?? vec(0, 0, 0),
+    rotationZ: transform.rotationZ ?? 0,
+    scale: transform.scale ?? vec(1, 1, 1)
+  };
+  if (!isFiniteVec3(normalized.translation) || !Number.isFinite(normalized.rotationZ) || !isFiniteVec3(normalized.scale)) {
+    throw new Error('Komponenten-Instanz braucht finite Transformationswerte.');
+  }
+  if (!isUnitScale(normalized.scale)) {
+    throw new Error('Instanz-Skalierung ist für zuschnittsfähige Komponenten nicht erlaubt.');
+  }
+  return normalized;
+}
+
+function isUnitScale(value: Vec3): boolean {
+  return Math.abs(value.x - 1) <= 1e-9 && Math.abs(value.y - 1) <= 1e-9 && Math.abs(value.z - 1) <= 1e-9;
+}
+
+function cloneEntityForComponentDefinition(entity: Entity): Entity {
+  if (entity.type === 'edge') return { ...structuredClone(entity), id: nextId('edge'), componentId: undefined };
+  if (entity.type === 'face') return { ...structuredClone(entity), id: nextId('face'), componentId: undefined };
+  if (entity.type === 'referenceMesh') return { ...structuredClone(entity), id: nextId('mesh'), componentId: undefined };
+  return { ...structuredClone(entity), id: nextId('box'), componentId: undefined };
+}
+
+function transformEntityForInstance(entity: Entity, instance: ComponentInstance): Entity & WorldEntityMetadata {
+  const id = worldEntityId(instance.id, entity.id);
+  const instanceMetadata = { componentInstanceId: instance.id, sourceEntityId: entity.id };
+  const transform = instance.transform;
+  if (entity.type === 'edge') {
+    return { ...entity, id, ...instanceMetadata, start: transformPoint(entity.start, transform), end: transformPoint(entity.end, transform), componentId: undefined };
+  }
+  if (entity.type === 'face') {
+    return { ...entity, id, ...instanceMetadata, vertices: entity.vertices.map((vertex) => transformPoint(vertex, transform)), componentId: undefined };
+  }
+  if (entity.type === 'referenceMesh') {
+    return { ...entity, id, ...instanceMetadata, triangles: entity.triangles.map((triangle) => ({ vertices: transformVertices(triangle.vertices, transform) })), componentId: undefined };
+  }
+  const sourceCenter = boxLocalCenter(entity);
+  const transformedCenter = transformPoint(sourceCenter, transform);
+  return {
+    ...entity,
+    id,
+    ...instanceMetadata,
+    origin: vec(transformedCenter.x - entity.width / 2, transformedCenter.y - entity.depth / 2, transformedCenter.z - entity.height / 2),
+    rotationZ: entity.rotationZ + transform.rotationZ,
+    componentId: undefined
+  };
+}
+
+function transformPoint(point: Vec3, transform: ComponentTransform): Vec3 {
+  return add(rotateAroundZ(point, transform.rotationZ, vec(0, 0, 0)), transform.translation);
+}
+
+function transformVertices(vertices: [Vec3, Vec3, Vec3], transform: ComponentTransform): [Vec3, Vec3, Vec3] {
+  return [transformPoint(vertices[0], transform), transformPoint(vertices[1], transform), transformPoint(vertices[2], transform)];
+}
+
+export function worldEntityId(componentInstanceId: ComponentInstanceId, sourceEntityId: EntityId): EntityId {
+  return `${componentInstanceId}:${sourceEntityId}`;
+}
+
+export function parseWorldEntityId(id: EntityId): { componentInstanceId: ComponentInstanceId; sourceEntityId: EntityId } | undefined {
+  const [componentInstanceId, ...sourceParts] = id.split(':');
+  const sourceEntityId = sourceParts.join(':');
+  if (!componentInstanceId?.startsWith('instance_') || !sourceEntityId) return undefined;
+  return { componentInstanceId, sourceEntityId };
+}
+
+export function worldEntitiesForModel(model: SketchModel): Array<Entity & WorldEntityMetadata> {
+  const definitions = model.allComponentDefinitions();
+  const instances = model.allComponentInstances();
+  const instantiatedDefinitionIds = new Set(instances.map((instance) => instance.definitionId));
+  const instancedSourceIds = new Set(definitions.filter((definition) => instantiatedDefinitionIds.has(definition.id)).flatMap((definition) => definition.entityIds));
+  const entities = model.allEntities().filter((entity) => !instancedSourceIds.has(entity.id)).map((entity) => structuredClone(entity));
+  for (const instance of instances) {
+    const definition = definitions.find((candidate) => candidate.id === instance.definitionId);
+    if (!definition) continue;
+    for (const entityId of definition.entityIds) {
+      const entity = model.getEntity(entityId);
+      if (!entity) continue;
+      entities.push(transformEntityForInstance(entity, instance));
+    }
+  }
+  return entities;
 }
 
 function withDefaultEntityMetadata<T extends Entity>(entity: T): T {

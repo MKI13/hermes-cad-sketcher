@@ -144,6 +144,7 @@ describe('Hermes CAD project files', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1200, 600, {}, 'xy');
     const component = model.createComponent('Extrusionsfläche', [face.id]);
+    model.openComponent(component.id);
     const box = model.extrudeFaceToBox(face.id, 720);
 
     const roundTrip = importProjectFile(exportProjectFile(model));

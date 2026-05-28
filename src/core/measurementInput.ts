@@ -61,5 +61,20 @@ export function parseMeasurementBoxInput(tool: ToolName, raw: string): Measureme
     return { ok: true, kind: 'distance', value };
   }
 
+  if (values.length >= 3) {
+    const [width, depth, height] = values;
+    return requirePositive(width) ?? requirePositive(depth) ?? requirePositive(height) ?? { ok: true, kind: 'box', width, depth, height };
+  }
+
+  if (values.length === 2) {
+    const [width, depth] = values;
+    return requirePositive(width) ?? requirePositive(depth) ?? { ok: true, kind: 'rectangle', width, depth };
+  }
+
+  if (values.length === 1) {
+    const [size] = values;
+    return requirePositive(size) ?? { ok: true, kind: 'box', width: size, depth: size, height: size };
+  }
+
   return { ok: false, error: 'Für dieses Werkzeug gibt es noch keine aktive Maßeingabe.' };
 }

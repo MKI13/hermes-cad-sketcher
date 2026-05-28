@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SketchModel, type BoxFaceName, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
+import { SketchModel, parseWorldEntityId, worldEntityId, type BoxFaceName, type ComponentInstanceId, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { parseMeasurementBoxInput } from './core/measurementInput';
@@ -171,7 +171,14 @@ export default function App() {
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
 
-  const selected = selectedId ? model.getEntity(selectedId) : undefined;
+  const selectedInstanceHit = selectedId ? parseWorldEntityId(selectedId) : undefined;
+  const selectedComponentInstance = selectedInstanceHit
+    ? model.allComponentInstances().find((instance) => instance.id === selectedInstanceHit.componentInstanceId)
+    : selectedId
+      ? model.allComponentInstances().find((instance) => instance.id === selectedId)
+      : undefined;
+  const selectedInstanceSource = selectedInstanceHit ? model.getEntity(selectedInstanceHit.sourceEntityId) : undefined;
+  const selected = selectedId && !selectedComponentInstance ? model.getEntity(selectedId) : undefined;
   const selectedInspection = selected ? inspectEntity(selected) : undefined;
   const selectedMeasurement = selected ? formatEntityMeasurement(selected) : undefined;
   const selectedFaceLabel = selectedBoxFace && selectedBoxFace.entityId === selectedId ? faceSelectionLabel(selectedBoxFace) : faceSelectionLabel();
@@ -185,6 +192,17 @@ export default function App() {
     xz: drawingPlaneAppearance('xz').label,
     yz: drawingPlaneAppearance('yz').label
   };
+  const activeEditContext = model.activeEditContext();
+  const activeContextLabel = activeEditContext.type === 'root'
+    ? 'Root / lose Geometrie'
+    : `Komponente ${activeEditContext.componentId}`;
+  const isSelectableInModel = (candidateModel: SketchModel, candidateId?: string) => Boolean(candidateId && (candidateModel.getEntity(candidateId) || candidateModel.allComponentInstances().some((instance) => instance.id === candidateId)));
+  const firstVisibleSelectionId = (candidateModel: SketchModel) => candidateModel.allComponentInstances()[0]?.id ?? candidateModel.allEntities()[0]?.id;
+  const selectedEditBlocked = Boolean(selectedId && !selectedComponentInstance && !model.canEditEntity(selectedId));
+  const selectedComponentId = selected?.componentId;
+  const canOpenSelectedComponent = Boolean(selectedComponentId && activeEditContext.type === 'root');
+  const componentDefinitions = model.allComponentDefinitions();
+  const componentInstances = model.allComponentInstances();
 
   function handleRectangleDimensionMaskChange(key: RectangleDimensionKey, event: React.ChangeEvent<HTMLInputElement>) {
     const rawValue = event.currentTarget.value;
@@ -308,9 +326,9 @@ export default function App() {
     setModel(nextModel);
     setHistory(nextHistory);
     setSelectedId((current) => {
-      if (current && nextModel.getEntity(current)) return current;
-      if (fallbackSelectedId && nextModel.getEntity(fallbackSelectedId)) return fallbackSelectedId;
-      return nextModel.allEntities()[0]?.id;
+      if (isSelectableInModel(nextModel, current)) return current;
+      if (isSelectableInModel(nextModel, fallbackSelectedId)) return fallbackSelectedId;
+      return firstVisibleSelectionId(nextModel);
     });
   }
 
@@ -509,13 +527,42 @@ export default function App() {
   }
 
   function handleViewportSelect(entityId: string | undefined, faceSelection?: FaceSelection) {
+    if (!entityId) {
+      setSelectedId(undefined);
+      setSelectedBoxFace(undefined);
+      return;
+    }
+    const target = model.selectionTargetForEntity(entityId);
+    if (target.type === 'componentInstance') {
+      setSelectedId(target.componentInstanceId);
+      setSelectedBoxFace(undefined);
+      setProjectStatus(`Komponenten-Instanz ${target.componentInstanceId} gewählt; Quelle ${target.sourceEntityId} bleibt geschützt.`);
+      return;
+    }
     setSelectedId(entityId);
-    setSelectedBoxFace(faceSelection && faceSelection.entityId === entityId ? faceSelection : undefined);
+    setSelectedBoxFace(target.type === 'entity' && faceSelection?.entityId === entityId ? faceSelection : undefined);
+    if (target.type === 'component') {
+      setProjectStatus(`Komponente ${target.componentId} außen gewählt. Doppelklick/Edit-Kontext folgt in #50; innere Geometrie ist geschützt.`);
+    }
   }
 
   function moveFromViewport(entityId: string, delta: Vec3) {
     let measurement: string | undefined;
     mutate((m) => {
+      const instanceHit = parseWorldEntityId(entityId);
+      if (instanceHit) {
+        const instance = m.moveComponentInstance(instanceHit.componentInstanceId, delta);
+        setSelectedId(instance.id);
+        measurement = `Instanz verschoben: ${instance.name}`;
+        return;
+      }
+      const selectedInstance = m.allComponentInstances().find((instance) => instance.id === entityId);
+      if (selectedInstance) {
+        const instance = m.moveComponentInstance(selectedInstance.id, delta);
+        setSelectedId(instance.id);
+        measurement = `Instanz verschoben: ${instance.name}`;
+        return;
+      }
       const entity = m.moveEntity(entityId, delta);
       setSelectedId(entityId);
       measurement = formatEntityMeasurement(entity);
@@ -555,6 +602,12 @@ export default function App() {
     const parsed = parseRotateAngle(rotateAngleDegrees);
     if (!parsed.ok) return;
     mutate((m) => {
+      const instanceId = selectedComponentInstance?.id ?? parseWorldEntityId(selectedId)?.componentInstanceId;
+      if (instanceId) {
+        m.rotateComponentInstanceZ(instanceId, parsed.radians);
+        setSelectedId(instanceId);
+        return;
+      }
       m.rotateEntityZ(selectedId, parsed.radians);
       setSelectedId(selectedId);
     });
@@ -653,8 +706,48 @@ export default function App() {
     });
   }
 
+  function selectComponentInstance(instanceId: ComponentInstanceId) {
+    setSelectedId(instanceId);
+    setSelectedBoxFace(undefined);
+    setProjectStatus(`Komponenten-Instanz gewählt: ${instanceId}`);
+  }
+
+  function duplicateComponentInstance(instanceId: ComponentInstanceId) {
+    mutate((m) => {
+      const source = m.allComponentInstances().find((instance) => instance.id === instanceId);
+      const duplicate = m.duplicateComponentInstance(instanceId, `${source?.name ?? 'Instanz'} Kopie`, {
+        translation: vec((source?.transform.translation.x ?? 0) + 800, source?.transform.translation.y ?? 0, source?.transform.translation.z ?? 0)
+      });
+      setSelectedId(duplicate.id);
+    });
+    setProjectStatus('Komponenten-Instanz dupliziert.');
+  }
+
+  function makeComponentInstanceUniqueFromTray(instanceId: ComponentInstanceId) {
+    mutate((m) => {
+      const source = m.allComponentInstances().find((instance) => instance.id === instanceId);
+      const definition = m.makeComponentInstanceUnique(instanceId, `${source?.name ?? 'Instanz'} eindeutig`);
+      setSelectedId(instanceId);
+      setProjectStatus(`Make Unique erstellt Definition ${definition.id}.`);
+    });
+  }
+
+  function openComponentDefinitionContext(definitionId: string) {
+    const definition = componentDefinitions.find((entry) => entry.id === definitionId);
+    if (!definition) return;
+    const component = model.allComponents().find((entry) => entry.entityIds.length === definition.entityIds.length && entry.entityIds.every((id, index) => id === definition.entityIds[index]));
+    if (!component) {
+      setProjectStatus('Definitionen sind geschützt; Bearbeiten folgt über Make Unique/Definitions-Kontext in einem separaten Schritt.');
+      return;
+    }
+    mutate((m) => {
+      m.openComponent(component.id);
+    });
+    setProjectStatus(`Definition ${definitionId} im Komponenten-Kontext geöffnet.`);
+  }
+
   function deleteSelectedEntity() {
-    if (!selectedId) return;
+    if (!selectedId || selectedComponentInstance) return;
     mutate((m) => {
       m.deleteEntity(selectedId);
       setSelectedId(undefined);
@@ -693,10 +786,18 @@ export default function App() {
       setProjectStatus('Bitte erst eine Fläche oder einen Körper auswählen, dann Material anwenden.');
       return;
     }
-    mutate((m) => {
-      m.applyMaterial(selectedId, material);
-    });
-    setProjectStatus(`Material angewendet: ${material.name ?? material.materialId ?? 'default'}`);
+    if (selectedComponentInstance) {
+      setProjectStatus('Komponenten-Instanzen werden nicht direkt bemalt. Öffne die Definition oder verwende Make Unique.');
+      return;
+    }
+    try {
+      mutate((m) => {
+        m.applyMaterial(selectedId, material);
+      });
+      setProjectStatus(`Material angewendet: ${material.name ?? material.materialId ?? 'default'}`);
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'Material konnte nicht angewendet werden.');
+    }
   }
 
   function materialFromImageEntry(entry: BrowserMaterialLibraryEntry): MaterialAssignment {
@@ -709,20 +810,50 @@ export default function App() {
 
   function hideSelectedEntity() {
     if (!selectedId) return;
+    if (selectedComponentInstance) {
+      setProjectStatus('Komponenten-Instanzen werden nicht direkt ausgeblendet. Öffne die Definition oder verwende Make Unique.');
+      return;
+    }
+    try {
+      mutate((m) => {
+        m.hideEntity(selectedId);
+        setSelectedId(undefined);
+      });
+      setProjectStatus('Auswahl ausgeblendet.');
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'Auswahl konnte nicht ausgeblendet werden.');
+    }
+  }
+
+  function openSelectedComponentContext() {
+    if (!selectedComponentId) return;
     mutate((m) => {
-      m.hideEntity(selectedId);
-      setSelectedId(undefined);
+      m.openComponent(selectedComponentId);
     });
-    setProjectStatus('Auswahl ausgeblendet.');
+    setProjectStatus(`Komponente ${selectedComponentId} geöffnet. Innere Kanten und Flächen sind jetzt bearbeitbar.`);
+  }
+
+  function closeEditContext() {
+    mutate((m) => {
+      m.closeActiveContext();
+    });
+    setProjectStatus('Bearbeitungskontext geschlossen. Root / lose Geometrie aktiv.');
   }
 
   function makeSelectedComponent(prefix: 'Gruppe' | 'Komponente') {
-    if (!selectedId) return;
+    if (!selectedId || selectedComponentInstance) return;
     mutate((m) => {
+      if (prefix === 'Komponente') {
+        const { definition, firstInstance } = m.createComponentDefinitionFromEntities(`${prefix} aus Auswahl`, [selectedId]);
+        setSelectedId(firstInstance.id);
+        setProjectStatus(`${prefix} aus Auswahl erstellt: Definition ${definition.id}, erste sichtbare Instanz ${firstInstance.id}.`);
+        return;
+      }
       const component = m.createComponent(`${prefix} aus Auswahl`, [selectedId]);
+      m.openComponent(component.id);
       setSelectedId(component.entityIds[0]);
+      setProjectStatus(`${prefix} aus Auswahl erstellt und zum Bearbeiten geöffnet.`);
     });
-    setProjectStatus(`${prefix} aus Auswahl erstellt.`);
   }
 
   function reportSelectedArea() {
@@ -911,7 +1042,7 @@ export default function App() {
       const next = importProjectFile(text);
       setModel(next);
       setHistory(createHistory(next.snapshot()));
-      setSelectedId(next.allEntities()[0]?.id);
+      setSelectedId(firstVisibleSelectionId(next));
       setProjectStatus(`Projekt geladen: ${file.name}`);
     } catch (error) {
       setProjectStatus(error instanceof Error ? error.message : 'Projekt konnte nicht geladen werden.');
@@ -1010,7 +1141,7 @@ export default function App() {
         </div>
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button>
-        <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId} onClick={deleteSelectedEntity}>
+        <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId || Boolean(selectedComponentInstance)} onClick={deleteSelectedEntity}>
           <HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen
         </button>
         <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />
@@ -1143,13 +1274,44 @@ export default function App() {
     'entity-info': (
       <dl>
         <div><dt>Auswahl</dt><dd>{selectedId ?? 'keine'}</dd></div>
-        <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
+        <div><dt>Typ</dt><dd>{selectedComponentInstance ? 'Komponenten-Instanz' : selected?.type ?? 'Arbeitsfläche'}</dd></div>
+        {selectedComponentInstance ? <div><dt>Definition</dt><dd>{selectedComponentInstance.definitionId}</dd></div> : null}
+        {selectedInstanceSource ? <div><dt>Quelle</dt><dd>{selectedInstanceSource.id}</dd></div> : null}
         <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
         <div><dt>Material</dt><dd>{selectedMaterialLabel}</dd></div>
       </dl>
     ),
     outliner: <p>{model.allEntities().length} Elemente im Modell.</p>,
-    components: <p>{model.allComponents().length} Komponenten im Modell.</p>,
+    components: (
+      <>
+        <p>Legacy-Gruppen: {model.allComponents().length} · Definitionen: {componentDefinitions.length} · Instanzen: {componentInstances.length}</p>
+        <section aria-label="Komponenten-Definitionen">
+          <strong>Definitionen</strong>
+          <ul>
+            {componentDefinitions.map((definition) => (
+              <li key={definition.id}>
+                <span>{definition.name} · {definition.entityIds.length} Quellen</span>
+                <button type="button" onClick={() => openComponentDefinitionContext(definition.id)}>Kontext öffnen</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section aria-label="Komponenten-Instanzen">
+          <strong>Instanzen</strong>
+          <ul>
+            {componentInstances.map((instance) => (
+              <li key={instance.id}>
+                <button type="button" onClick={() => selectComponentInstance(instance.id)}>{instance.name}</button>
+                <small>{instance.definitionId} · X {instance.transform.translation.x} · Y {instance.transform.translation.y} · Z {instance.transform.translation.z} · Drehung {Math.round((instance.transform.rotationZ * 180) / Math.PI)}°</small>
+                <button type="button" onClick={() => duplicateComponentInstance(instance.id)}>Instanz duplizieren</button>
+                <button type="button" onClick={() => makeComponentInstanceUniqueFromTray(instance.id)}>Make Unique</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {activeEditContext.type !== 'root' ? <button type="button" onClick={closeEditContext}>Kontext schließen</button> : null}
+      </>
+    ),
     tags: (
       <>
         <p>Tags: {tagCatalog.length} · sichtbar: {tagCatalog.filter((tag) => tag.visible).length}</p>
@@ -1446,6 +1608,8 @@ export default function App() {
             <span>Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
+        </div>
+        <footer className="statusbar">
           <MeasurementBox
             activeMeasurement={activeMeasurement}
             value={measurementBoxValue}
@@ -1453,10 +1617,14 @@ export default function App() {
             onValueChange={setMeasurementBoxValue}
             onApply={applyMeasurementBoxInput}
           />
-        </div>
-        <footer className="statusbar">
           <span>Werkzeug: {tool}</span>
-          <span>Auswahl: {selectedId ?? 'keine'}</span>
+          <span>Auswahl: {selectedComponentInstance ? `Instanz ${selectedComponentInstance.id}` : selectedId ?? 'keine'}</span>
+          <span>Kontext: {activeContextLabel}</span>
+          {selectedEditBlocked ? <span>Bearbeitung: erst Komponente öffnen</span> : <span>Bearbeitung: aktiv</span>}
+          {canOpenSelectedComponent ? <button type="button" onClick={openSelectedComponentContext}>Komponente öffnen</button> : null}
+          {activeEditContext.type !== 'root' ? <button type="button" onClick={closeEditContext}>Kontext schließen</button> : null}
+          <button type="button" disabled={!selectedId || Boolean(selectedComponentInstance)} onClick={() => makeSelectedComponent('Gruppe')}>Gruppe erstellen</button>
+          <button type="button" disabled={!selectedId || Boolean(selectedComponentInstance)} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
           <span>Fläche: {selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</span>
           <span>Verlauf: {history.past.length} rückgängig / {history.future.length} wiederholbar</span>
           <span>Maßband: {lastMeasurement}</span>

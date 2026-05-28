@@ -45,6 +45,7 @@ describe('SketchModel geometry tools', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1000, 500);
     const component = model.createComponent('Frontplatte', [face.id]);
+    model.openComponent(component.id);
 
     const box = model.extrudeFaceToBox(face.id, 300);
 
@@ -303,6 +304,7 @@ describe('SketchModel geometry tools', () => {
     const box = model.createBox(vec(0, 0, 0), 100, 100, 100);
     const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
     const component = model.createComponent('Rahmen', [box.id, line.id]);
+    model.openComponent(component.id);
 
     model.deleteEntity(box.id);
 

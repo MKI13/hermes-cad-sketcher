@@ -1,5 +1,5 @@
 import { vec } from './geometry';
-import { SketchModel, type EntityId } from './model';
+import { SketchModel, type ComponentInstanceId, type EntityId } from './model';
 
 export type CadCommandResult = Readonly<{
   ok: boolean;
@@ -38,7 +38,14 @@ const commandAliases: Record<string, string> = {
   select: 'select',
   component: 'component',
   create_component: 'component',
-  duplicate_component: 'duplicate_component'
+  duplicate_component: 'duplicate_component',
+  component_definition: 'component_definition',
+  component_instance: 'component_instance',
+  duplicate_instance: 'duplicate_instance',
+  make_unique: 'make_unique',
+  move_instance: 'move_instance',
+  rotate_instance: 'rotate_instance',
+  select_instance: 'select_instance'
 };
 
 export function runCadConsoleCommand(model: SketchModel, input: string, selectedId?: EntityId): CadCommandResult {
@@ -60,6 +67,13 @@ export function runCadConsoleCommand(model: SketchModel, input: string, selected
       const id = resolveEntityId(parsed.tokens[0], selectedId);
       if (!model.getEntity(id)) throw new Error(`Element nicht gefunden: ${id}`);
       return { ok: true, nextModel: model, selectedId: id, message: `Auswahl gesetzt: ${id}`, changed: false };
+    }
+
+    if (command === 'select_instance') {
+      const id = resolveInstanceId(parsed.tokens[0], selectedId);
+      const instance = model.allComponentInstances().find((candidate) => candidate.id === id);
+      if (!instance) throw new Error(`Komponenten-Instanz nicht gefunden: ${id}`);
+      return { ok: true, nextModel: model, selectedId: id, message: `Instanz gewählt: ${id}`, changed: false };
     }
 
     const nextModel = SketchModel.fromSnapshot(model.snapshot());
@@ -126,6 +140,7 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
     const n = numbers(tokens, 6);
     const entity = model.createBox(vec(n[0], n[1], n[2]), n[3], n[4], n[5]);
     const component = model.createComponent(`Körper ${entity.id}`, [entity.id]);
+    model.openComponent(component.id);
     return { selectedId: entity.id, message: `Körper erstellt: ${entity.id}; Komponente erstellt: ${component.id}` };
   }
 
@@ -162,6 +177,7 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
     const height = numberToken(tokens[1], 'Extrusionshöhe');
     const entity = model.extrudeFaceToBox(id, height);
     const component = model.createComponent(`Körper ${entity.id}`, [entity.id]);
+    model.openComponent(component.id);
     return { selectedId: entity.id, message: `Fläche extrudiert: ${entity.id}; Komponente erstellt: ${component.id}` };
   }
 
@@ -175,7 +191,52 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
     const name = unquote(tokens[0] ?? 'Komponente');
     const ids = tokens.slice(1).map((token) => resolveEntityId(token, selectedId));
     const component = model.createComponent(name, ids);
+    model.openComponent(component.id);
     return { selectedId: component.entityIds[0], message: `Komponente erstellt: ${component.id}` };
+  }
+
+  if (command === 'component_definition') {
+    const name = unquote(tokens[0] ?? 'Komponente');
+    const ids = tokens.slice(1).map((token) => resolveEntityId(token, selectedId));
+    const { definition, firstInstance } = model.createComponentDefinitionFromEntities(name, ids);
+    return { selectedId: firstInstance.id, message: `Komponenten-Definition erstellt: ${definition.id}; erste Instanz sichtbar: ${firstInstance.id}` };
+  }
+
+  if (command === 'component_instance') {
+    const definitionId = unquote(tokens[0] ?? '');
+    const name = unquote(tokens[1] ?? 'Instanz');
+    const n = numbers(tokens.slice(2), 4);
+    const instance = model.createComponentInstance(definitionId, name, { translation: vec(n[0], n[1], n[2]), rotationZ: (n[3] * Math.PI) / 180 });
+    return { selectedId: instance.id, message: `Komponenten-Instanz erstellt: ${instance.id}` };
+  }
+
+  if (command === 'duplicate_instance') {
+    const id = resolveInstanceId(tokens[0], selectedId);
+    const name = unquote(tokens[1] ?? 'Kopie der Instanz');
+    const n = numbers(tokens.slice(2), 4);
+    const instance = model.duplicateComponentInstance(id, name, { translation: vec(n[0], n[1], n[2]), rotationZ: (n[3] * Math.PI) / 180 });
+    return { selectedId: instance.id, message: `Komponenten-Instanz dupliziert: ${instance.id}` };
+  }
+
+  if (command === 'make_unique') {
+    const id = resolveInstanceId(tokens[0], selectedId);
+    const name = unquote(tokens[1] ?? 'Eindeutige Komponente');
+    const definition = model.makeComponentInstanceUnique(id, name);
+    return { selectedId: id, message: `Instanz eindeutig gemacht: ${id}; Definition ${definition.id}` };
+  }
+
+  if (command === 'move_instance') {
+    const id = resolveInstanceId(tokens[0], selectedId);
+    const n = numbers(tokens.slice(1), 3);
+    const instance = model.moveComponentInstance(id, vec(n[0], n[1], n[2]));
+    return { selectedId: instance.id, message: `Komponenten-Instanz verschoben: ${instance.id}` };
+  }
+
+  if (command === 'rotate_instance') {
+    const id = resolveInstanceId(tokens[0], selectedId);
+    const degrees = numberToken(tokens[1], 'Instanz-Drehwinkel');
+    const instance = model.rotateComponentInstanceZ(id, (degrees * Math.PI) / 180);
+    return { selectedId: instance.id, message: `Komponenten-Instanz gedreht: ${instance.id}` };
   }
 
   if (command === 'duplicate_component') {
@@ -240,6 +301,20 @@ function numberToken(token: string | undefined, label: string): number {
   const value = Number(token);
   if (!Number.isFinite(value)) throw new Error(`${label} muss eine endliche Zahl sein.`);
   return value;
+}
+
+
+function resolveInstanceId(token: string | undefined, selectedId?: EntityId): ComponentInstanceId {
+  if (!token) {
+    if (selectedId) return selectedId;
+    throw new Error('Instanz-ID fehlt.');
+  }
+  const cleaned = unquote(token);
+  if (selectedAliases.has(cleaned.toLowerCase())) {
+    if (!selectedId) throw new Error('Keine Auswahl für selected/auswahl vorhanden.');
+    return selectedId;
+  }
+  return cleaned;
 }
 
 function resolveEntityId(token: string | undefined, selectedId?: EntityId): EntityId {

@@ -65,6 +65,20 @@ export function importProjectFile(text: string): SketchModel {
     throw new Error('Projektdatei enthält ungültige Komponenten.');
   }
 
+  if (model.componentDefinitions !== undefined && !Array.isArray(model.componentDefinitions)) {
+    throw new Error('Projektdatei enthält ungültige Komponenten-Definitionen.');
+  }
+  if (model.componentInstances !== undefined && !Array.isArray(model.componentInstances)) {
+    throw new Error('Projektdatei enthält ungültige Komponenten-Instanzen.');
+  }
+  const definitionIds = new Set((model.componentDefinitions ?? []).map((definition) => definition.id));
+  if (!(model.componentDefinitions ?? []).every((definition) => isComponentDefinitionPayload(definition, entityIds))) {
+    throw new Error('Projektdatei enthält ungültige Komponenten-Definitionen.');
+  }
+  if (!(model.componentInstances ?? []).every((instance) => isComponentInstancePayload(instance, definitionIds))) {
+    throw new Error('Projektdatei enthält ungültige Komponenten-Instanzen.');
+  }
+
   return SketchModel.fromSnapshot(model);
 }
 
@@ -102,6 +116,31 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
     value.entityIds.length > 0 &&
     value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId))
   );
+}
+
+function isComponentDefinitionPayload(value: unknown, knownEntityIds: ReadonlySet<string>): value is NonNullable<SketchModelSnapshot['componentDefinitions']>[number] {
+  if (!isComponentPayload(value, knownEntityIds)) return false;
+  if (!('localAxes' in value) || value.localAxes === undefined) return true;
+  if (!isRecord(value.localAxes)) return false;
+  const axes = new Set(['x', 'y', 'z']);
+  return axes.has(String(value.localAxes.length)) && axes.has(String(value.localAxes.width)) && axes.has(String(value.localAxes.thickness));
+}
+
+function isComponentInstancePayload(value: unknown, knownDefinitionIds: ReadonlySet<string>): value is NonNullable<SketchModelSnapshot['componentInstances']>[number] {
+  return (
+    isRecord(value) &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.definitionId === 'string' &&
+    knownDefinitionIds.has(value.definitionId) &&
+    hasValidComponentTransform(value.transform)
+  );
+}
+
+function hasValidComponentTransform(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return isVec3(value.translation) && isFiniteNumber(value.rotationZ) && isVec3(value.scale) &&
+    Math.abs(value.scale.x - 1) <= 1e-9 && Math.abs(value.scale.y - 1) <= 1e-9 && Math.abs(value.scale.z - 1) <= 1e-9;
 }
 
 function hasValidLayerMetadata(value: Record<string, unknown>): boolean {
