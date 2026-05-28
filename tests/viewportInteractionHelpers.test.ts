@@ -9,6 +9,7 @@ import {
   placeViewportContextMenu,
   createOriginGuideGroup,
   createWorkspaceGrid,
+  createWorkspaceSurface,
   formatActiveMeasurement,
   formatDraftMeasurement,
   formatEntityMeasurement,
@@ -58,12 +59,25 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(guides.children.some((child) => child.userData.axis === 'origin')).toBe(false);
   });
 
-  it('creates a larger sketch grid so construction lines remain visible when zoomed out', () => {
-    const grid = createWorkspaceGrid();
+  it('creates a configurable sketch grid so construction lines can match furniture or large-area work', () => {
+    const grid = createWorkspaceGrid({ sizeMm: 50000, gridStepMm: 250 });
 
     expect(grid).toBeInstanceOf(THREE.GridHelper);
-    expect(grid.userData.size).toBe(20000);
+    expect(grid.userData.size).toBe(50000);
+    expect(grid.userData.gridStepMm).toBe(250);
     expect(grid.userData.divisions).toBe(200);
+  });
+
+  it('creates a flat grey ground surface with a horizon and optional grid', () => {
+    const surface = createWorkspaceSurface({ sizeMm: 50000, gridStepMm: 500, showGrid: true });
+
+    expect(surface.name).toBe('workspace-surface');
+    expect(surface.children.some((child) => child.name === 'flat-grey-ground')).toBe(true);
+    expect(surface.children.some((child) => child.name === 'workspace-grid')).toBe(true);
+    expect(surface.children.some((child) => child.name === 'workspace-horizon')).toBe(true);
+
+    const noGridSurface = createWorkspaceSurface({ showGrid: false });
+    expect(noGridSurface.children.some((child) => child.name === 'workspace-grid')).toBe(false);
   });
 
   it('formats live line and rectangle measurements while the user is drawing', () => {
@@ -96,9 +110,10 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(linePreviewColor(vec(0, 0, 0), vec(0, 0, 100))).toBe(0x2563eb);
   });
 
-  it('uses SketchUp-style inference labels for endpoint and midpoint cues without forcing snapping', () => {
+  it('uses SketchUp-style inference labels for endpoint, midpoint, edge and axis cues without forcing snapping', () => {
     expect(snapCueLabel('endpoint')).toBe('Endpoint');
     expect(snapCueLabel('midpoint')).toBe('Midpoint');
+    expect(snapCueLabel('edge')).toBe('Kante');
     expect(snapCueLabel('axis:x')).toBe('Achse X');
   });
 
@@ -109,7 +124,7 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(findViewportSnapPoint({ model, pointer: vec(103, 98, 0), toolState: createInitialToolState(), activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 100, 0), kind: 'endpoint', entityId: edge.id });
 
     const firstStep = handleGroundClick(createInitialToolState(), 'line', vec(100, 20, 0));
-    expect(findViewportSnapPoint({ model, pointer: vec(246, 18, 4), toolState: firstStep.state, activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(250, 20, 0), kind: 'axis', axis: 'x' });
+    expect(findViewportSnapPoint({ model, pointer: vec(246, 18, 4), toolState: firstStep.state, activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(246, 20, 0), kind: 'axis', axis: 'x' });
   });
 
   it('keeps ThreeViewport live drawing and cue paths wired to the shared snap helper', async () => {

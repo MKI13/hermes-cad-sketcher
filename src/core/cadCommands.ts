@@ -1,5 +1,5 @@
 import { vec } from './geometry';
-import { SketchModel, type EntityId } from './model';
+import { SketchModel, type EntityId, type MaterialAssignment } from './model';
 
 export type CadCommandResult = Readonly<{
   ok: boolean;
@@ -38,7 +38,13 @@ const commandAliases: Record<string, string> = {
   select: 'select',
   component: 'component',
   create_component: 'component',
-  duplicate_component: 'duplicate_component'
+  duplicate_component: 'duplicate_component',
+  material: 'material',
+  materialien: 'material',
+  texture: 'material',
+  textur: 'material',
+  paint: 'material',
+  farbe: 'material'
 };
 
 export function runCadConsoleCommand(model: SketchModel, input: string, selectedId?: EntityId): CadCommandResult {
@@ -77,7 +83,7 @@ export function runCadConsoleScript(model: SketchModel, script: string, selected
   let changed = false;
 
   for (const rawLine of script.split(/\r?\n/)) {
-    const line = rawLine.replace(/#.*$/, '').trim();
+    const line = stripCadScriptComment(rawLine).trim();
     if (!line) continue;
     const result = runCadConsoleCommand(currentModel, line, currentSelected);
     messages.push(result.message);
@@ -189,7 +195,20 @@ function applyMutatingCommand(model: SketchModel, command: string, tokens: strin
     return { selectedId: component.entityIds[0], message: `Komponente dupliziert: ${component.id}` };
   }
 
+  if (command === 'material') {
+    const id = resolveEntityId(tokens[0], selectedId);
+    const material = parseMaterialAssignment(model, tokens.slice(1));
+    model.applyMaterial(id, material);
+    return { selectedId: id, message: `Material angewendet: ${material.name ?? material.materialId ?? 'Default'} auf ${id}` };
+  }
+
   throw new Error(`Unbekannter CAD-Befehl: ${command}`);
+}
+
+function stripCadScriptComment(line: string): string {
+  const trimmed = line.trimStart();
+  if (trimmed.startsWith('#')) return '';
+  return line.replace(/\s+#(?![0-9a-fA-F]{6}\b).*$/, '');
 }
 
 function parseCommand(input: string): { name: string; tokens: string[] } {
@@ -226,6 +245,10 @@ function translateNaturalChatToCommand(input: string): string | undefined {
   if (/\b(verschiebe|move)\b.*\b(auswahl|selected)\b/.test(lower) && nums.length >= 3) return `move(selected, ${nums.slice(0, 3).join(', ')})`;
   if (/\b(drehe|rotate)\b.*\b(auswahl|selected)\b/.test(lower) && nums.length >= 1) return `rotate_z(selected, ${nums[0]})`;
   if (/\b(extrudiere|extrude)\b.*\b(auswahl|selected)\b/.test(lower) && nums.length >= 1) return `extrude(selected, ${nums[0]})`;
+  if (/\b(material|materialien|textur|texture|farbe|anstreichen|eiche|holz|mdf|multiplex|metall|glas)\b.*\b(auswahl|selected|teil|körper|koerper)\b/.test(lower)) {
+    const materialName = inferMaterialNameFromNaturalText(lower);
+    return materialName ? `material(selected, "${materialName}")` : undefined;
+  }
   if (/\b(lösche|loesche|delete)\b.*\b(auswahl|selected)\b/.test(lower)) return 'delete(selected)';
   return undefined;
 }
@@ -256,6 +279,43 @@ function resolveEntityId(token: string | undefined, selectedId?: EntityId): Enti
     return selectedId;
   }
   return cleaned;
+}
+
+
+function parseMaterialAssignment(model: SketchModel, tokens: string[]): MaterialAssignment {
+  if (tokens.length === 0) throw new Error('material braucht einen Materialnamen oder eine Material-ID.');
+  const rawName = unquote(tokens[0]).trim();
+  if (!rawName) throw new Error('Materialname fehlt.');
+  const catalog = model.allMaterials();
+  const byId = catalog.find((material) => material.id.toLowerCase() === rawName.toLowerCase());
+  if (byId) return { materialId: byId.id };
+  const byName = catalog.find((material) => material.name.toLowerCase() === rawName.toLowerCase());
+  if (byName) return { materialId: byName.id };
+  const explicitColor = tokens.slice(1).map(unquote).find((token) => /^#[0-9a-f]{6}$/i.test(token));
+  const color = explicitColor ?? inferMaterialColor(rawName);
+  return { name: rawName, color };
+}
+
+function inferMaterialColor(name: string): string {
+  const lower = name.toLowerCase();
+  if (/glas|glass/.test(lower)) return '#93c5fd';
+  if (/metall|metal|alu|stahl/.test(lower)) return '#94a3b8';
+  if (/weiß|weiss|white|lack/.test(lower)) return '#f8fafc';
+  if (/mdf/.test(lower)) return '#b08968';
+  if (/nuss|walnut|dunkel|dark/.test(lower)) return '#78350f';
+  if (/eiche|oak|holz|wood|multiplex/.test(lower)) return '#c08457';
+  return '#d97706';
+}
+
+function inferMaterialNameFromNaturalText(lower: string): string | undefined {
+  if (/glas|glass/.test(lower)) return 'glass-transparent';
+  if (/metall|metal|alu|stahl/.test(lower)) return 'metal';
+  if (/weiß|weiss|white|lack/.test(lower)) return 'white-lacquered';
+  if (/mdf/.test(lower)) return 'mdf';
+  if (/multiplex/.test(lower)) return 'multiplex';
+  if (/nuss|walnut|dunkel|dark/.test(lower)) return 'wood-dark';
+  if (/eiche|oak|holz|wood|hell/.test(lower)) return 'wood-light';
+  return undefined;
 }
 
 function parseResizeDimensions(tokens: string[]): { width?: number; depth?: number; height?: number } {

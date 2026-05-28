@@ -112,6 +112,22 @@ describe('Ruby-like CAD command console', () => {
     expect(result.nextModel.allEntities()).toHaveLength(0);
   });
 
+  it('lets the agent apply material and texture labels to the selected part', () => {
+    let result = runCadConsoleCommand(new SketchModel(), 'box(0, 0, 0, 600, 400, 200)');
+    const boxId = result.selectedId!;
+
+    result = runCadConsoleCommand(result.nextModel, 'material(selected, wood-light)', boxId);
+    expect(result.ok).toBe(true);
+    expect(result.nextModel.getEntity(boxId)).toMatchObject({ materialId: 'wood-light' });
+    expect(result.message).toContain('Material angewendet');
+
+    result = runCadConsoleScript(result.nextModel, 'texture(selected, "Eiche hell", #d8b77a)', boxId);
+    expect(result.ok).toBe(true);
+    const painted = result.nextModel.getEntity(boxId);
+    expect(painted).toMatchObject({ material: { name: 'Eiche hell', color: '#d8b77a' } });
+    expect(painted?.materialId).toBe('eiche-hell');
+  });
+
   it('rejects unknown command names without changing the model', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 100, 100, 100);

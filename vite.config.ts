@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 const hermesCadBridgeTarget = process.env.HERMES_CAD_BRIDGE_TARGET ?? 'http://127.0.0.1:8766';
+const hermesCadBridgeToken = process.env.HERMES_CAD_BRIDGE_TOKEN ?? '';
 
 export default defineConfig({
   plugins: [react()],
@@ -11,7 +12,8 @@ export default defineConfig({
       '/hermes-cad': {
         target: hermesCadBridgeTarget,
         changeOrigin: false,
-        secure: false
+        secure: false,
+        headers: hermesCadBridgeToken ? { 'X-Hermes-CAD-Token': hermesCadBridgeToken } : undefined
       }
     }
   },

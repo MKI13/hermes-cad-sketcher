@@ -21,6 +21,7 @@ ALLOWED_ORIGINS = {
     "http://127.0.0.1:5173",
     "http://localhost:5173",
     "http://192.168.178.21:5173",
+    "http://192.168.178.27:5173",
 }
 MAX_BODY_BYTES = 2_000_000
 
@@ -52,8 +53,10 @@ Verhalten:
 
 Sicherheitsregeln:
 - Dies ist der lokale PC-Agent dieses Users. Keine fremden PC-/LAN-Agenten verwenden.
-- Nutze nur sichere Hermes-CAD-Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, delete, select, list.
+- Nutze nur sichere Hermes-CAD-Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, material, texture, delete, select, list.
 - Keine Shell-Befehle, keine API-Keys, keine Systemänderungen.
+- Wenn der User Material, Farbe oder Textur auf die Auswahl legen will, nutze material(selected, "Materialname") oder texture(selected, "Materialname", #hexfarbe).
+- Wenn echte KI-Bildtexturen noch nicht erzeugt werden können, wende eine passende CAD-Materialfarbe an und erkläre kurz, dass Bildtextur-Erzeugung ein eigener nächster Ausbauschritt ist.
 - Wenn kein CAD-Befehl sinnvoll ist, gib commands als leeren String zurück und erkläre kurz.
 
 Aktuelle Anfrage:

@@ -122,6 +122,13 @@ function loadRightTrayState(): RightTrayState {
   }
 }
 
+function parseViewportGridStep(value: string): number {
+  const normalized = value.trim().replace(',', '.');
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 100;
+  return Math.min(100000, Math.max(1, parsed));
+}
+
 export function createInitialSketchModel(): SketchModel {
   return new SketchModel();
 }
@@ -151,6 +158,8 @@ export default function App() {
   const [projectStatus, setProjectStatus] = useState('Projekt nicht gespeichert');
   const [boxDimensions, setBoxDimensions] = useState(DEFAULT_BOX_DIMENSIONS);
   const [drawingPlane, setDrawingPlane] = useState<DrawingPlane>('xy');
+  const [viewportGridStepMm, setViewportGridStepMm] = useState('100');
+  const [showViewportGrid, setShowViewportGrid] = useState(true);
   const [useRectangleDimensionMask, setUseRectangleDimensionMask] = useState(false);
   const [rectangleDimensionMask, setRectangleDimensionMask] = useState<RectangleDimensionMask>({ width: '1000', depth: '500' });
   const [selectedDimensions, setSelectedDimensions] = useState<DimensionInput>(() => {
@@ -173,6 +182,9 @@ export default function App() {
   const [agentBridgeStatus, setAgentBridgeStatus] = useState('Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus · noch nicht verbunden');
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
+  const [componentCreationDialog, setComponentCreationDialog] = useState<{ kind: 'Gruppe' | 'Komponente'; entityId: string } | undefined>();
+  const [componentNameDraft, setComponentNameDraft] = useState('');
+  const [componentRoleDraft, setComponentRoleDraft] = useState('');
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
   const selectedInspection = selected ? inspectEntity(selected) : undefined;
@@ -194,6 +206,8 @@ export default function App() {
     : `Komponente ${activeEditContext.componentId}`;
   const selectedEditBlocked = Boolean(selectedId && !model.canEditEntity(selectedId));
   const selectedComponentId = selected?.componentId;
+  const selectedComponent = selectedComponentId ? model.allComponents().find((component) => component.id === selectedComponentId) : undefined;
+  const selectedComponentLabel = selectedComponent ? `${selectedComponent.name} (${selectedComponent.id})` : 'keine Gruppe/Komponente';
   const canOpenSelectedComponent = Boolean(selectedComponentId && activeEditContext.type === 'root');
 
   function handleRectangleDimensionMaskChange(key: RectangleDimensionKey, event: React.ChangeEvent<HTMLInputElement>) {
@@ -202,6 +216,7 @@ export default function App() {
   }
 
   const activeDrawingPlaneAppearance = drawingPlaneAppearance(drawingPlane);
+  const viewportGridStepNumber = parseViewportGridStep(viewportGridStepMm);
   const orderedTools = toolbarOrder.map((id) => tools.find((item) => item.id === id)).filter((item): item is (typeof tools)[number] => Boolean(item));
   const groupedToolbarTools = groupToolbarTools(orderedTools);
   const shortcutSummaryLabels: Record<ToolName, string> = {
@@ -794,12 +809,19 @@ export default function App() {
     setProjectStatus('Auswahl ausgeblendet.');
   }
 
-  function openSelectedComponentContext() {
-    if (!selectedComponentId) return;
+  function openComponentForEntity(entityId: string) {
+    const entity = model.getEntity(entityId);
+    if (!entity?.componentId || activeEditContext.type !== 'root') return;
     mutate((m) => {
-      m.openComponent(selectedComponentId);
+      m.openComponent(entity.componentId!);
+      setSelectedId(entityId);
     });
-    setProjectStatus(`Komponente ${selectedComponentId} geöffnet. Innere Kanten und Flächen sind jetzt bearbeitbar.`);
+    setProjectStatus(`Komponente ${entity.componentId} per Doppelklick geöffnet. Innere Kanten und Flächen sind jetzt bearbeitbar.`);
+  }
+
+  function openSelectedComponentContext() {
+    if (!selectedId) return;
+    openComponentForEntity(selectedId);
   }
 
   function closeEditContext() {
@@ -811,12 +833,32 @@ export default function App() {
 
   function makeSelectedComponent(prefix: 'Gruppe' | 'Komponente') {
     if (!selectedId) return;
+    if (!model.canEditEntity(selectedId)) {
+      setProjectStatus('Erst Komponente öffnen, dann innere Elemente gruppieren.');
+      return;
+    }
+    setComponentNameDraft(`${prefix} aus Auswahl`);
+    setComponentRoleDraft('');
+    setComponentCreationDialog({ kind: prefix, entityId: selectedId });
+  }
+
+  function confirmComponentCreation() {
+    if (!componentCreationDialog) return;
+    if (!model.canEditEntity(componentCreationDialog.entityId)) {
+      setProjectStatus('Erst Komponente öffnen, dann innere Elemente gruppieren.');
+      setComponentCreationDialog(undefined);
+      return;
+    }
+    const name = componentNameDraft.trim() || `${componentCreationDialog.kind} aus Auswahl`;
+    const role = componentRoleDraft.trim();
     mutate((m) => {
-      const component = m.createComponent(`${prefix} aus Auswahl`, [selectedId]);
+      const component = m.createComponent(name, [componentCreationDialog.entityId]);
+      if (role) m.assignComponentWoodworkingClassification(component.id, 'assembly', role);
       m.openComponent(component.id);
       setSelectedId(component.entityIds[0]);
     });
-    setProjectStatus(`${prefix} aus Auswahl erstellt und zum Bearbeiten geöffnet.`);
+    setProjectStatus(`${componentCreationDialog.kind} ${name} erstellt und zum Bearbeiten geöffnet.`);
+    setComponentCreationDialog(undefined);
   }
 
   function reportSelectedArea() {
@@ -1180,7 +1222,7 @@ export default function App() {
         </section>
         <section className="cad-command-panel" aria-label="Ruby-Konsole">
           <strong><HermesIcon id="ruby-console-clear" label="Ruby-Konsole" size={16} /> Ruby-Konsole</strong>
-          <p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, delete</p>
+          <p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, material, texture, delete</p>
           <p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität. Diese Konsole ist eine sichere Hermes-CAD-Befehls-DSL in Millimeter.</p>
           <textarea
             aria-label="Ruby-Konsole CAD-Befehle"
@@ -1268,11 +1310,27 @@ export default function App() {
         <div><dt>Typ</dt><dd>{selected?.type ?? 'Arbeitsfläche'}</dd></div>
         <div><dt>Fläche</dt><dd>{selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</dd></div>
         <div><dt>Material</dt><dd>{selectedMaterialLabel}</dd></div>
+        <div><dt>Gruppe / Komponente</dt><dd>{selectedComponentLabel}</dd></div>
         <div><dt>Zuschnittdaten</dt><dd>{selectedPartMaterialStatus}</dd></div>
       </dl>
     ),
-    outliner: <p>{model.allEntities().length} Elemente im Modell.</p>,
-    components: <p>{model.allComponents().length} Komponenten im Modell.</p>,
+    outliner: <p>{model.allEntities().length} Elemente im Modell · Auswahl gehört zu: {selectedComponentLabel}</p>,
+    components: (
+      <div className="component-list" aria-label="Komponentenliste">
+        <p>{model.allComponents().length} Komponenten im Modell.</p>
+        {model.allComponents().length === 0 ? <small>Noch keine Gruppen oder Komponenten.</small> : (
+          <ul>
+            {model.allComponents().map((component) => (
+              <li key={component.id}>
+                <strong>{component.name}</strong>
+                <span>{component.entityIds.length} Elemente</span>
+                {component.id === selectedComponentId ? <em>ausgewählt</em> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ),
     tags: (
       <>
         <p>Tags: {tagCatalog.length} · sichtbar: {tagCatalog.filter((tag) => tag.visible).length}</p>
@@ -1357,7 +1415,16 @@ export default function App() {
           <span className="plane-axis-chip" style={{ backgroundColor: activeDrawingPlaneAppearance.colors[1] }}>{activeDrawingPlaneAppearance.axisNames[1]}</span>
         </div>
         <small>{activeDrawingPlaneAppearance.helperText}</small>
-        <p>Schlichter Hermes-CAD-Stil mit Achsen, Kanten und millimetersicherem Raster. Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</p>
+        <p>Flacher grauer Untergrund mit Horizont. Rasterlinien sind nur Hilfslinien und können für Möbelbau oder größere Flächen angepasst werden.</p>
+        <label>
+          <span>Rasterabstand mm</span>
+          <input aria-label="Rasterabstand mm" value={viewportGridStepMm} onChange={(event) => setViewportGridStepMm(event.currentTarget.value)} />
+        </label>
+        <small>Aktiv: {viewportGridStepNumber} mm Raster. Für feine Möbel-Details z. B. 10 oder 25 mm, für große Flächen z. B. 500 oder 1000 mm.</small>
+        <label>
+          <input type="checkbox" checked={showViewportGrid} onChange={(event) => setShowViewportGrid(event.currentTarget.checked)} />
+          Rasterlinien zeigen
+        </label>
         <label>
           <input type="checkbox" checked={useRectangleDimensionMask} onChange={(event) => setUseRectangleDimensionMask(event.currentTarget.checked)} />
           genaue Rechteck-Maßmaske verwenden
@@ -1412,7 +1479,7 @@ export default function App() {
     if (id === 'extrude') return <FaceExtrudePanel disabled={!selectedId || selected?.type !== 'face'} selectedType={selected?.type} selectedFace={selected?.type === 'face' ? selected : undefined} height={extrudeHeight} onHeightChange={(height) => { setExtrudeHeight(height); setFaceExtrusionStatus(''); }} onApply={applyFaceExtrusion} statusMessage={faceExtrusionStatus} />;
     if (id === 'inspector') return <InspectorPanel inspection={selectedInspection} />;
     if (id === 'boxDimensions') return <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />;
-    if (id === 'rubyConsole') return <section className="cad-command-panel" aria-label="Ruby-Konsole"><p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, delete</p><p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität.</p><textarea aria-label="Ruby-Konsole CAD-Befehle" value={rubyConsoleInput} onChange={(event) => setRubyConsoleInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={executeRubyConsole}><HermesIcon id="command-play-clear" label="Befehl ausführen" size={18} /> Ruby-Befehl ausführen</button><small>{rubyConsoleLog}</small></section>;
+    if (id === 'rubyConsole') return <section className="cad-command-panel" aria-label="Ruby-Konsole"><p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, material, texture, delete</p><p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität.</p><textarea aria-label="Ruby-Konsole CAD-Befehle" value={rubyConsoleInput} onChange={(event) => setRubyConsoleInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={executeRubyConsole}><HermesIcon id="command-play-clear" label="Befehl ausführen" size={18} /> Ruby-Befehl ausführen</button><small>{rubyConsoleLog}</small></section>;
     return <section className="cad-command-panel" aria-label="Hermes Agent Zeichnungsmodus"><p>Hermes antwortet wie im Telegram-Chat und bekommt zusätzlich Zeichnungsmodus, Modellkontext und Auswahl über die Bridge des CAD-App-Hosts.</p><p>{agentBridgeStatus}</p><textarea aria-label="Nachricht an Hermes" value={agentChatInput} onChange={(event) => setAgentChatInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={() => void executeAgentChat()}><HermesIcon id="agent-chat-clear" label="Agent Chat" size={18} /> An Hermes senden</button><small>{agentChatLog}</small></section>;
   }
 
@@ -1558,6 +1625,8 @@ export default function App() {
               onMeasure={measureFromViewport}
               onMove={moveFromViewport}
               onPushPull={applyPushPullSelection}
+              selectedFace={selectedBoxFace}
+              onOpenComponent={openComponentForEntity}
               onMeasurementPreview={setLiveMeasurement}
               onMeasurementDraftContext={setMeasurementDraftContext}
               mouseBindings={mouseBindings}
@@ -1565,6 +1634,8 @@ export default function App() {
               onContextMenuCommand={handleViewportContextMenuCommand}
               drawingPlane={drawingPlane}
               rectangleDimensions={activeRectangleDimensions}
+              gridStepMm={viewportGridStepNumber}
+              showGrid={showViewportGrid}
             />
           </React.Suspense>
           <div className="model-card compact">
@@ -1593,8 +1664,8 @@ export default function App() {
           {selectedEditBlocked ? <span>Bearbeitung: erst Komponente öffnen</span> : <span>Bearbeitung: aktiv</span>}
           {canOpenSelectedComponent ? <button type="button" onClick={openSelectedComponentContext}>Komponente öffnen</button> : null}
           {activeEditContext.type !== 'root' ? <button type="button" onClick={closeEditContext}>Kontext schließen</button> : null}
-          <button type="button" disabled={!selectedId} onClick={() => makeSelectedComponent('Gruppe')}>Gruppe erstellen</button>
-          <button type="button" disabled={!selectedId} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
+          <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Gruppe')}>Gruppe erstellen</button>
+          <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
           <span>Fläche: {selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</span>
           <span>Verlauf: {history.past.length} rückgängig / {history.future.length} wiederholbar</span>
           <span>Maßband: {lastMeasurement}</span>
@@ -1602,6 +1673,27 @@ export default function App() {
           <span>Einheit: mm</span>
         </footer>
       </section>
+
+      {componentCreationDialog && (
+        <section className="component-creation-dialog" role="dialog" aria-label={`${componentCreationDialog.kind} erstellen`}>
+          <header>
+            <strong>{componentCreationDialog.kind} erstellen</strong>
+            <button type="button" aria-label="Komponenten-Dialog schließen" onClick={() => setComponentCreationDialog(undefined)}>×</button>
+          </header>
+          <label>
+            <span>Name der Komponente</span>
+            <input aria-label="Name der Komponente" value={componentNameDraft} onChange={(event) => setComponentNameDraft(event.currentTarget.value)} />
+          </label>
+          <label>
+            <span>Details / Rolle</span>
+            <input aria-label="Details / Rolle" placeholder="z. B. Tischbein, Korpus, Front" value={componentRoleDraft} onChange={(event) => setComponentRoleDraft(event.currentTarget.value)} />
+          </label>
+          <div className="component-dialog-actions">
+            <button type="button" onClick={() => setComponentCreationDialog(undefined)}>Abbrechen</button>
+            <button type="button" onClick={confirmComponentCreation}>Erstellen</button>
+          </div>
+        </section>
+      )}
       {rightTray}
       {renderFloatingWindow('history')}
       {renderFloatingWindow('move')}

@@ -108,6 +108,9 @@ describe('App controls', () => {
     expect(markup).toContain('Entity Info');
     expect(markup).toContain('Komponenten');
     expect(markup).toContain('Anzeige / Styles');
+    expect(markup).toContain('Rasterabstand mm');
+    expect(markup).toContain('Rasterlinien zeigen');
+    expect(markup).toContain('Flacher grauer Untergrund mit Horizont');
     expect(markup).toContain('Tags');
     expect(markup).toContain('Szenen');
     expect(markup).toContain('Materialien');
@@ -231,6 +234,25 @@ describe('App controls', () => {
     expect(markup).toContain('Zuschnittdaten');
     expect(markup).toContain('Materialdaten fehlen');
     expect(markup).toContain('Faserrichtung fehlt');
+  });
+
+
+  it('keeps SketchUp-like component UX hooks in the app source', async () => {
+    const source = await readFile('src/App.tsx', 'utf8');
+    const viewportSource = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
+
+    expect(source).toContain('Name der Komponente');
+    expect(source).toContain('Details / Rolle');
+    expect(source).toContain('onOpenComponent');
+    expect(viewportSource).toContain('onDoubleClick');
+    expect(viewportSource).toContain("addEventListener('dblclick'");
+    expect(viewportSource).toContain('screenDirectionForCadVector({');
+    expect(source).toContain('component-creation-dialog');
+    expect(source).toContain('selectedComponentLabel');
+    expect(source).toContain('componentCreationDialog.entityId');
+    expect(source).toContain('model.canEditEntity(selectedId)');
+    expect(source).toContain('disabled={!selectedId || selectedEditBlocked}');
+    expect(viewportSource).not.toContain('selectedFaceRef.current?.entityId === selectedId\n      ? selectedFaceRef.current');
   });
 
 });

@@ -17,27 +17,28 @@ describe('SketchUp-like snapping and box face interaction', () => {
     expect(snap).toEqual({ point: vec(100, 100, 0), kind: 'endpoint', entityId: edge.id });
   });
 
-  it('uses line midpoints before falling back to the grid', () => {
+  it('uses line midpoints, snaps to edges, and keeps free points without forcing the grid', () => {
     const model = new SketchModel();
     const edge = model.createLine(vec(100, 100, 0), vec(500, 100, 0));
 
     expect(findSnapPoint({ model, pointer: vec(304, 97, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(300, 100, 0), kind: 'midpoint', entityId: edge.id });
-    expect(findSnapPoint({ model, pointer: vec(323, 127, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(300, 150, 0), kind: 'grid' });
+    expect(findSnapPoint({ model, pointer: vec(323, 105, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(323, 100, 0), kind: 'edge', entityId: edge.id });
+    expect(findSnapPoint({ model, pointer: vec(323, 127, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(323, 127, 0), kind: 'free' });
   });
 
   it('axis-locks from the drawing start when one axis is clearly dominant', () => {
     const model = new SketchModel();
 
-    expect(findSnapPoint({ model, pointer: vec(246, 18, 4), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(250, 20, 0), kind: 'axis', axis: 'x' });
-    expect(findSnapPoint({ model, pointer: vec(96, 218, 3), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 200, 0), kind: 'axis', axis: 'y' });
-    expect(findSnapPoint({ model, pointer: vec(97, 17, 153), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 20, 150), kind: 'axis', axis: 'z' });
+    expect(findSnapPoint({ model, pointer: vec(246, 18, 4), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(246, 20, 0), kind: 'axis', axis: 'x' });
+    expect(findSnapPoint({ model, pointer: vec(96, 218, 3), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 218, 0), kind: 'axis', axis: 'y' });
+    expect(findSnapPoint({ model, pointer: vec(97, 17, 153), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 20, 153), kind: 'axis', axis: 'z' });
   });
 
   it('Shift-held axis lock keeps the matching dominant axis even away from the axis line', () => {
     const model = new SketchModel();
 
-    expect(findSnapPoint({ model, pointer: vec(246, 91, 4), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(250, 20, 0), kind: 'axis', axis: 'x' });
-    expect(findSnapPoint({ model, pointer: vec(126, 218, 77), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(100, 200, 0), kind: 'axis', axis: 'y' });
+    expect(findSnapPoint({ model, pointer: vec(246, 91, 4), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(246, 20, 0), kind: 'axis', axis: 'x' });
+    expect(findSnapPoint({ model, pointer: vec(126, 218, 77), startPoint: vec(100, 20, 0), gridSize: 50, tolerance: 10, forceAxisLock: true })).toEqual({ point: vec(100, 218, 0), kind: 'axis', axis: 'y' });
   });
 
   it('keeps exact endpoint values before Shift axis lock when the pointer reaches an edge endpoint', () => {
@@ -54,7 +55,7 @@ describe('SketchUp-like snapping and box face interaction', () => {
     expect(findViewportSnapPoint({ model, pointer: vec(103, 98, 0), toolState: createInitialToolState(), activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(100, 100, 0), kind: 'endpoint', entityId: edge.id });
 
     const firstStep = handleGroundClick(createInitialToolState(), 'line', vec(100, 20, 0));
-    expect(findViewportSnapPoint({ model, pointer: vec(246, 18, 4), toolState: firstStep.state, activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(250, 20, 0), kind: 'axis', axis: 'x' });
+    expect(findViewportSnapPoint({ model, pointer: vec(246, 18, 4), toolState: firstStep.state, activeTool: 'line', gridSize: 50, tolerance: 10 })).toEqual({ point: vec(246, 20, 0), kind: 'axis', axis: 'x' });
   });
 
   it('collects endpoints and midpoints from lines and body line skeletons', () => {

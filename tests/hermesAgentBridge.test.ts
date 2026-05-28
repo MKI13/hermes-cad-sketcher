@@ -33,6 +33,8 @@ describe('Hermes CAD local agent bridge', () => {
     expect(shouldUseLocalCadFallback('Hallo Hermes bist du bereit eine Test zu machen?')).toBe(false);
     expect(shouldUseLocalCadFallback('erstelle box 0 0 0 600 400 200')).toBe(true);
     expect(shouldUseLocalCadFallback('ruby: line(0, 0, 0, 100, 0, 0)')).toBe(true);
+    expect(shouldUseLocalCadFallback('Mach bitte Eiche Textur auf die Auswahl')).toBe(true);
+    expect(shouldUseLocalCadFallback('Farbe wood-light auf selected')).toBe(true);
   });
 
   it('uses the offline CAD parser only for explicit CAD commands when the agent returns a failure', async () => {

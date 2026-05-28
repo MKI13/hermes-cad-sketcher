@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { add, scale, type Vec3 } from '../core/geometry';
-import { type DrawingPlane, type SketchModel } from '../core/model';
+import { type BoxFaceName, type DrawingPlane, type SketchModel } from '../core/model';
 import type { MaterialDefinition } from '../core/materials';
 import { entityToObject } from './sceneAdapter';
 
@@ -82,7 +82,7 @@ export function applyOrbitToCamera(camera: THREE.PerspectiveCamera, state: Orbit
   camera.lookAt(new THREE.Vector3(state.target.x, state.target.z, state.target.y));
 }
 
-export function createModelGroup(model: Pick<SketchModel, 'allEntities'>, selectedId?: string, materials: readonly MaterialDefinition[] = 'allMaterials' in model && typeof model.allMaterials === 'function' ? model.allMaterials() : []): THREE.Group {
+export function createModelGroup(model: Pick<SketchModel, 'allEntities'>, selectedId?: string, materials: readonly MaterialDefinition[] = 'allMaterials' in model && typeof model.allMaterials === 'function' ? model.allMaterials() : [], selectedFace?: { entityId: string; face: BoxFaceName }): THREE.Group {
   const group = new THREE.Group();
   group.name = 'sketch-model';
   for (const entity of model.allEntities()) {
@@ -91,7 +91,8 @@ export function createModelGroup(model: Pick<SketchModel, 'allEntities'>, select
     object.userData.entityId = entity.id;
     object.userData.entityType = entity.type;
     object.userData.selected = entity.id === selectedId;
-    if (object.userData.selected) applySelectedHighlight(object);
+    if (object.userData.selected && selectedFace?.entityId === entity.id) applySelectedFaceHighlight(object, selectedFace.face);
+    else if (object.userData.selected) applySelectedHighlight(object);
     group.add(object);
   }
   return group;
@@ -129,22 +130,30 @@ function applySelectedHighlight(object: THREE.Object3D): void {
     if (child instanceof THREE.Line) {
       child.material = new THREE.LineBasicMaterial({ color: 0x2563eb, linewidth: 2 });
     }
-    if (child instanceof THREE.Mesh) {
-      const material = child.material;
-      const selectedMaterial = new THREE.MeshStandardMaterial({
-        color: 0x2563eb,
-        emissive: 0x1d4ed8,
-        emissiveIntensity: 0.18,
-        roughness: 0.55,
-        metalness: 0.05,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.82
-      });
-      if (Array.isArray(material)) child.material = material.map(() => selectedMaterial.clone());
-      else child.material = selectedMaterial;
-    }
+    if (child instanceof THREE.Mesh) applyMeshHighlight(child);
   });
+}
+
+function applySelectedFaceHighlight(object: THREE.Object3D, face: BoxFaceName): void {
+  object.traverse((child) => {
+    if (child instanceof THREE.Mesh && child.userData.boxFace === face) applyMeshHighlight(child);
+  });
+}
+
+function applyMeshHighlight(child: THREE.Mesh): void {
+  const material = child.material;
+  const selectedMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2563eb,
+    emissive: 0x1d4ed8,
+    emissiveIntensity: 0.18,
+    roughness: 0.55,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.82
+  });
+  if (Array.isArray(material)) child.material = material.map(() => selectedMaterial.clone());
+  else child.material = selectedMaterial;
 }
 
 export function snapToGrid(point: Vec3, gridSize = 50): Vec3 {
@@ -174,6 +183,17 @@ export function screenPointToObjectPoint(point: ScreenPoint, camera: THREE.Persp
   raycaster.params.Line.threshold = lineThreshold;
   const hit = raycaster.intersectObjects([...objects], true)[0];
   return hit ? { point: threePointToCadPoint(hit.point), object: hit.object } : undefined;
+}
+
+
+export function screenDirectionForCadVector(input: { camera: THREE.PerspectiveCamera; origin: Vec3; direction: Vec3; width: number; height: number }): { x: number; y: number } | undefined {
+  const start = cadPointToThreeVector(input.origin).project(input.camera);
+  const end = cadPointToThreeVector(add(input.origin, input.direction)).project(input.camera);
+  const dx = ((end.x - start.x) * Math.max(1, input.width)) / 2;
+  const dy = (-(end.y - start.y) * Math.max(1, input.height)) / 2;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length < 1e-6) return undefined;
+  return { x: dx / length, y: dy / length };
 }
 
 export function screenPointToAxisLockedPoint(point: ScreenPoint, camera: THREE.PerspectiveCamera, startPoint: Vec3, axis: ViewportAxisLock): Vec3 | undefined {

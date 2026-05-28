@@ -7,11 +7,18 @@ import { type MouseAction } from './mouseBindings';
 import { type OrbitCameraState } from './viewportController';
 import { type FloatingWindowId } from './workspaceMenuRouting';
 
-const MIN_ZOOM_RADIUS = 150;
-const MAX_ZOOM_RADIUS = 100000;
-const WHEEL_STEP_FACTOR = 0.85;
+const MIN_ZOOM_RADIUS = 5;
+const MAX_ZOOM_RADIUS = 1000000;
+const WHEEL_STEP_FACTOR = 0.8;
 
-export type SnapPointKind = 'endpoint' | 'midpoint' | 'axis:x' | 'axis:y' | 'axis:z';
+export type SnapPointKind = 'endpoint' | 'midpoint' | 'edge' | 'axis:x' | 'axis:y' | 'axis:z';
+export type WorkspaceSurfaceOptions = Readonly<{
+  sizeMm?: number;
+  gridStepMm?: number;
+  showGrid?: boolean;
+  groundColor?: number;
+  horizonColor?: number;
+}>;
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: Exclude<SnapPointKind, `axis:${string}`>; point: Vec3 }>;
 export type SnapResult = Readonly<({ point: Vec3; snapped: false } | { point: Vec3; snapped: true; entityId: EntityId; kind: Exclude<SnapPointKind, `axis:${string}`> })>;
 export type FaceSelection = Readonly<{ entityId: EntityId; face: BoxFaceName }>;
@@ -134,11 +141,62 @@ export function zoomOrbitTowardPoint(state: OrbitCameraState, focus: Vec3, wheel
   };
 }
 
-export function createWorkspaceGrid(size = 20000, divisions = 200): THREE.GridHelper {
+export function createWorkspaceGrid(options: Pick<WorkspaceSurfaceOptions, 'sizeMm' | 'gridStepMm'> = {}): THREE.GridHelper {
+  const size = sanitizeSurfaceSize(options.sizeMm);
+  const step = sanitizeGridStep(options.gridStepMm);
+  const divisions = Math.max(2, Math.round(size / step));
   const grid = new THREE.GridHelper(size, divisions, 0x64748b, 0xcbd5e1);
+  grid.name = 'workspace-grid';
   grid.userData.size = size;
   grid.userData.divisions = divisions;
+  grid.userData.gridStepMm = step;
+  grid.userData.divisionSizeMm = size / divisions;
   return grid;
+}
+
+export function createWorkspaceSurface(options: WorkspaceSurfaceOptions = {}): THREE.Group {
+  const size = sanitizeSurfaceSize(options.sizeMm);
+  const group = new THREE.Group();
+  group.name = 'workspace-surface';
+  group.userData.size = size;
+  group.userData.gridStepMm = sanitizeGridStep(options.gridStepMm);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    new THREE.MeshStandardMaterial({ color: options.groundColor ?? 0xd1d5db, roughness: 1, metalness: 0, side: THREE.DoubleSide })
+  );
+  ground.name = 'flat-grey-ground';
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -1;
+  ground.userData.ground = 'flat-grey';
+  group.add(ground);
+
+  if (options.showGrid !== false) group.add(createWorkspaceGrid({ sizeMm: size, gridStepMm: options.gridStepMm }));
+
+  const half = size / 2;
+  const horizonGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-half, 0, -half), new THREE.Vector3(half, 0, -half),
+    new THREE.Vector3(half, 0, -half), new THREE.Vector3(half, 0, half),
+    new THREE.Vector3(half, 0, half), new THREE.Vector3(-half, 0, half),
+    new THREE.Vector3(-half, 0, half), new THREE.Vector3(-half, 0, -half)
+  ]);
+  const horizon = new THREE.LineSegments(
+    horizonGeometry,
+    new THREE.LineBasicMaterial({ color: options.horizonColor ?? 0x94a3b8, transparent: true, opacity: 0.72 })
+  );
+  horizon.name = 'workspace-horizon';
+  horizon.userData.horizon = true;
+  group.add(horizon);
+
+  return group;
+}
+
+function sanitizeSurfaceSize(sizeMm?: number): number {
+  return clamp(Number.isFinite(sizeMm) && sizeMm ? Math.abs(sizeMm) : 50000, 1000, 1000000);
+}
+
+function sanitizeGridStep(gridStepMm?: number): number {
+  return clamp(Number.isFinite(gridStepMm) && gridStepMm ? Math.abs(gridStepMm) : 100, 1, 100000);
 }
 
 export function createOriginGuideGroup(length = 3000): THREE.Group {
@@ -153,9 +211,10 @@ export function createOriginGuideGroup(length = 3000): THREE.Group {
   return group;
 }
 
-export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' | 'Achse X' | 'Achse Y' | 'Achse Z' {
+export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' | 'Kante' | 'Achse X' | 'Achse Y' | 'Achse Z' {
   if (kind === 'endpoint') return 'Endpoint';
   if (kind === 'midpoint') return 'Midpoint';
+  if (kind === 'edge') return 'Kante';
   if (kind === 'axis:x') return 'Achse X';
   if (kind === 'axis:y') return 'Achse Y';
   return 'Achse Z';
@@ -240,17 +299,11 @@ export function collectSnapPoints(model: Pick<SketchModel, 'allEntities'>): Snap
 }
 
 export function snapPointToModel(point: Vec3, model: Pick<SketchModel, 'allEntities'>, tolerance = 35): SnapResult {
-  let best: SnapPoint | undefined;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const candidate of collectSnapPoints(model)) {
-    const currentDistance = distance(point, candidate.point);
-    if (currentDistance < bestDistance) {
-      best = candidate;
-      bestDistance = currentDistance;
-    }
+  const snap = findSnapPoint({ model, pointer: point, tolerance });
+  if (snap.kind === 'endpoint' || snap.kind === 'midpoint' || snap.kind === 'edge') {
+    return { point: snap.point, snapped: true, entityId: snap.entityId, kind: snap.kind };
   }
-  if (!best || bestDistance > tolerance) return { point, snapped: false };
-  return { point: best.point, snapped: true, entityId: best.entityId, kind: best.kind };
+  return { point, snapped: false };
 }
 
 export function getFaceSelectionFromObject(object: THREE.Object3D | undefined): FaceSelection | undefined {

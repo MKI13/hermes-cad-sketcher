@@ -64,7 +64,8 @@ export function shouldUseLocalCadFallback(message: string): boolean {
   if (/^[\p{L}_][\p{L}\p{N}_]*\s*\(/u.test(normalized)) return true;
   const lower = normalized.toLowerCase();
   return /\b(erstelle|zeichne|create|add)\b.*\b(box|körper|koerper|rechteck|rectangle|linie|line)\b/.test(lower)
-    || /\b(verschiebe|move|drehe|rotate|extrudiere|extrude|lösche|loesche|delete)\b.*\b(auswahl|selected)\b/.test(lower);
+    || /\b(verschiebe|move|drehe|rotate|extrudiere|extrude|lösche|loesche|delete)\b.*\b(auswahl|selected)\b/.test(lower)
+    || /\b(material|materialien|textur|texture|farbe|paint|anstreichen|eiche|holz|mdf|multiplex|metall|glas)\b.*\b(auswahl|selected|teil|körper|koerper)\b/.test(lower);
 }
 
 export function shouldFallbackAfterAgentResponse(response: HermesCadAgentResponse, message: string): boolean {

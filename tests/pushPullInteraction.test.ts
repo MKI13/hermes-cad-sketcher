@@ -41,6 +41,18 @@ describe('Push/Pull viewport drag interaction', () => {
     expect(pushPullDeltaFromDrag(bottom, pointForPushPullPointerDelta(bottom, { x: 0, y: 240 }))).toBe(120);
   });
 
+
+  it('uses the projected face-normal screen direction so pulling follows the viewed side', () => {
+    const startPoint = vec(1000, 0, 0);
+    const rightSeenFromOppositeSide = beginPushPullDrag('box_1', { entityId: 'box_1', face: 'right' }, startPoint, {
+      pixelsPerMillimeter: 2,
+      screenDirection: { x: -1, y: 0 }
+    })!;
+
+    expect(pushPullDeltaFromDrag(rightSeenFromOppositeSide, pointForPushPullPointerDelta(rightSeenFromOppositeSide, { x: -200, y: 0 }))).toBe(100);
+    expect(pushPullDeltaFromDrag(rightSeenFromOppositeSide, pointForPushPullPointerDelta(rightSeenFromOppositeSide, { x: 50, y: 0 }))).toBe(-25);
+  });
+
   it('updates a live preview without committing and returns exact Enter-style finish data', () => {
     const state = beginPushPullDrag('box_1', { entityId: 'box_1', face: 'right' }, vec(0, 0, 0));
     if (!state) throw new Error('expected drag state');
