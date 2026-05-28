@@ -121,6 +121,35 @@ describe('Ruby-like CAD command console', () => {
     expect(result.nextModel.snapshot()).toEqual(model.snapshot());
     expect(result.message).toContain('Unbekannter CAD-Befehl');
   });
+
+  it('supports component instance DSL commands and Make Unique without mutating shared source geometry', () => {
+    const model = new SketchModel();
+    const board = model.createBox(vec(0, 0, 0), 600, 300, 18);
+
+    const created = runCadConsoleCommand(model, `component_definition("Seitenwand", ${board.id})`);
+    expect(created.ok).toBe(true);
+    const definition = created.nextModel.allComponentDefinitions()[0];
+    const first = created.nextModel.allComponentInstances()[0];
+    expect(created.selectedId).toBe(first.id);
+
+    const duplicated = runCadConsoleCommand(created.nextModel, `duplicate_instance(${first.id}, "rechts", 700, 0, 0, 0)`, created.selectedId);
+    expect(duplicated.ok).toBe(true);
+    expect(duplicated.nextModel.allComponentInstances()).toHaveLength(2);
+    expect(duplicated.nextModel.allComponentInstances().every((instance) => instance.definitionId === definition.id)).toBe(true);
+
+    const moved = runCadConsoleCommand(duplicated.nextModel, 'move_instance(selected, 0, 250, 0)', duplicated.selectedId);
+    expect(moved.ok).toBe(true);
+    const rotated = runCadConsoleCommand(moved.nextModel, 'rotate_instance(selected, 90)', moved.selectedId);
+    expect(rotated.ok).toBe(true);
+    const selected = runCadConsoleCommand(rotated.nextModel, 'select_instance(selected)', rotated.selectedId);
+    expect(selected.ok).toBe(true);
+    expect(selected.selectedId).toBe(rotated.selectedId);
+    expect(rotated.nextModel.getEntity(board.id)).toMatchObject({ type: 'box', origin: vec(0, 0, 0), width: 600, depth: 300, height: 18 });
+
+    const unique = runCadConsoleCommand(rotated.nextModel, 'make_unique(selected, "rechts unique")', rotated.selectedId);
+    expect(unique.ok).toBe(true);
+    expect(unique.nextModel.allComponentDefinitions()).toHaveLength(2);
+  });
 });
 
 describe('Agent chat CAD command bridge', () => {

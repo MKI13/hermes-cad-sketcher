@@ -26,6 +26,89 @@ function boxById(model: SketchModel, id: string) {
 }
 
 describe('component definitions and instances', () => {
+
+  it('selects viewport-expanded instance geometry as a component instance instead of editable source entity', () => {
+    const model = new SketchModel();
+    const board = model.createBox(vec(0, 0, 0), 600, 300, 18);
+    const { definition, firstInstance } = model.createComponentDefinitionFromEntities('Seitenwand', [board.id]);
+    expect(definition.entityIds).toEqual([board.id]);
+
+    const worldId = `${firstInstance.id}:${board.id}`;
+    expect(model.selectionTargetForEntity(worldId)).toEqual({
+      type: 'componentInstance',
+      componentInstanceId: firstInstance.id,
+      sourceEntityId: board.id
+    });
+    expect(model.canEditEntity(worldId)).toBe(false);
+    expect(() => model.moveEntity(worldId, vec(10, 0, 0))).toThrow('Instanz-Geometrie ist nur eine Weltansicht');
+    expect(() => model.deleteEntity(worldId)).toThrow('Instanz-Geometrie ist nur eine Weltansicht');
+  });
+
+  it('creating a component definition from selected geometry creates a visible first instance', () => {
+    const model = new SketchModel();
+    const board = model.createBox(vec(0, 0, 0), 600, 300, 18);
+
+    const { definition, firstInstance } = model.createComponentDefinitionFromEntities('Seitenwand', [board.id]);
+    const worldEntities = worldEntitiesForModel(model);
+
+    expect(definition.entityIds).toEqual([board.id]);
+    expect(definition.componentId).toMatch(/^component_/);
+    expect(model.getEntity(board.id)?.componentId).toBe(definition.componentId);
+    expect(model.selectionTargetForEntity(board.id)).toEqual({ type: 'component', componentId: definition.componentId, hitEntityId: board.id });
+    model.openComponent(definition.componentId!);
+    expect(model.activePath()).toEqual([definition.componentId]);
+    expect(model.canEditEntity(board.id)).toBe(true);
+    expect(firstInstance.definitionId).toBe(definition.id);
+    expect(model.allComponentInstances()).toHaveLength(1);
+    expect(worldEntities).toHaveLength(1);
+    expect(worldEntities[0]).toMatchObject({
+      id: `${firstInstance.id}:${board.id}`,
+      componentInstanceId: firstInstance.id,
+      sourceEntityId: board.id
+    });
+  });
+
+  it('round-trips active context together with component definitions and instances', () => {
+    const model = new SketchModel();
+    const legacyBox = model.createBox(vec(10, 20, 0), 100, 100, 100);
+    const legacyComponent = model.createComponent('Bearbeitete Gruppe', [legacyBox.id]);
+    model.openComponent(legacyComponent.id);
+    const board = model.createBox(vec(0, 0, 0), 600, 300, 18);
+    const { definition, firstInstance } = model.createComponentDefinitionFromEntities('Seitenwand', [board.id]);
+
+    const roundTrip = importProjectFile(exportProjectFile(model));
+
+    expect(roundTrip.activePath()).toEqual([legacyComponent.id]);
+    expect(roundTrip.allComponentDefinitions()).toEqual([definition]);
+    expect(roundTrip.allComponentInstances()).toEqual([firstInstance]);
+    expect(roundTrip.allComponents().some((component) => component.id === definition.componentId)).toBe(true);
+    expect(roundTrip.snapshot()).toMatchObject({
+      activePath: [legacyComponent.id],
+      componentDefinitions: [definition],
+      componentInstances: [firstInstance]
+    });
+  });
+  it('does not confuse real imported entity ids that contain the world-id separator with synthetic instance hits', () => {
+    const model = SketchModel.fromSnapshot({
+      unit: 'mm',
+      entities: [{ id: 'instance_1:custom-real-entity', type: 'box', origin: vec(0, 0, 0), width: 100, depth: 100, height: 18, rotationZ: 0 }],
+      components: []
+    });
+
+    expect(model.selectionTargetForEntity('instance_1:custom-real-entity')).toEqual({ type: 'entity', entityId: 'instance_1:custom-real-entity' });
+    expect(model.canEditEntity('instance_1:custom-real-entity')).toBe(true);
+    expect(model.moveEntity('instance_1:custom-real-entity', vec(10, 0, 0))).toMatchObject({ type: 'box', origin: vec(10, 0, 0) });
+  });
+
+  it('rejects material and hide operations on selected component instances with an explicit protected-instance error', () => {
+    const model = new SketchModel();
+    const board = model.createBox(vec(0, 0, 0), 600, 300, 18);
+    const { firstInstance } = model.createComponentDefinitionFromEntities('Seitenwand', [board.id]);
+
+    expect(() => model.applyMaterial(firstInstance.id, { materialId: 'wood-light' })).toThrow('Komponenten-Instanz');
+    expect(() => model.hideEntity(firstInstance.id)).toThrow('Komponenten-Instanz');
+  });
+
   it('creates a component definition and placed instance without duplicating definition geometry', () => {
     const model = new SketchModel();
     const board = model.createBox(vec(0, 0, 0), 600, 300, 18);

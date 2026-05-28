@@ -74,6 +74,19 @@ describe('right Hermes tray', () => {
     expect(markup).not.toContain('aria-label="Hermes Agent Fenster"');
   });
 
+
+  it('renders component definitions and instance actions in the right Components tray', async () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Definitionen');
+    expect(markup).toContain('Instanzen');
+
+    const appSource = await readFile('src/App.tsx', 'utf8');
+    expect(appSource).toContain('Instanz duplizieren');
+    expect(appSource).toContain('Make Unique');
+    expect(appSource).toContain('Kontext schließen');
+  });
+
   it('implements the right tray in dedicated UI modules instead of leaving it embedded in App', async () => {
     const [rightTraySource, trayPanelSource] = await Promise.all([
       readFile('src/ui/RightTray.tsx', 'utf8'),

@@ -180,6 +180,8 @@ button { font: inherit; }
   .app-shell { grid-template-columns: 52px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; overflow: auto; }
   .app-shell.icon-rail-left .toolbar { grid-column: 1; grid-row: 2; }
   .app-shell.icon-rail-left .workspace { grid-column: 2; grid-row: 2; }
+  .app-shell.icon-rail-left.right-tray-open .workspace { grid-column: 2; grid-row: 2; }
+  .app-shell.icon-rail-left.right-tray-open .toolbar { grid-column: 1; grid-row: 2; padding: 4px 3px; }
   .app-shell .right-tray { grid-column: 1 / -1; grid-row: 3; max-height: 520px; }
   .top-toolbar { grid-template-columns: 1fr; }
   .top-function-workspace { grid-template-columns: 1fr; max-height: 420px; }
@@ -187,7 +189,15 @@ button { font: inherit; }
   .quick-toolbar { gap: 6px; }
   .quick-toolbar .tool-icon { min-width: 52px; }
   .toolbar { padding: 16px; }
-  .workspace { min-height: 0; }
+  .workspace { min-height: 0; min-width: 0; }
+  .statusbar { gap: 4px; font-size: 11px; padding: 5px 6px; }
+  .statusbar button { padding: 3px 5px; }
+  .statusbar span { overflow-wrap: anywhere; }
+  .statusbar .measurement-field { flex-basis: 100%; grid-template-columns: minmax(0, 1fr) auto; }
+  .statusbar .measurement-field strong, .statusbar .measurement-field output, .statusbar .measurement-field small { display: none; }
+  .statusbar .measurement-field label { min-width: 0; }
+  .statusbar .measurement-field input { width: 100%; box-sizing: border-box; }
+  .viewport-help { font-size: 11px; padding: 6px 8px; }
   .viewport-help { left: 12px; right: 12px; bottom: 12px; border-radius: 14px; }
   .viewport-error { left: 12px; right: 12px; top: 12px; max-width: none; }
   .model-card.compact { top: 12px; right: 12px; left: 12px; min-width: 0; }

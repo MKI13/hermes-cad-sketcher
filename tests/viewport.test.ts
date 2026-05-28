@@ -150,6 +150,22 @@ endsolid ref
     }
   });
 
+  it('marks only selected component instance world geometry for viewport highlighting', () => {
+    const model = new SketchModel();
+    const board = model.createBox(vec(0, 0, 0), 100, 200, 18);
+    const definition = model.createComponentDefinition('Board', [board.id]);
+    const first = model.createComponentInstance(definition.id, 'first');
+    const second = model.createComponentInstance(definition.id, 'second', { translation: vec(300, 0, 0) });
+
+    const group = createModelGroup(model, second.id);
+    const byEntityId = new Map(group.children.map((child) => [child.userData.entityId, child]));
+
+    expect(isSelectedObject(byEntityId.get(`${first.id}:${board.id}`))).toBe(false);
+    expect(isSelectedObject(byEntityId.get(`${second.id}:${board.id}`))).toBe(true);
+    expect(byEntityId.get(`${second.id}:${board.id}`)?.userData.componentInstanceId).toBe(second.id);
+    expect(byEntityId.get(`${second.id}:${board.id}`)?.userData.sourceEntityId).toBe(board.id);
+  });
+
   it('finds entity ids on hit ancestors for robust picking', () => {
     const root = new THREE.Group();
     const child = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());

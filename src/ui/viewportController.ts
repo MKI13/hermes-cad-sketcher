@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { type Vec3 } from '../core/geometry';
-import { worldEntitiesForModel, type DrawingPlane, type SketchModel } from '../core/model';
+import { parseWorldEntityId, worldEntitiesForModel, type DrawingPlane, type SketchModel } from '../core/model';
 import type { MaterialDefinition } from '../core/materials';
 import { entityToObject } from './sceneAdapter';
 
@@ -74,7 +74,12 @@ export function createModelGroup(model: Pick<SketchModel, 'allEntities'>, select
     const object = entityToObject(entity, materials);
     object.userData.entityId = entity.id;
     object.userData.entityType = entity.type;
-    object.userData.selected = entity.id === selectedId;
+    const instanceHit = parseWorldEntityId(entity.id);
+    if (instanceHit && typeof (model as { getEntity?: unknown }).getEntity === 'function') {
+      object.userData.componentInstanceId = instanceHit.componentInstanceId;
+      object.userData.sourceEntityId = instanceHit.sourceEntityId;
+    }
+    object.userData.selected = entity.id === selectedId || (instanceHit && typeof (model as { getEntity?: unknown }).getEntity === 'function' && instanceHit.componentInstanceId === selectedId);
     if (object.userData.selected) applySelectedHighlight(object);
     group.add(object);
   }

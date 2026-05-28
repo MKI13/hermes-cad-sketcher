@@ -50,10 +50,12 @@ export type BoxEntity = CadMetadata & {
 };
 export type BoxDimensions = Pick<BoxEntity, 'width' | 'depth' | 'height'>;
 export type Entity = EdgeEntity | FaceEntity | ReferenceMeshEntity | BoxEntity;
+export type WorldEntityMetadata = { componentInstanceId?: ComponentInstanceId; sourceEntityId?: EntityId };
 export type EditContext = Readonly<{ type: 'root' } | { type: 'component'; componentId: ComponentId }>;
 export type SelectionTarget = Readonly<
   | { type: 'entity'; entityId: EntityId }
   | { type: 'component'; componentId: ComponentId; hitEntityId: EntityId }
+  | { type: 'componentInstance'; componentInstanceId: ComponentInstanceId; sourceEntityId: EntityId }
 >;
 
 export type Component = {
@@ -70,6 +72,7 @@ export type ComponentDefinition = ComponentDefinitionMetadata & {
   id: ComponentDefinitionId;
   name: string;
   entityIds: EntityId[];
+  componentId?: ComponentId;
 };
 
 export type ComponentTransform = {
@@ -122,6 +125,7 @@ export class SketchModel {
   private activeContext: EditContext = { type: 'root' };
   private componentDefinitions = new Map<ComponentDefinitionId, ComponentDefinition>();
   private componentInstances = new Map<ComponentInstanceId, ComponentInstance>();
+  private syntheticWorldEntityIds = new Set<EntityId>();
   private tags: TagDefinition[] = defaultTags();
   private materials: MaterialDefinition[] = defaultMaterials();
 
@@ -133,6 +137,7 @@ export class SketchModel {
     for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
     for (const definition of snapshot.componentDefinitions ?? []) model.componentDefinitions.set(definition.id, structuredClone(definition));
     for (const instance of snapshot.componentInstances ?? []) model.componentInstances.set(instance.id, structuredClone({ ...instance, transform: normalizeComponentTransform(instance.transform) }));
+    model.refreshSyntheticWorldEntityIds();
     const activeComponentId = snapshot.activePath?.at(-1);
     if (activeComponentId && model.components.has(activeComponentId)) model.activeContext = { type: 'component', componentId: activeComponentId };
     bumpNextNumberPastSnapshot(snapshot);
@@ -202,6 +207,8 @@ export class SketchModel {
   }
 
   selectionTargetForEntity(id: EntityId): SelectionTarget {
+    const instanceHit = this.worldEntitySelectionHit(id);
+    if (instanceHit) return { type: 'componentInstance', ...instanceHit };
     const entity = this.requireEntity(id);
     if (entity.componentId && !this.isActiveComponentContext(entity.componentId)) {
       this.requireComponent(entity.componentId);
@@ -211,6 +218,7 @@ export class SketchModel {
   }
 
   canEditEntity(id: EntityId): boolean {
+    if (this.worldEntitySelectionHit(id) || this.componentInstances.has(id)) return false;
     const entity = this.requireEntity(id);
     return !entity.componentId || this.isActiveComponentContext(entity.componentId);
   }
@@ -348,6 +356,7 @@ export class SketchModel {
   }
 
   moveEntity(id: EntityId, delta: Vec3): Entity {
+    if (this.worldEntitySelectionHit(id)) throw new Error('Instanz-Geometrie ist nur eine Weltansicht. Bitte die Komponenten-Instanz oder Definition bearbeiten.');
     const entity = this.requireEntityEditable(id);
     let moved: Entity;
     if (entity.type === 'edge') moved = { ...entity, start: add(entity.start, delta), end: add(entity.end, delta) };
@@ -370,6 +379,7 @@ export class SketchModel {
   }
 
   deleteEntity(id: EntityId): boolean {
+    if (this.worldEntitySelectionHit(id)) throw new Error('Instanz-Geometrie ist nur eine Weltansicht. Bitte die Komponenten-Instanz oder Definition bearbeiten.');
     if (!this.entities.has(id)) return false;
     this.requireEntityEditable(id);
     this.entities.delete(id);
@@ -395,6 +405,7 @@ export class SketchModel {
   }
 
   hideEntity(id: EntityId): Entity {
+    this.requireNotComponentInstanceId(id);
     const entity = this.requireEntityEditable(id);
     const hidden = { ...entity, hidden: true } as Entity;
     this.entities.set(id, hidden);
@@ -413,6 +424,7 @@ export class SketchModel {
   }
 
   applyMaterial(id: EntityId, material: MaterialAssignment): Entity {
+    this.requireNotComponentInstanceId(id);
     const materialId = material.materialId ?? this.findOrCreateLegacyMaterial(material);
     if (!materialById(materialId, this.materials)) throw new Error(`Material nicht gefunden: ${materialId}`);
     const entity = this.requireEntityEditable(id);
@@ -506,10 +518,20 @@ export class SketchModel {
     return structuredClone(definition);
   }
 
+  createComponentDefinitionFromEntities(name: string, entityIds: EntityId[], metadata: ComponentDefinitionMetadata = {}): { definition: ComponentDefinition; firstInstance: ComponentInstance } {
+    const component = this.createComponent(name, entityIds);
+    const definition = this.createComponentDefinition(name, entityIds, metadata);
+    const definitionWithComponent = { ...definition, componentId: component.id };
+    this.componentDefinitions.set(definition.id, definitionWithComponent);
+    const firstInstance = this.createComponentInstance(definition.id, name, { translation: vec(0, 0, 0) });
+    return { definition: structuredClone(definitionWithComponent), firstInstance };
+  }
+
   createComponentInstance(definitionId: ComponentDefinitionId, name: string, transform: Partial<ComponentTransform> = {}): ComponentInstance {
     this.requireComponentDefinition(definitionId);
     const instance: ComponentInstance = { id: nextId('instance'), name, definitionId, transform: normalizeComponentTransform(transform) };
     this.componentInstances.set(instance.id, instance);
+    this.refreshSyntheticWorldEntityIds();
     return structuredClone(instance);
   }
 
@@ -545,6 +567,7 @@ export class SketchModel {
     const definition: ComponentDefinition = { ...source, id: nextId('definition'), name, entityIds: copiedIds };
     this.componentDefinitions.set(definition.id, definition);
     this.componentInstances.set(id, { ...instance, definitionId: definition.id });
+    this.refreshSyntheticWorldEntityIds();
     return structuredClone(definition);
   }
 
@@ -557,6 +580,24 @@ export class SketchModel {
     const points = entityPoints(entity);
     const box = bbox(points);
     return add(box.min, { x: box.size.x / 2, y: box.size.y / 2, z: box.size.z / 2 });
+  }
+
+  private worldEntitySelectionHit(id: EntityId): { componentInstanceId: ComponentInstanceId; sourceEntityId: EntityId } | undefined {
+    if (!this.syntheticWorldEntityIds.has(id)) return undefined;
+    const parsed = parseWorldEntityId(id);
+    if (!parsed) return undefined;
+    this.requireComponentInstance(parsed.componentInstanceId);
+    return parsed;
+  }
+
+  private refreshSyntheticWorldEntityIds(): void {
+    this.syntheticWorldEntityIds = new Set(worldEntitiesForModel(this).filter((entity) => entity.componentInstanceId && entity.sourceEntityId).map((entity) => entity.id));
+  }
+
+  private requireNotComponentInstanceId(id: EntityId): void {
+    if (this.componentInstances.has(id) || this.worldEntitySelectionHit(id)) {
+      throw new Error('Komponenten-Instanz ist geschützt. Bitte Instanz verschieben/drehen, Make Unique verwenden oder die Definition im Kontext bearbeiten.');
+    }
   }
 
   private requireEntity(id: EntityId): Entity {
@@ -628,23 +669,25 @@ function cloneEntityForComponentDefinition(entity: Entity): Entity {
   return { ...structuredClone(entity), id: nextId('box'), componentId: undefined };
 }
 
-function transformEntityForInstance(entity: Entity, instance: ComponentInstance): Entity {
-  const id = `${instance.id}:${entity.id}`;
+function transformEntityForInstance(entity: Entity, instance: ComponentInstance): Entity & WorldEntityMetadata {
+  const id = worldEntityId(instance.id, entity.id);
+  const instanceMetadata = { componentInstanceId: instance.id, sourceEntityId: entity.id };
   const transform = instance.transform;
   if (entity.type === 'edge') {
-    return { ...entity, id, start: transformPoint(entity.start, transform), end: transformPoint(entity.end, transform), componentId: undefined };
+    return { ...entity, id, ...instanceMetadata, start: transformPoint(entity.start, transform), end: transformPoint(entity.end, transform), componentId: undefined };
   }
   if (entity.type === 'face') {
-    return { ...entity, id, vertices: entity.vertices.map((vertex) => transformPoint(vertex, transform)), componentId: undefined };
+    return { ...entity, id, ...instanceMetadata, vertices: entity.vertices.map((vertex) => transformPoint(vertex, transform)), componentId: undefined };
   }
   if (entity.type === 'referenceMesh') {
-    return { ...entity, id, triangles: entity.triangles.map((triangle) => ({ vertices: transformVertices(triangle.vertices, transform) })), componentId: undefined };
+    return { ...entity, id, ...instanceMetadata, triangles: entity.triangles.map((triangle) => ({ vertices: transformVertices(triangle.vertices, transform) })), componentId: undefined };
   }
   const sourceCenter = boxLocalCenter(entity);
   const transformedCenter = transformPoint(sourceCenter, transform);
   return {
     ...entity,
     id,
+    ...instanceMetadata,
     origin: vec(transformedCenter.x - entity.width / 2, transformedCenter.y - entity.depth / 2, transformedCenter.z - entity.height / 2),
     rotationZ: entity.rotationZ + transform.rotationZ,
     componentId: undefined
@@ -659,7 +702,18 @@ function transformVertices(vertices: [Vec3, Vec3, Vec3], transform: ComponentTra
   return [transformPoint(vertices[0], transform), transformPoint(vertices[1], transform), transformPoint(vertices[2], transform)];
 }
 
-export function worldEntitiesForModel(model: SketchModel): Entity[] {
+export function worldEntityId(componentInstanceId: ComponentInstanceId, sourceEntityId: EntityId): EntityId {
+  return `${componentInstanceId}:${sourceEntityId}`;
+}
+
+export function parseWorldEntityId(id: EntityId): { componentInstanceId: ComponentInstanceId; sourceEntityId: EntityId } | undefined {
+  const [componentInstanceId, ...sourceParts] = id.split(':');
+  const sourceEntityId = sourceParts.join(':');
+  if (!componentInstanceId?.startsWith('instance_') || !sourceEntityId) return undefined;
+  return { componentInstanceId, sourceEntityId };
+}
+
+export function worldEntitiesForModel(model: SketchModel): Array<Entity & WorldEntityMetadata> {
   const definitions = model.allComponentDefinitions();
   const instances = model.allComponentInstances();
   const instantiatedDefinitionIds = new Set(instances.map((instance) => instance.definitionId));
