@@ -86,8 +86,8 @@ describe('SketchUp-like viewport interaction helpers', () => {
   });
 
   it('uses SketchUp-style inference labels for endpoint and midpoint cues without forcing snapping', () => {
-    expect(snapCueLabel('endpoint')).toBe('Endpoint');
-    expect(snapCueLabel('midpoint')).toBe('Midpoint');
+    expect(snapCueLabel('endpoint')).toBe('Endpunkt');
+    expect(snapCueLabel('midpoint')).toBe('Mitte');
   });
 
   it('builds a right-click workspace menu with general drawing tools and selected-model editing functions', () => {

@@ -104,6 +104,11 @@ button { font: inherit; }
 .viewport-context-menu button { border: 1px solid transparent; border-radius: 8px; background: transparent; color: #e2e8f0; text-align: left; padding: 7px 8px; cursor: pointer; }
 .viewport-context-menu button:hover { background: #0369a1; border-color: #38bdf8; }
 .snap-cue { position: absolute; z-index: 6; pointer-events: none; padding: 2px 5px; border: 1px solid #94a3b8; border-radius: 3px; background: rgba(255,255,255,0.96); color: #111827; font-size: 11px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22); }
+.snap-marker { position: absolute; z-index: 6; pointer-events: none; width: 9px; height: 9px; margin-left: -4.5px; margin-top: -4.5px; border: 2px solid #0284c7; border-radius: 999px; background: #e0f2fe; box-shadow: 0 0 0 2px rgba(255,255,255,0.9), 0 4px 14px rgba(15, 23, 42, 0.24); }
+.inference-axis-line { position: absolute; z-index: 5; height: 0; border-top: 2px dashed #64748b; pointer-events: none; opacity: 0.86; transform-origin: 0 0; }
+.inference-axis-line--x { border-top-color: #dc2626; }
+.inference-axis-line--y { border-top-color: #16a34a; }
+.inference-axis-line--z { border-top-color: #2563eb; }
 .viewport-error { position: absolute; left: 24px; top: 24px; right: 24px; z-index: 3; display: flex; flex-direction: column; gap: 6px; max-width: 360px; background: rgba(127, 29, 29, 0.9); color: #fee2e2; border: 1px solid rgba(252, 165, 165, 0.6); border-radius: 14px; padding: 14px 16px; box-shadow: 0 18px 45px #0f172a33; overflow-wrap: anywhere; }
 .model-card { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.9); border: 1px solid #cbd5e1; box-shadow: 0 20px 60px #0f172a33; border-radius: 18px; padding: 26px; display: flex; flex-direction: column; gap: 12px; min-width: 340px; pointer-events: none; }
 .model-card.compact { display: none; }

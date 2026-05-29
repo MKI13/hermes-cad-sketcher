@@ -13,6 +13,7 @@ import {
   disposeObjectTree,
   getEntityIdFromObject,
   isSelectedObject,
+  projectCadPointToScreen,
   snapToGrid,
   screenPointToDrawingPlane,
   screenPointToGround
@@ -192,6 +193,19 @@ endsolid ref
     expect(groundPoint?.x).toBeCloseTo(123.4, 6);
     expect(groundPoint?.y).toBeCloseTo(456.7, 6);
     expect(groundPoint?.z).toBeCloseTo(0, 6);
+  });
+
+  it('projects CAD model points back to viewport screen coordinates', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 100000);
+    camera.position.set(123.4, 1000, 1456.7);
+    camera.lookAt(new THREE.Vector3(123.4, 0, 456.7));
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+
+    const screenPoint = projectCadPointToScreen(vec(123.4, 456.7, 0), camera, { width: 1000, height: 1000 });
+
+    expect(screenPoint.x).toBeCloseTo(500, 6);
+    expect(screenPoint.y).toBeCloseTo(500, 6);
   });
 
   it('projects screen points onto vertical red-blue and green-blue drawing planes', () => {

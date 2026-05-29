@@ -54,7 +54,8 @@ Vorhanden im Code:
 - seitliche Arbeitsleiste als reine Icon-Leiste für schnelle Werkzeugwahl; ausführliche Eingabe- und Dateifunktionen sitzen oben im passenden Menübereich oder in externen Fenstern
 - linke Maustaste führt die Standardaktion des aktiven Werkzeugs aus: Auswahl anklicken, Linien/Körperpunkte setzen, Körperflächen auswählen und anschließend ziehen
 - Mausrad-Zoom im 3D-Arbeitsbereich: der Punkt unter der Maus wird als Zoom-Fokus verwendet
-- Linien und Körper liefern Fangpunkte an Anfang, Ende und Mitte; Körper werden im Viewport als Linien-/Flächen-Skelett aufgebaut, bleiben aber als später vollkörperfähige Boxdaten erhalten
+- Linien, Flächen und Körper liefern Fangpunkte an Endpunkt, Mitte, Zentrum, Kante und Fläche; deutsche Snap-Labels erscheinen am Cursor
+- Achsensperre beim Zeichnen/Verschieben: Pfeil rechts sperrt X, Pfeil links sperrt Y, Pfeil hoch sperrt Z; Shift hält die aktuelle Inference fest
 - normaler Pfeil-Mausanzeiger ohne dauerhaftes Werkzeug-Symbol neben dem Pfeil; Spezialanzeigen können später gezielt pro Funktion ergänzt werden
 - Nullpunkt-Hilfslinien im Viewport mit roten, grünen und blauen Achsfarben
 - Einheitenfeld unten rechts mit aktuellem Maß, Linienlänge, Körpermaß und Flächenanzeige in m²
