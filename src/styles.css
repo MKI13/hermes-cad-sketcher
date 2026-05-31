@@ -272,3 +272,8 @@ button { font: inherit; }
   font-size: 0.82rem;
   color: #94a3b8;
 }
+
+.drawing-plane-quick-controls { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; background: #e0f2fe; border: 1px solid #38bdf8; border-radius: 999px; padding: 4px 8px; }
+.drawing-plane-quick-controls strong { font-size: 11px; color: #075985; }
+.drawing-plane-quick-controls button { border-radius: 999px; border: 1px solid #7dd3fc; background: #f0f9ff; color: #075985; padding: 3px 8px; }
+.drawing-plane-quick-controls button.active { background: #0284c7; color: white; border-color: #0284c7; }

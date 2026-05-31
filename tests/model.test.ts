@@ -242,6 +242,25 @@ describe('SketchModel geometry tools', () => {
     }
   });
 
+  it('copies a single selected entity without requiring a component', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(10, 20, 0), 300, 200);
+
+    const copied = model.duplicateEntity(face.id, vec(500, 0, 100));
+
+    expect(copied.id).not.toBe(face.id);
+    expect(copied.type).toBe('face');
+    if (copied.type === 'face') {
+      expect(copied.vertices).toEqual([
+        vec(510, 20, 100),
+        vec(810, 20, 100),
+        vec(810, 220, 100),
+        vec(510, 220, 100)
+      ]);
+      expect(copied.componentId).toBeUndefined();
+    }
+  });
+
   it('rejects invalid reference mesh triangles before storing them in the model', () => {
     const model = new SketchModel();
 

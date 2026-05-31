@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { vec } from '../src/core/geometry';
 import { exportDxf, importDxf, importDxfWithReport, supportedCadFormats } from '../src/core/dxf';
 import { SketchModel } from '../src/core/model';
-import { exportAsciiStl, importAsciiStl } from '../src/core/stl';
+import { exportAsciiStl, importAsciiStl, importStl } from '../src/core/stl';
 
 describe('CAD import/export foundation', () => {
   it('exports DXF with millimeter INSUNITS and line entities', () => {
@@ -254,6 +254,36 @@ describe('CAD import/export foundation', () => {
     const stl = exportAsciiStl(model);
     expect(stl).toContain('solid hermes-cad-sketcher');
     expect(stl.match(/facet normal/g)?.length).toBe(12);
+  });
+
+  it('exports face and reference mesh triangles so STL is useful beyond box bodies', () => {
+    const model = new SketchModel();
+    model.createRectangle(vec(0, 0, 0), 100, 50, {}, 'xz');
+    model.addReferenceMesh('loaded.stl', [{ vertices: [vec(0, 0, 0), vec(0, 100, 0), vec(0, 0, 100)] }]);
+
+    const stl = exportAsciiStl(model);
+
+    expect(stl.match(/facet normal/g)?.length).toBe(3);
+    expect(stl).toContain('vertex 100 0 50');
+    expect(stl).toContain('vertex 0 100 0');
+  });
+
+  it('loads binary STL files as reference meshes', () => {
+    const buffer = new ArrayBuffer(84 + 50);
+    const view = new DataView(buffer);
+    view.setUint32(80, 1, true);
+    let offset = 84;
+    for (const value of [0, 0, 1, 0, 0, 0, 100, 0, 0, 0, 50, 0]) {
+      view.setFloat32(offset, value, true);
+      offset += 4;
+    }
+
+    const mesh = importStl(buffer, 'binary-test.stl');
+
+    expect(mesh.type).toBe('referenceMesh');
+    expect(mesh.name).toBe('binary-test.stl');
+    expect(mesh.triangleCount).toBe(1);
+    expect(mesh.triangles[0].vertices).toEqual([vec(0, 0, 0), vec(100, 0, 0), vec(0, 50, 0)]);
   });
 
   it('adds imported ASCII STL to the model as a separate reference mesh entity', () => {

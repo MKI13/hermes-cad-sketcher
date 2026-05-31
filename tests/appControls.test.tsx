@@ -165,6 +165,23 @@ describe('App controls', () => {
     expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
   });
 
+  it('keeps drawing plane controls visible in the bottom bar for rectangles in every CAD direction', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="Schnelle Zeichenebene"');
+    expect(markup).toContain('Boden X/Y');
+    expect(markup).toContain('Wand X/Z');
+    expect(markup).toContain('Seite Y/Z');
+    expect(markup).toContain('Rechteckrichtungen: X/Y, X/Z, Y/Z');
+  });
+
+  it('offers copying for the selected entity and does not limit copy to components only', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Auswahl kopieren');
+    expect(markup).toContain('Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz');
+  });
+
   it('does not render a duplicate cursor arrow overlay beside the OS pointer', () => {
     const markup = renderToStaticMarkup(<App />);
 

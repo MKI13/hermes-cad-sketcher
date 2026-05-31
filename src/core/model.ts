@@ -538,24 +538,19 @@ export class SketchModel {
     return component;
   }
 
+  duplicateEntity(id: EntityId, offset: Vec3 = vec(800, 0, 0)): Entity {
+    const entity = this.requireEntityEditable(id);
+    const copy = cloneEntityWithOffset(entity, offset);
+    this.entities.set(copy.id, copy);
+    return copy;
+  }
+
   duplicateComponent(id: ComponentId, name: string, offset: Vec3 = vec(0, 0, 0)): Component {
     const source = this.requireComponent(id);
     const copiedIds: EntityId[] = [];
     for (const entityId of source.entityIds) {
       const entity = this.requireEntity(entityId);
-      let copy: Entity;
-      if (entity.type === 'edge') {
-        copy = { ...entity, id: nextId('edge'), start: add(entity.start, offset), end: add(entity.end, offset), componentId: undefined };
-      } else if (entity.type === 'face') {
-        copy = { ...entity, id: nextId('face'), vertices: entity.vertices.map((vertex) => add(vertex, offset)), componentId: undefined };
-      } else if (entity.type === 'referenceMesh') {
-        copy = { ...entity, id: nextId('mesh'), triangles: entity.triangles.map((triangle) => ({ vertices: translateVertices(triangle.vertices, offset) })), componentId: undefined };
-      } else if (entity.type === 'box') {
-        copy = { ...entity, id: nextId('box'), origin: add(entity.origin, offset), componentId: undefined };
-      } else {
-        const exhaustive: never = entity;
-        throw new Error(`Elementtyp kann nicht dupliziert werden: ${String(exhaustive)}`);
-      }
+      const copy = cloneEntityWithOffset(entity, offset);
       copiedIds.push(copy.id);
       this.entities.set(copy.id, copy);
     }
@@ -816,6 +811,23 @@ function rectangleVertices(origin: Vec3, width: number, depth: number, plane: Dr
 
 function translateVertices(vertices: [Vec3, Vec3, Vec3], delta: Vec3): [Vec3, Vec3, Vec3] {
   return [add(vertices[0], delta), add(vertices[1], delta), add(vertices[2], delta)];
+}
+
+function cloneEntityWithOffset(entity: Entity, offset: Vec3): Entity {
+  if (entity.type === 'edge') {
+    return { ...entity, id: nextId('edge'), start: add(entity.start, offset), end: add(entity.end, offset), componentId: undefined };
+  }
+  if (entity.type === 'face') {
+    return { ...entity, id: nextId('face'), vertices: entity.vertices.map((vertex) => add(vertex, offset)), componentId: undefined };
+  }
+  if (entity.type === 'referenceMesh') {
+    return { ...entity, id: nextId('mesh'), triangles: entity.triangles.map((triangle) => ({ vertices: translateVertices(triangle.vertices, offset) })), componentId: undefined };
+  }
+  if (entity.type === 'box') {
+    return { ...entity, id: nextId('box'), origin: add(entity.origin, offset), componentId: undefined };
+  }
+  const exhaustive: never = entity;
+  throw new Error(`Elementtyp kann nicht kopiert werden: ${String(exhaustive)}`);
 }
 
 function isValidReferenceMeshTriangle(triangle: ReferenceMeshEntity['triangles'][number]): boolean {

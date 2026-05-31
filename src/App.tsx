@@ -6,7 +6,7 @@ import { parseMeasurementBoxInput } from './core/measurementInput';
 import { applyMeasurementBoxInputToModel } from './core/measurementApplication';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf, importDxfWithReport } from './core/dxf';
-import { exportAsciiStl, importAsciiStl } from './core/stl';
+import { exportAsciiStl, importStl } from './core/stl';
 import { createHistory, pushHistory, redoHistory, undoHistory, type ModelHistory } from './core/history';
 import { runAgentChatCommand, runCadConsoleScript } from './core/cadCommands';
 import { BoxDimensionsPanel } from './ui/BoxDimensionsPanel';
@@ -743,7 +743,26 @@ export default function App() {
     mutate((m) => {
       const duplicate = m.duplicateComponent(selected.componentId!, 'Kopie der Komponente', vec(800, 0, 0));
       setSelectedId(duplicate.entityIds[0]);
+      setProjectStatus('Komponente kopiert: Kopie der Komponente');
     });
+  }
+
+  function copySelectedEntity() {
+    if (!selectedId || !selected) return;
+    if (selected.componentId) {
+      duplicateSelectedComponent();
+      return;
+    }
+    let copiedId: string | undefined;
+    let measurement: string | undefined;
+    mutate((m) => {
+      const copied = m.duplicateEntity(selectedId, vec(800, 0, 0));
+      copiedId = copied.id;
+      setSelectedId(copied.id);
+      measurement = formatEntityMeasurement(copied);
+    });
+    if (measurement) setLiveMeasurement(measurement);
+    if (copiedId) setProjectStatus(`Auswahl kopiert: ${copiedId}`);
   }
 
   function deleteSelectedEntity() {
@@ -1069,6 +1088,15 @@ export default function App() {
     setProjectStatus('Projekt als .hcad.json exportiert');
   }
 
+  function exportStlFile() {
+    const stl = exportAsciiStl(model);
+    const triangleCount = stl.match(/facet normal/g)?.length ?? 0;
+    download('hermes-cad-sketcher.stl', stl, 'model/stl');
+    setProjectStatus(triangleCount > 0
+      ? `STL exportiert: ${triangleCount} Dreiecke aus Körpern, Flächen und Referenzmeshes.`
+      : 'STL exportiert, aber das Modell enthält noch keine Körper, Flächen oder Referenzmeshes.');
+  }
+
   async function openProjectFile(file: File) {
     try {
       const text = await file.text();
@@ -1101,8 +1129,8 @@ export default function App() {
 
   async function openStlFile(file: File) {
     try {
-      const text = await file.text();
-      const mesh = importAsciiStl(text, file.name);
+      const buffer = await file.arrayBuffer();
+      const mesh = importStl(buffer, file.name);
       const next = SketchModel.fromSnapshot(model.snapshot());
       const entity = next.addReferenceMesh(mesh.name, mesh.triangles);
       setModel(next);
@@ -1110,7 +1138,7 @@ export default function App() {
       setSelectedId(entity.id);
       setProjectStatus(`STL-Referenzmesh geladen: ${mesh.triangleCount} Dreiecke; nicht als editierbarer Körper importiert. (${file.name})`);
     } catch (error) {
-      setProjectStatus(error instanceof Error ? error.message : 'STL konnte nicht als ASCII-Referenzmesh geladen werden.');
+      setProjectStatus(error instanceof Error ? error.message : 'STL konnte nicht als Referenzmesh geladen werden.');
     }
   }
 
@@ -1157,7 +1185,7 @@ export default function App() {
           />
         </label>
         <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><HermesIcon id="export-file-clear" label="Export" size={18} /> DXF exportieren</button>
-        <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><HermesIcon id="export-file-clear" label="Export" size={18} /> STL exportieren</button>
+        <button onClick={exportStlFile}><HermesIcon id="export-file-clear" label="Export" size={18} /> STL exportieren</button>
         <p className="format-note">Importiert nur LINE und geschlossene, vierpunktige, achsenparallele Rechteck-LWPOLYLINE ohne Bulge/Breite/Dicke/Sonder-Extrusion.</p>
         <p className="format-note">DXF-Einheiten: $INSUNITS=4 wird als Millimeter importiert; fehlende Einheiten werden sichtbar als Millimeter angenommen, andere Einheiten werden abgelehnt.</p>
         <p className="format-note">STL-Import: ASCII-STL wird nur als Referenzmesh geladen, nicht als editierbarer Körper oder validiertes Fertigungsmesh.</p>
@@ -1174,6 +1202,7 @@ export default function App() {
         </div>
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button>
+        <button title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}><HermesIcon id="duplicate-component-clear" label="Auswahl kopieren" size={18} /> Auswahl kopieren</button>
         <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId} onClick={deleteSelectedEntity}>
           <HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen
         </button>
@@ -1261,7 +1290,7 @@ export default function App() {
           <label className="file-button"><HermesIcon id="open-project-clear" label="Öffnen" size={18} /> DXF laden<input type="file" accept=".dxf,application/dxf,text/plain" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openDxfFile(file); event.currentTarget.value = ''; }} /></label>
           <label className="file-button"><HermesIcon id="open-project-clear" label="Öffnen" size={18} /> STL-Referenz laden<input type="file" accept=".stl,model/stl,text/plain" onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void openStlFile(file); event.currentTarget.value = ''; }} /></label>
           <button onClick={() => download('hermes-cad-sketcher.dxf', exportDxf(model), 'application/dxf')}><HermesIcon id="export-file-clear" label="Export" size={18} /> DXF exportieren</button>
-          <button onClick={() => download('hermes-cad-sketcher.stl', exportAsciiStl(model), 'model/stl')}><HermesIcon id="export-file-clear" label="Export" size={18} /> STL exportieren</button>
+          <button onClick={exportStlFile}><HermesIcon id="export-file-clear" label="Export" size={18} /> STL exportieren</button>
         </div>
       )}
       {activeMenu === 'Bearbeiten' && (
@@ -1471,7 +1500,7 @@ export default function App() {
   );
 
   function renderWindowContent(id: FloatingWindowId) {
-    if (id === 'history') return <><div className="history-controls" aria-label="Verlauf"><button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}><HermesIcon id="undo-clear" label="Rückgängig" size={18} /> Rückgängig</button><button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}><HermesIcon id="redo-clear" label="Wiederholen" size={18} /> Wiederholen</button></div><button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button><button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}><HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen</button></>;
+    if (id === 'history') return <><div className="history-controls" aria-label="Verlauf"><button title="Letzte Modelländerung rückgängig machen" onClick={undoModelChange} disabled={!history.canUndo}><HermesIcon id="undo-clear" label="Rückgängig" size={18} /> Rückgängig</button><button title="Rückgängig gemachte Modelländerung wiederholen" onClick={redoModelChange} disabled={!history.canRedo}><HermesIcon id="redo-clear" label="Wiederholen" size={18} /> Wiederholen</button></div><button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button><button title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}><HermesIcon id="duplicate-component-clear" label="Auswahl kopieren" size={18} /> Auswahl kopieren</button><button title="Ausgewähltes Element löschen" disabled={!selectedId} onClick={deleteSelectedEntity}><HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen</button></>;
     if (id === 'move') return <MovePanel disabled={!selectedId} delta={moveDelta} onDeltaChange={setMoveDelta} onApply={applyMoveDelta} />;
     if (id === 'rotate') return <RotatePanel disabled={!selectedId} angleDegrees={rotateAngleDegrees} onAngleChange={setRotateAngleDegrees} onApply={applyRotateAngle} />;
     if (id === 'pushPull') return <PushPullPanel disabled={!selectedId || (selected?.type !== 'box' && selected?.type !== 'face')} selectedType={selected?.type} selectedBox={selected?.type === 'box' ? selected : undefined} selectedBoxFace={activeBoxFace} selectedFace={selected?.type === 'face' ? selected : undefined} deltaHeight={pushPullDeltaHeight} onDeltaHeightChange={setPushPullDeltaHeight} onApply={applyPushPullDelta} />;
@@ -1658,6 +1687,12 @@ export default function App() {
             onApply={applyMeasurementBoxInput}
             onCancel={cancelMeasurementBoxInput}
           />
+          <div className="drawing-plane-quick-controls" aria-label="Schnelle Zeichenebene">
+            <strong>Rechteckrichtungen: X/Y, X/Z, Y/Z</strong>
+            <button type="button" className={drawingPlane === 'xy' ? 'active' : undefined} onClick={() => setDrawingPlane('xy')}>Boden X/Y</button>
+            <button type="button" className={drawingPlane === 'xz' ? 'active' : undefined} onClick={() => setDrawingPlane('xz')}>Wand X/Z</button>
+            <button type="button" className={drawingPlane === 'yz' ? 'active' : undefined} onClick={() => setDrawingPlane('yz')}>Seite Y/Z</button>
+          </div>
           <span>Werkzeug: {tool}</span>
           <span>Auswahl: {selectedId ?? 'keine'}</span>
           <span>Kontext: {activeContextLabel}</span>
@@ -1666,6 +1701,7 @@ export default function App() {
           {activeEditContext.type !== 'root' ? <button type="button" onClick={closeEditContext}>Kontext schließen</button> : null}
           <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Gruppe')}>Gruppe erstellen</button>
           <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
+          <button type="button" title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}>Auswahl kopieren</button>
           <span>Fläche: {selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</span>
           <span>Verlauf: {history.past.length} rückgängig / {history.future.length} wiederholbar</span>
           <span>Maßband: {lastMeasurement}</span>

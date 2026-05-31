@@ -5,6 +5,20 @@ export type StlTriangle = Readonly<{
   vertices: [Vec3, Vec3, Vec3];
 }>;
 
+export function importStl(input: string | ArrayBuffer | Uint8Array, name = 'reference.stl'): Omit<ReferenceMeshEntity, 'id'> {
+  if (typeof input === 'string') return importAsciiStl(input, name);
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const decodedStart = new TextDecoder('utf-8', { fatal: false }).decode(bytes.slice(0, Math.min(bytes.length, 4096)));
+  if (/^\s*solid\b/i.test(decodedStart)) {
+    try {
+      return importAsciiStl(new TextDecoder('utf-8', { fatal: false }).decode(bytes), name);
+    } catch (error) {
+      if (!looksLikeBinaryStl(bytes)) throw error;
+    }
+  }
+  return importBinaryStl(bytes, name);
+}
+
 export function importAsciiStl(text: string, name = 'reference.stl'): Omit<ReferenceMeshEntity, 'id'> {
   const lines = text.split(/\r?\n/);
   if (text.includes('\0') || !/^\s*solid\b/i.test(lines[0] ?? '')) {
@@ -91,9 +105,42 @@ export function exportAsciiStl(model: SketchModel, name = 'hermes-cad-sketcher')
   const lines = [`solid ${sanitize(name)}`];
   for (const entity of model.allEntities()) {
     if (entity.type === 'box') appendBox(lines, entity);
+    if (entity.type === 'face') appendFace(lines, entity.vertices);
+    if (entity.type === 'referenceMesh') appendReferenceMesh(lines, entity.triangles);
   }
   lines.push(`endsolid ${sanitize(name)}`);
   return lines.join('\n') + '\n';
+}
+
+function looksLikeBinaryStl(bytes: Uint8Array): boolean {
+  if (bytes.length < 84) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const triangleCount = view.getUint32(80, true);
+  return 84 + triangleCount * 50 === bytes.length;
+}
+
+function importBinaryStl(bytes: Uint8Array, name: string): Omit<ReferenceMeshEntity, 'id'> {
+  if (!looksLikeBinaryStl(bytes)) throw new Error('STL muss ASCII oder eine gültige binäre STL-Datei sein.');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const triangleCount = view.getUint32(80, true);
+  if (triangleCount === 0) throw new Error('STL enthält keine vollständigen Dreiecke.');
+  const triangles: StlTriangle[] = [];
+  let offset = 84;
+  for (let index = 0; index < triangleCount; index += 1) {
+    offset += 12; // normal vector
+    const vertices = [readBinaryVertex(view, offset), readBinaryVertex(view, offset + 12), readBinaryVertex(view, offset + 24)] as [Vec3, Vec3, Vec3];
+    offset += 36;
+    offset += 2; // attribute byte count
+    if (triangleAreaMagnitude(vertices) <= 1e-9) throw new Error('STL enthält degenerierte Dreiecke.');
+    triangles.push({ vertices });
+  }
+  return { type: 'referenceMesh', name, triangles, triangleCount: triangles.length };
+}
+
+function readBinaryVertex(view: DataView, offset: number): Vec3 {
+  const vertex = vec(view.getFloat32(offset, true), view.getFloat32(offset + 4, true), view.getFloat32(offset + 8, true));
+  if (!Number.isFinite(vertex.x) || !Number.isFinite(vertex.y) || !Number.isFinite(vertex.z)) throw new Error('STL enthält ungültige Vertex-Koordinaten.');
+  return vertex;
 }
 
 function appendBox(out: string[], box: BoxEntity): void {
@@ -117,6 +164,17 @@ function appendBox(out: string[], box: BoxEntity): void {
     [3, 7, 4], [3, 4, 0]
   ];
   for (const [a, b, c] of faces) triangle(out, p[a], p[b], p[c]);
+}
+
+function appendFace(out: string[], vertices: readonly Vec3[]): void {
+  if (vertices.length < 3) return;
+  for (let index = 1; index < vertices.length - 1; index += 1) {
+    triangle(out, vertices[0], vertices[index], vertices[index + 1]);
+  }
+}
+
+function appendReferenceMesh(out: string[], triangles: readonly StlTriangle[]): void {
+  for (const item of triangles) triangle(out, item.vertices[0], item.vertices[1], item.vertices[2]);
 }
 
 function triangle(out: string[], a: Vec3, b: Vec3, c: Vec3): void {
