@@ -68,11 +68,13 @@ describe('SketchUp-like viewport interaction helpers', () => {
     expect(grid.userData.divisions).toBe(200);
   });
 
-  it('creates a flat grey ground surface with a horizon and optional grid', () => {
+  it('creates a colored ground surface with a horizon and optional grid', () => {
     const surface = createWorkspaceSurface({ sizeMm: 50000, gridStepMm: 500, showGrid: true });
 
     expect(surface.name).toBe('workspace-surface');
-    expect(surface.children.some((child) => child.name === 'flat-grey-ground')).toBe(true);
+    const ground = surface.children.find((child) => child.name === 'colored-ground');
+    expect(ground).toBeDefined();
+    expect(ground?.userData.groundColor).toBe(0xb8c7d9);
     expect(surface.children.some((child) => child.name === 'workspace-grid')).toBe(true);
     expect(surface.children.some((child) => child.name === 'workspace-horizon')).toBe(true);
 
@@ -113,6 +115,7 @@ describe('SketchUp-like viewport interaction helpers', () => {
   it('uses SketchUp-style inference labels for endpoint, midpoint, edge and axis cues without forcing snapping', () => {
     expect(snapCueLabel('endpoint')).toBe('Endpoint');
     expect(snapCueLabel('midpoint')).toBe('Midpoint');
+    expect(snapCueLabel('center')).toBe('Center');
     expect(snapCueLabel('edge')).toBe('Kante');
     expect(snapCueLabel('axis:x')).toBe('Achse X');
   });
@@ -131,7 +134,7 @@ describe('SketchUp-like viewport interaction helpers', () => {
     const source = await import('node:fs/promises').then((fs) => fs.readFile('src/ui/ThreeViewport.tsx', 'utf8'));
 
     expect(source).toContain('findViewportSnapPoint');
-    expect(source).toContain('resolveViewportSnap(rawGroundPoint, event.shiftKey, axisLockRef.current)');
+    expect(source).toContain('resolveViewportSnap(rawGroundPoint, shiftForAxisLock(event), axisLockRef.current, shiftForCenterSnap(event))');
     expect(source).toContain('const groundPoint = snap?.point;');
     expect(source).toContain('snapCueLabel(cueKind)');
     expect(source).not.toContain('const snap = snapPointToModel(rawGroundPoint, model);');

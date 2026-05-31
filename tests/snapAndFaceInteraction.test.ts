@@ -85,6 +85,16 @@ describe('SketchUp-like snapping and box face interaction', () => {
     expect(snapPointToModel(vec(512, 80, 0), model, 35)).toEqual({ point: vec(512, 80, 0), snapped: false });
   });
 
+
+
+  it('snaps to rectangle centers only when center snap is requested, matching Shift center-fang', () => {
+    const model = new SketchModel();
+    const face = model.createRectangle(vec(100, 200, 0), 800, 400);
+
+    expect(findSnapPoint({ model, pointer: vec(502, 398, 0), tolerance: 20 })).toEqual({ point: vec(502, 398, 0), kind: 'free' });
+    expect(findSnapPoint({ model, pointer: vec(502, 398, 0), tolerance: 20, centerSnaps: true })).toEqual({ point: vec(500, 400, 0), kind: 'center', entityId: face.id });
+  });
+
   it('renders boxes as selectable faces plus visible edge lines instead of one opaque block only', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 1000, 500, 300);

@@ -1713,7 +1713,7 @@ export default function App() {
               drawingPlane={drawingPlane}
               rectangleDimensions={activeRectangleDimensions}
               gridStepMm={viewportGridStepNumber}
-              showGrid={showViewportGrid}
+              showGrid={showViewportGrid && Boolean(selectedId)}
             />
           </React.Suspense>
           <div className="model-card compact">
@@ -1723,6 +1723,7 @@ export default function App() {
             <span>Verschieben: Objekt auswählen, Move aktivieren, Start und Ziel anklicken.</span>
             <span>Körper: ein Klick auf das Raster.</span>
             <span>Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.</span>
+            <span>Grundfläche farbig; Quadrat-Raster erscheint erst nach Auswahl.</span>
             <span>Elemente: {model.allEntities().length}</span>
             <span>Komponenten: {model.allComponents().length}</span>
           </div>
@@ -1739,6 +1740,7 @@ export default function App() {
           <div className="drawing-plane-quick-controls" aria-label="Schnelle Zeichenebene">
             <strong>Rechteckrichtungen: X/Y, X/Z, Y/Z</strong>
             <small>Live mit Maus: Richtung ziehen, CAD wählt X/Y, X/Z oder Y/Z automatisch.</small>
+            <small>Pfeile: ↑ Boden X/Y, → Wand X/Z, ← Seite Y/Z. Shift: Center-Fang auf Rechteckmitte.</small>
             <button type="button" className={drawingPlane === 'xy' ? 'active' : undefined} onClick={() => setDrawingPlane('xy')}>Boden X/Y</button>
             <button type="button" className={drawingPlane === 'xz' ? 'active' : undefined} onClick={() => setDrawingPlane('xz')}>Wand X/Z</button>
             <button type="button" className={drawingPlane === 'yz' ? 'active' : undefined} onClick={() => setDrawingPlane('yz')}>Seite Y/Z</button>

@@ -11,7 +11,7 @@ const MIN_ZOOM_RADIUS = 5;
 const MAX_ZOOM_RADIUS = 1000000;
 const WHEEL_STEP_FACTOR = 0.8;
 
-export type SnapPointKind = 'endpoint' | 'midpoint' | 'edge' | 'axis:x' | 'axis:y' | 'axis:z';
+export type SnapPointKind = 'endpoint' | 'midpoint' | 'center' | 'edge' | 'axis:x' | 'axis:y' | 'axis:z';
 export type WorkspaceSurfaceOptions = Readonly<{
   sizeMm?: number;
   gridStepMm?: number;
@@ -163,12 +163,13 @@ export function createWorkspaceSurface(options: WorkspaceSurfaceOptions = {}): T
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
-    new THREE.MeshStandardMaterial({ color: options.groundColor ?? 0xd1d5db, roughness: 1, metalness: 0, side: THREE.DoubleSide })
+    new THREE.MeshStandardMaterial({ color: options.groundColor ?? 0xb8c7d9, roughness: 1, metalness: 0, side: THREE.DoubleSide })
   );
-  ground.name = 'flat-grey-ground';
+  ground.name = 'colored-ground';
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -1;
-  ground.userData.ground = 'flat-grey';
+  ground.userData.ground = 'colored';
+  ground.userData.groundColor = options.groundColor ?? 0xb8c7d9;
   group.add(ground);
 
   if (options.showGrid !== false) group.add(createWorkspaceGrid({ sizeMm: size, gridStepMm: options.gridStepMm }));
@@ -211,9 +212,10 @@ export function createOriginGuideGroup(length = 3000): THREE.Group {
   return group;
 }
 
-export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' | 'Kante' | 'Achse X' | 'Achse Y' | 'Achse Z' {
+export function snapCueLabel(kind: SnapPointKind): 'Endpoint' | 'Midpoint' | 'Center' | 'Kante' | 'Achse X' | 'Achse Y' | 'Achse Z' {
   if (kind === 'endpoint') return 'Endpoint';
   if (kind === 'midpoint') return 'Midpoint';
+  if (kind === 'center') return 'Center';
   if (kind === 'edge') return 'Kante';
   if (kind === 'axis:x') return 'Achse X';
   if (kind === 'axis:y') return 'Achse Y';
@@ -242,6 +244,7 @@ export function findViewportSnapPoint(input: {
   tolerance?: number;
   forceAxisLock?: boolean;
   axisLock?: 'x' | 'y' | 'z';
+  centerSnaps?: boolean;
 }): CoreSnapResult {
   const startPoint = input.toolState.mode === 'drawing' && input.toolState.tool === input.activeTool
     ? input.toolState.pendingPoint
@@ -253,7 +256,8 @@ export function findViewportSnapPoint(input: {
     tolerance: input.tolerance,
     startPoint,
     forceAxisLock: input.forceAxisLock,
-    axisLock: input.axisLock
+    axisLock: input.axisLock,
+    centerSnaps: input.centerSnaps
   });
 }
 
@@ -300,7 +304,7 @@ export function collectSnapPoints(model: Pick<SketchModel, 'allEntities'>): Snap
 
 export function snapPointToModel(point: Vec3, model: Pick<SketchModel, 'allEntities'>, tolerance = 35): SnapResult {
   const snap = findSnapPoint({ model, pointer: point, tolerance });
-  if (snap.kind === 'endpoint' || snap.kind === 'midpoint' || snap.kind === 'edge') {
+  if (snap.kind === 'endpoint' || snap.kind === 'midpoint' || snap.kind === 'center' || snap.kind === 'edge') {
     return { point: snap.point, snapped: true, entityId: snap.entityId, kind: snap.kind };
   }
   return { point, snapped: false };

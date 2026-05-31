@@ -27,6 +27,13 @@ export type ScreenPoint = Readonly<{
 
 export type ViewportAxisLock = 'x' | 'y' | 'z';
 
+export function rectanglePlaneFromArrowKey(key: string): DrawingPlane | undefined {
+  if (key === 'ArrowUp') return 'xy';
+  if (key === 'ArrowRight') return 'xz';
+  if (key === 'ArrowLeft') return 'yz';
+  return undefined;
+}
+
 const MIN_POLAR = 0.1;
 const MAX_POLAR = Math.PI - 0.1;
 export const AXIS_GUIDE_PICK_THRESHOLD = 96;

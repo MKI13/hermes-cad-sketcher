@@ -173,6 +173,7 @@ describe('App controls', () => {
     expect(markup).toContain('mm');
     expect(markup).toContain('Fläche: keine Körperfläche');
     expect(markup).toContain('Körperflächen können ausgewählt und anschließend verschoben oder gezogen werden.');
+    expect(markup).toContain('Grundfläche farbig; Quadrat-Raster erscheint erst nach Auswahl.');
   });
 
   it('keeps drawing plane controls visible in the bottom bar for rectangles in every CAD direction', () => {
@@ -184,6 +185,7 @@ describe('App controls', () => {
     expect(markup).toContain('Seite Y/Z');
     expect(markup).toContain('Rechteckrichtungen: X/Y, X/Z, Y/Z');
     expect(markup).toContain('Live mit Maus: Richtung ziehen, CAD wählt X/Y, X/Z oder Y/Z automatisch.');
+    expect(markup).toContain('Pfeile: ↑ Boden X/Y, → Wand X/Z, ← Seite Y/Z. Shift: Center-Fang auf Rechteckmitte.');
   });
 
   it('offers copying for the selected entity and does not limit copy to components only', () => {

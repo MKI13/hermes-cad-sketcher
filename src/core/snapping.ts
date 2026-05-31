@@ -1,7 +1,7 @@
 import { distance, type Vec3, vec } from './geometry';
 import { type Entity, type EntityId, type SketchModel } from './model';
 
-export type SnapPointKind = 'endpoint' | 'midpoint' | 'edge';
+export type SnapPointKind = 'endpoint' | 'midpoint' | 'center' | 'edge';
 export type SnapPoint = Readonly<{ entityId: EntityId; kind: SnapPointKind; point: Vec3 }>;
 type SnapSegment = Readonly<{ entityId: EntityId; start: Vec3; end: Vec3 }>;
 export type SnapResult = Readonly<
@@ -17,10 +17,11 @@ export type SnapOptions = Readonly<{
   startPoint?: Vec3;
   forceAxisLock?: boolean;
   axisLock?: 'x' | 'y' | 'z';
+  centerSnaps?: boolean;
 }>;
 
-export function findSnapPoint({ model, pointer, gridSize = 50, tolerance = 35, startPoint, forceAxisLock = false, axisLock }: SnapOptions): SnapResult {
-  const entitySnap = nearestModelSnapPoint(pointer, model, tolerance);
+export function findSnapPoint({ model, pointer, gridSize = 50, tolerance = 35, startPoint, forceAxisLock = false, axisLock, centerSnaps = false }: SnapOptions): SnapResult {
+  const entitySnap = nearestModelSnapPoint(pointer, model, tolerance, centerSnaps);
   if (entitySnap) return { point: entitySnap.point, kind: entitySnap.kind, entityId: entitySnap.entityId };
 
   const edgeSnap = nearestModelEdgeSnap(pointer, model, tolerance);
@@ -32,8 +33,8 @@ export function findSnapPoint({ model, pointer, gridSize = 50, tolerance = 35, s
   return { point: pointer, kind: 'free' };
 }
 
-export function collectSnapPoints(model: Pick<SketchModel, 'allEntities'>): SnapPoint[] {
-  return model.allEntities().flatMap((entity) => snapPointsForEntity(entity));
+export function collectSnapPoints(model: Pick<SketchModel, 'allEntities'>, options: { centerSnaps?: boolean } = {}): SnapPoint[] {
+  return model.allEntities().flatMap((entity) => snapPointsForEntity(entity, options.centerSnaps ?? false));
 }
 
 export function snapToGrid(point: Vec3, gridSize = 50): Vec3 {
@@ -45,10 +46,10 @@ export function snapToGrid(point: Vec3, gridSize = 50): Vec3 {
   };
 }
 
-function nearestModelSnapPoint(pointer: Vec3, model: Pick<SketchModel, 'allEntities'>, tolerance: number): SnapPoint | undefined {
+function nearestModelSnapPoint(pointer: Vec3, model: Pick<SketchModel, 'allEntities'>, tolerance: number, centerSnaps: boolean): SnapPoint | undefined {
   let best: SnapPoint | undefined;
   let bestDistance = Number.POSITIVE_INFINITY;
-  for (const candidate of collectSnapPoints(model)) {
+  for (const candidate of collectSnapPoints(model, { centerSnaps })) {
     const currentDistance = distance(pointer, candidate.point);
     if (currentDistance < bestDistance) {
       best = candidate;
@@ -112,16 +113,19 @@ function collectSnapSegments(model: Pick<SketchModel, 'allEntities'>): SnapSegme
   return model.allEntities().flatMap((entity) => snapSegmentsForEntity(entity));
 }
 
-function snapPointsForEntity(entity: Entity): SnapPoint[] {
+function snapPointsForEntity(entity: Entity, centerSnaps = false): SnapPoint[] {
   if (entity.type === 'edge') return segmentSnapPoints(entity.id, entity.start, entity.end);
   if (entity.type === 'face') {
-    return entity.vertices.flatMap((point, index) => segmentSnapPoints(entity.id, point, entity.vertices[(index + 1) % entity.vertices.length]));
+    const points = entity.vertices.flatMap((point, index) => segmentSnapPoints(entity.id, point, entity.vertices[(index + 1) % entity.vertices.length]));
+    if (centerSnaps) points.push({ entityId: entity.id, kind: 'center', point: averagePoint(entity.vertices) });
+    return points;
   }
   if (entity.type === 'box') {
     const unique = new Map<string, SnapPoint>();
     for (const segment of snapSegmentsForEntity(entity)) {
       for (const point of segmentSnapPoints(entity.id, segment.start, segment.end)) unique.set(`${point.kind}:${point.point.x}:${point.point.y}:${point.point.z}`, point);
     }
+    if (centerSnaps) unique.set(`center:${entity.origin.x}:${entity.origin.y}:${entity.origin.z}`, { entityId: entity.id, kind: 'center', point: vec(entity.origin.x + entity.width / 2, entity.origin.y + entity.depth / 2, entity.origin.z + entity.height / 2) });
     return [...unique.values()];
   }
   return [];
@@ -152,6 +156,12 @@ function snapSegmentsForEntity(entity: Entity): SnapSegment[] {
     return edges.map(([start, end]) => ({ entityId: entity.id, start, end }));
   }
   return [];
+}
+
+function averagePoint(points: readonly Vec3[]): Vec3 {
+  const total = points.reduce((sum, point) => vec(sum.x + point.x, sum.y + point.y, sum.z + point.z), vec(0, 0, 0));
+  const count = Math.max(1, points.length);
+  return vec(total.x / count, total.y / count, total.z / count);
 }
 
 function segmentSnapPoints(entityId: EntityId, start: Vec3, end: Vec3): SnapPoint[] {

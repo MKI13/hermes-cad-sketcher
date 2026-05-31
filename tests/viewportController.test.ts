@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { SketchModel } from '../src/core/model';
 import { vec } from '../src/core/geometry';
-import { createModelGroup, inferRectanglePlaneFromScreenDrag, screenDirectionForCadVector, screenPointToAnchoredDrawingPlane } from '../src/ui/viewportController';
+import { createModelGroup, inferRectanglePlaneFromScreenDrag, rectanglePlaneFromArrowKey, screenDirectionForCadVector, screenPointToAnchoredDrawingPlane } from '../src/ui/viewportController';
 
 describe('viewport controller push/pull selection helpers', () => {
   it('highlights only the selected body face when a box face is active', () => {
@@ -59,6 +59,15 @@ describe('viewport controller push/pull selection helpers', () => {
     expect(point!.y).toBeCloseTo(anchor.y, 5);
     expect(point!.x).toBeCloseTo(500, 1);
     expect(point!.z).toBeCloseTo(900, 1);
+  });
+
+
+
+  it('maps rectangle arrow keys to locked CAD rectangle planes', () => {
+    expect(rectanglePlaneFromArrowKey('ArrowUp')).toBe('xy');
+    expect(rectanglePlaneFromArrowKey('ArrowRight')).toBe('xz');
+    expect(rectanglePlaneFromArrowKey('ArrowLeft')).toBe('yz');
+    expect(rectanglePlaneFromArrowKey('ArrowDown')).toBeUndefined();
   });
 
   it('infers the live rectangle plane from the mouse drag direction instead of requiring bottom buttons', () => {

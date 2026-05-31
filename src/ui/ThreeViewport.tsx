@@ -12,6 +12,7 @@ import {
   disposeObjectTree,
   getEntityIdFromObject,
   inferRectanglePlaneFromScreenDrag,
+  rectanglePlaneFromArrowKey,
   orbitCameraDrag,
   panOrbitCameraDrag,
   screenPointToDrawingPlane,
@@ -61,6 +62,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; groups: ViewportContextMenuGroup[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string; kind?: SnapPointKind } | undefined>();
   const [axisLock, setAxisLock] = useState<ViewportAxisLock | undefined>();
+  const [rectanglePlaneLock, setRectanglePlaneLock] = useState<DrawingPlane | undefined>();
   const [pushPullDrag, setPushPullDrag] = useState<PushPullDragState | undefined>();
   const [viewportError, setViewportError] = useState<string | undefined>(() =>
     typeof HTMLCanvasElement === 'undefined' || typeof WebGLRenderingContext === 'undefined'
@@ -77,6 +79,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   const selectedIdRef = useRef(selectedId);
   const selectedFaceRef = useRef<FaceSelection | undefined>(undefined);
   const axisLockRef = useRef<ViewportAxisLock | undefined>(undefined);
+  const rectanglePlaneLockRef = useRef<DrawingPlane | undefined>(undefined);
   const onSelectRef = useRef(onSelect);
   const onCreateLineRef = useRef(onCreateLine);
   const onCreateRectangleRef = useRef(onCreateRectangle);
@@ -120,6 +123,12 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   const setActiveAxisLock = (next: ViewportAxisLock | undefined) => {
     axisLockRef.current = next;
     setAxisLock(next);
+  };
+
+  const setActiveRectanglePlaneLock = (next: DrawingPlane | undefined) => {
+    rectanglePlaneLockRef.current = next;
+    if (next) drawingPlaneRef.current = next;
+    setRectanglePlaneLock(next);
   };
 
   useEffect(() => {
@@ -292,7 +301,11 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       return pointForPushPullPointerDelta(state, { x: event.clientX - start.x, y: event.clientY - start.y });
     };
 
-    const resolveViewportSnap = (rawGroundPoint: Vec3, forceAxisLock = false, axisLock = axisLockRef.current): CoreSnapResult => findViewportSnapPoint({
+    const shiftForCenterSnap = (event: PointerEvent | MouseEvent | KeyboardEvent) => event.shiftKey && activeToolRef.current === 'rectangle';
+
+    const shiftForAxisLock = (event: PointerEvent | MouseEvent | KeyboardEvent) => event.shiftKey && !shiftForCenterSnap(event);
+
+    const resolveViewportSnap = (rawGroundPoint: Vec3, forceAxisLock = false, axisLock = axisLockRef.current, centerSnaps = false): CoreSnapResult => findViewportSnapPoint({
       model,
       pointer: rawGroundPoint,
       toolState: toolStateRef.current,
@@ -300,12 +313,13 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       gridSize: 50,
       tolerance: 35,
       forceAxisLock,
-      axisLock
+      axisLock,
+      centerSnaps
     });
 
     const axisCueKind = (snap: CoreSnapResult): SnapPointKind | undefined => {
       if (snap.kind === 'axis') return `axis:${snap.axis}`;
-      if (snap.kind === 'endpoint' || snap.kind === 'midpoint' || snap.kind === 'edge') return snap.kind;
+      if (snap.kind === 'endpoint' || snap.kind === 'midpoint' || snap.kind === 'center' || snap.kind === 'edge') return snap.kind;
       return undefined;
     };
 
@@ -318,6 +332,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       const state = toolStateRef.current;
       const startScreen = rectangleStartScreenRef.current;
       if (activeToolRef.current !== 'rectangle' || state.mode !== 'drawing' || state.tool !== 'rectangle' || !startScreen) return undefined;
+      if (rectanglePlaneLockRef.current) return rectanglePlaneLockRef.current;
       return inferRectanglePlaneFromScreenDrag({ camera, anchor: state.pendingPoint, startScreen, currentScreen: screenPoint, fallback: drawingPlaneRef.current });
     };
 
@@ -372,7 +387,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
 
     const performActiveToolAction = (event: PointerEvent) => {
       const rawGroundPoint = pickFreeDrawingPointAtPointer(event);
-      const groundPoint = rawGroundPoint ? rectangleAwarePoint(resolveViewportSnap(rawGroundPoint, event.shiftKey, axisLockRef.current).point) : undefined;
+      const groundPoint = rawGroundPoint ? rectangleAwarePoint(resolveViewportSnap(rawGroundPoint, shiftForAxisLock(event), axisLockRef.current, shiftForCenterSnap(event)).point) : undefined;
       const usesGroundPoint =
         activeToolRef.current === 'line' ||
         activeToolRef.current === 'rectangle' ||
@@ -476,7 +491,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
         return;
       }
       const rawGroundPoint = pickFreeDrawingPointAtPointer(event);
-      const snap = rawGroundPoint ? resolveViewportSnap(rawGroundPoint, event.shiftKey, axisLockRef.current) : undefined;
+      const snap = rawGroundPoint ? resolveViewportSnap(rawGroundPoint, shiftForAxisLock(event), axisLockRef.current, shiftForCenterSnap(event)) : undefined;
       const groundPoint = snap?.point;
       if (snap) {
         const cueKind = axisCueKind(snap);
@@ -573,17 +588,31 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
     };
 
     const keyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target.tagName : undefined;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target)) return;
+      const rectanglePlane = rectanglePlaneFromArrowKey(event.key);
+      if (activeToolRef.current === 'rectangle' && rectanglePlane) {
+        event.preventDefault();
+        setActiveAxisLock(undefined);
+        setActiveRectanglePlaneLock(rectanglePlane);
+        const state = toolStateRef.current;
+        if (state.mode === 'drawing' && state.tool === 'rectangle') toolStateRef.current = { ...state, plane: rectanglePlane };
+        onMeasurementPreviewRef.current?.(`Rechteckebene fixiert: ${rectanglePlane.toUpperCase()} · Pfeil unten löst. Shift fängt Rechteckmitten.`);
+        return;
+      }
       const nextAxisLock = axisFromArrowKey(event.key);
       if (nextAxisLock) {
         event.preventDefault();
         setActiveAxisLock(nextAxisLock);
+        setActiveRectanglePlaneLock(undefined);
         onMeasurementPreviewRef.current?.(`Achse fixiert: ${snapCueLabel(`axis:${nextAxisLock}`)} · Pfeil unten löst.`);
         return;
       }
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         setActiveAxisLock(undefined);
-        onMeasurementPreviewRef.current?.('Achsenfixierung gelöst.');
+        setActiveRectanglePlaneLock(undefined);
+        onMeasurementPreviewRef.current?.('Achsen- und Rechteckebenenfixierung gelöst.');
         return;
       }
       if (event.key === 'Escape') {
@@ -592,6 +621,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       setActivePushPullDrag(undefined);
         setContextMenu(undefined);
         setActiveAxisLock(undefined);
+        setActiveRectanglePlaneLock(undefined);
         updateDrawingPreview();
         setSnapCue(undefined);
         onMeasurementPreviewRef.current?.(undefined);
@@ -664,13 +694,14 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
         </section>
       )}
       {axisLock && <div className={`axis-lock-cue axis-lock-${axisLock}`} aria-label={`Achsenfixierung ${snapCueLabel(`axis:${axisLock}`)}`}>Fixiert: {snapCueLabel(`axis:${axisLock}`)} · ↓ löst</div>}
+      {rectanglePlaneLock && <div className={`axis-lock-cue rectangle-plane-lock-${rectanglePlaneLock}`} aria-label={`Rechteckebene ${rectanglePlaneLock.toUpperCase()} fixiert`}>Rechteckebene: {rectanglePlaneLock.toUpperCase()} · ↓ löst</div>}
       {snapCue && (
         <div className="snap-cue" aria-label={`Fanghinweis ${snapCue.label}`} style={{ left: snapCue.x, top: snapCue.y }}>
-          {(snapCue.kind === 'endpoint' || snapCue.kind === 'midpoint' || snapCue.kind === 'edge') && <span className="snap-point-marker" aria-hidden="true" />}
+          {(snapCue.kind === 'endpoint' || snapCue.kind === 'midpoint' || snapCue.kind === 'center' || snapCue.kind === 'edge') && <span className="snap-point-marker" aria-hidden="true" />}
           {snapCue.label}
         </div>
       )}
-      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Pfeile: ↑ Blau, → Rot, ← Grün, ↓ lösen. Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom. Escape: Aktion abbrechen.</div>
+      <div className="viewport-help">3D-Arbeitsfläche: links = Werkzeugaktion, Rechteck-Pfeile: ↑ Boden X/Y, → Wand X/Z, ← Seite Y/Z, Shift = Center-Fang, ↓ lösen. Sonst Pfeile: ↑ Blau, → Rot, ← Grün, ↓ lösen. Mittelklick ziehen = Ansicht drehen, Rechtsklick = Bearbeitungsmenü, Mausrad = Zoom. Escape: Aktion abbrechen.</div>
     </div>
   );
 }
