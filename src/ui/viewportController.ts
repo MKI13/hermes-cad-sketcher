@@ -170,12 +170,50 @@ export function screenPointToGround(point: ScreenPoint, camera: THREE.Perspectiv
 }
 
 export function screenPointToDrawingPlane(point: ScreenPoint, camera: THREE.PerspectiveCamera, plane: DrawingPlane): Vec3 | undefined {
+  return screenPointToAnchoredDrawingPlane(point, camera, plane, { x: 0, y: 0, z: 0 });
+}
+
+export function screenPointToAnchoredDrawingPlane(point: ScreenPoint, camera: THREE.PerspectiveCamera, plane: DrawingPlane, anchor: Vec3): Vec3 | undefined {
   const raycaster = raycasterForScreenPoint(point, camera);
-  const groundPlane = threePlaneForDrawingPlane(plane);
+  const drawingPlane = threePlaneForDrawingPlane(plane, anchor);
   const hit = new THREE.Vector3();
-  const hasHit = raycaster.ray.intersectPlane(groundPlane, hit);
+  const hasHit = raycaster.ray.intersectPlane(drawingPlane, hit);
   if (!hasHit) return undefined;
   return threePointToCadPoint(hit);
+}
+
+export function inferRectanglePlaneFromScreenDrag(input: {
+  camera: THREE.PerspectiveCamera;
+  anchor: Vec3;
+  startScreen: ScreenPoint;
+  currentScreen: ScreenPoint;
+  fallback: DrawingPlane;
+}): DrawingPlane {
+  const dx = input.currentScreen.x - input.startScreen.x;
+  const dy = input.currentScreen.y - input.startScreen.y;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length < 8) return input.fallback;
+  const drag = { x: dx / length, y: dy / length };
+  const directionForAxis = (axis: ViewportAxisLock) => screenDirectionForCadVector({
+    camera: input.camera,
+    origin: input.anchor,
+    direction: axis === 'x' ? { x: 1000, y: 0, z: 0 } : axis === 'y' ? { x: 0, y: 1000, z: 0 } : { x: 0, y: 0, z: 1000 },
+    width: input.currentScreen.width,
+    height: input.currentScreen.height
+  });
+  const xDirection = directionForAxis('x');
+  const yDirection = directionForAxis('y');
+  const zDirection = directionForAxis('z');
+  if (!xDirection || !yDirection || !zDirection) return input.fallback;
+  const zScore = Math.abs(zDirection.x * drag.x + zDirection.y * drag.y);
+  if (zScore < 0.35) return 'xy';
+  const zProjection = zDirection.x * drag.x + zDirection.y * drag.y;
+  const residual = { x: drag.x - zDirection.x * zProjection, y: drag.y - zDirection.y * zProjection };
+  const residualLength = Math.hypot(residual.x, residual.y);
+  const chooser = residualLength < 1e-6 ? drag : { x: residual.x / residualLength, y: residual.y / residualLength };
+  const xScore = xDirection.x * chooser.x + xDirection.y * chooser.y;
+  const yScore = yDirection.x * chooser.x + yDirection.y * chooser.y;
+  return xScore >= yScore ? 'xz' : 'yz';
 }
 
 export function screenPointToObjectPoint(point: ScreenPoint, camera: THREE.PerspectiveCamera, objects: readonly THREE.Object3D[], lineThreshold = 12): { point: Vec3; object: THREE.Object3D } | undefined {
@@ -215,10 +253,14 @@ function raycasterForScreenPoint(point: ScreenPoint, camera: THREE.PerspectiveCa
   return raycaster;
 }
 
-function threePlaneForDrawingPlane(plane: DrawingPlane): THREE.Plane {
-  if (plane === 'xz') return new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-  if (plane === 'yz') return new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
-  return new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function threePlaneForDrawingPlane(plane: DrawingPlane, anchor: Vec3 = { x: 0, y: 0, z: 0 }): THREE.Plane {
+  const anchorPoint = cadPointToThreeVector(anchor);
+  const normal = plane === 'xz'
+    ? new THREE.Vector3(0, 0, 1)
+    : plane === 'yz'
+      ? new THREE.Vector3(1, 0, 0)
+      : new THREE.Vector3(0, 1, 0);
+  return new THREE.Plane().setFromNormalAndCoplanarPoint(normal, anchorPoint);
 }
 
 export function threePointToCadPoint(point: THREE.Vector3): Vec3 {

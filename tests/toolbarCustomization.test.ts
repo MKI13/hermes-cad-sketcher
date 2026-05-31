@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_TOOLBAR_ORDER, getToolShortcut, reorderToolbar, sanitizeToolbarOrder, toolFromKeyboardEvent } from '../src/ui/toolbarCustomization';
+import { DEFAULT_TOOLBAR_ORDER, DEFAULT_TOOL_SHORTCUTS, getToolShortcut, reorderToolbar, sanitizeToolbarOrder, sanitizeToolShortcuts, toolFromKeyboardEvent } from '../src/ui/toolbarCustomization';
 
 describe('customizable toolbar workflow', () => {
   it('moves a tool icon to the dropped position while keeping every tool exactly once', () => {
@@ -29,5 +29,18 @@ describe('customizable toolbar workflow', () => {
     expect(toolFromKeyboardEvent({ key: 't' })).toBe('tape');
     expect(toolFromKeyboardEvent({ key: 'l', targetTagName: 'INPUT' })).toBeUndefined();
     expect(toolFromKeyboardEvent({ key: 'l', ctrlKey: true })).toBeUndefined();
+  });
+
+  it('lets the user override quick keyboard functions and repairs duplicate or unsafe keys', () => {
+    const shortcuts = sanitizeToolShortcuts({ line: 'A', rectangle: 'A', box: '1', move: ' ' });
+
+    expect(shortcuts.line).toBe('A');
+    expect(shortcuts.rectangle).toBe(DEFAULT_TOOL_SHORTCUTS.rectangle);
+    expect(shortcuts.box).toBe('1');
+    expect(shortcuts.move).toBe(DEFAULT_TOOL_SHORTCUTS.move);
+    expect(getToolShortcut('line', shortcuts)).toBe('A');
+    expect(toolFromKeyboardEvent({ key: 'a' }, shortcuts)).toBe('line');
+    expect(toolFromKeyboardEvent({ key: 'r' }, shortcuts)).toBe('rectangle');
+    expect(toolFromKeyboardEvent({ key: 'a', targetTagName: 'INPUT' }, shortcuts)).toBeUndefined();
   });
 });

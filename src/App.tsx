@@ -21,7 +21,7 @@ import { RotatePanel, parseRotateAngle } from './ui/RotatePanel';
 import { PushPullPanel, parsePushPullDelta } from './ui/PushPullPanel';
 import { getPrimaryActionLabel, getToolInstructions } from './ui/toolInstructions';
 import { shouldDeleteSelectionFromKey } from './ui/selectionControls';
-import { DEFAULT_TOOLBAR_ORDER, getToolShortcut, reorderToolbar, sanitizeToolbarOrder, toolFromKeyboardEvent } from './ui/toolbarCustomization';
+import { DEFAULT_TOOLBAR_ORDER, DEFAULT_TOOL_SHORTCUTS, getToolShortcut, reorderToolbar, sanitizeToolbarOrder, sanitizeToolShortcuts, toolFromKeyboardEvent, type ToolShortcuts } from './ui/toolbarCustomization';
 import { groupToolbarTools } from './ui/toolbarGrouping';
 import { MOUSE_ACTIONS, MOUSE_INPUTS, mouseActionLabel, sanitizeMouseBindings, summarizeMouseBindings, toolFromMouseAction, type MouseAction, type MouseInputId } from './ui/mouseBindings';
 import { nextWorkspaceDock, sanitizeWorkspaceDock, workspaceDockClass, type WorkspaceDock } from './ui/workspaceDock';
@@ -58,6 +58,7 @@ const tools: Array<{ id: ToolName; label: string; icon: React.ReactNode }> = [
 const TOOLBAR_STORAGE_KEY = 'hermes-cad-toolbar-order';
 const WORKSPACE_DOCK_STORAGE_KEY = 'hermes-cad-workspace-dock';
 const MOUSE_BINDINGS_STORAGE_KEY = 'hermes-cad-mouse-bindings';
+const TOOL_SHORTCUTS_STORAGE_KEY = 'hermes-cad-tool-shortcuts';
 
 type FloatingWindowState = {
   open: boolean;
@@ -104,6 +105,15 @@ function loadWorkspaceDock(): WorkspaceDock {
   return sanitizeWorkspaceDock(window.localStorage.getItem(WORKSPACE_DOCK_STORAGE_KEY));
 }
 
+function loadToolShortcuts(): ToolShortcuts {
+  if (typeof window === 'undefined') return sanitizeToolShortcuts(DEFAULT_TOOL_SHORTCUTS);
+  try {
+    return sanitizeToolShortcuts(JSON.parse(window.localStorage.getItem(TOOL_SHORTCUTS_STORAGE_KEY) ?? '{}'));
+  } catch {
+    return sanitizeToolShortcuts(DEFAULT_TOOL_SHORTCUTS);
+  }
+}
+
 function loadMouseBindings(): Record<MouseInputId, MouseAction> {
   if (typeof window === 'undefined') return sanitizeMouseBindings({});
   try {
@@ -147,6 +157,7 @@ export default function App() {
   const [workspaceDock, setWorkspaceDock] = useState<WorkspaceDock>(loadWorkspaceDock);
   const [toolbarOrder, setToolbarOrder] = useState<ToolName[]>(loadToolbarOrder);
   const [mouseBindings, setMouseBindings] = useState<Record<MouseInputId, MouseAction>>(loadMouseBindings);
+  const [toolShortcuts, setToolShortcuts] = useState<ToolShortcuts>(loadToolShortcuts);
   const [draggedTool, setDraggedTool] = useState<ToolName | undefined>();
   const [selectedId, setSelectedId] = useState<string | undefined>(model.allEntities()[0]?.id);
   const [selectedBoxFace, setSelectedBoxFace] = useState<FaceSelection | undefined>();
@@ -230,7 +241,7 @@ export default function App() {
     tape: 'Maßband'
   };
   const shortcutSummary = DEFAULT_TOOLBAR_ORDER
-    .map((toolId) => `${getToolShortcut(toolId)} ${shortcutSummaryLabels[toolId]}`)
+    .map((toolId) => `${getToolShortcut(toolId, toolShortcuts)} ${shortcutSummaryLabels[toolId]}`)
     .join(' · ');
   const materialSwatches = buildDefaultMaterialSwatches();
   const tagCatalog = model.allTags();
@@ -240,6 +251,38 @@ export default function App() {
   const selectedPartMaterialStatus = selectedPartMaterialReadiness.ready ? 'bereit für Zuschnittliste' : selectedPartMaterialReadiness.messages.join(' · ');
   const visibleMaterialCategory = selectedMaterialCategory ?? materialLibrary?.categories[0];
   const visibleMaterialEntries = materialLibrary?.entries.filter((entry) => !visibleMaterialCategory || entry.category === visibleMaterialCategory) ?? [];
+  function updateToolShortcut(toolId: ToolName, rawValue: string) {
+    setToolShortcuts((current) => sanitizeToolShortcuts({ ...current, [toolId]: rawValue }));
+  }
+
+  function resetToolShortcuts() {
+    setToolShortcuts(sanitizeToolShortcuts(DEFAULT_TOOL_SHORTCUTS));
+  }
+
+  const keyboardShortcutPanel = (
+    <details className="keyboard-shortcuts-panel" aria-label="Tasten-Schnellfunktionen selber belegen">
+      <summary>
+        <strong>Tasten-Schnellfunktionen selber belegen</strong>
+        <span>Werkzeug-Tasten live selbst eingeben</span>
+      </summary>
+      <p>Eine Taste eingeben: z. B. L, R, 1 oder 2. Eingabefelder werden nicht gestohlen.</p>
+      <div className="mouse-bindings-grid keyboard-shortcuts-grid">
+        {DEFAULT_TOOLBAR_ORDER.map((toolId) => (
+          <label key={toolId}>
+            <span>{shortcutSummaryLabels[toolId]}</span>
+            <input
+              aria-label={`Schnelltaste für ${shortcutSummaryLabels[toolId]}`}
+              value={toolShortcuts[toolId]}
+              maxLength={1}
+              onChange={(event) => updateToolShortcut(toolId, event.currentTarget.value)}
+            />
+          </label>
+        ))}
+      </div>
+      <button type="button" onClick={resetToolShortcuts}>Standardtasten wiederherstellen</button>
+    </details>
+  );
+
   const mouseBindingPanel = (
     <details className="mouse-bindings-panel" aria-label="Mausbelegung pro Nutzer" data-mouse-bindings={summarizeMouseBindings(mouseBindings)}>
       <summary>
@@ -1010,6 +1053,11 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.localStorage.setItem(TOOL_SHORTCUTS_STORAGE_KEY, JSON.stringify(toolShortcuts));
+  }, [toolShortcuts]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem(RIGHT_TRAY_STORAGE_KEY, JSON.stringify(rightTrayState));
   }, [rightTrayState]);
 
@@ -1063,7 +1111,7 @@ export default function App() {
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey
-      });
+      }, toolShortcuts);
       if (!nextTool) return;
       event.preventDefault();
       setTool(nextTool);
@@ -1071,7 +1119,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [model, selectedId]);
+  }, [model, selectedId, toolShortcuts]);
 
   function download(filename: string, content: string, mime = 'text/plain') {
     const blob = new Blob([content], { type: mime });
@@ -1463,6 +1511,7 @@ export default function App() {
           <label><span>Tiefe/Höhe mm</span><input aria-label="Rechteck Tiefe oder Höhe mm" value={rectangleDimensionMask.depth} onChange={(event) => handleRectangleDimensionMaskChange('depth', event)} /></label>
         </div>
         <small>{useRectangleDimensionMask ? (rectangleMaskResult.ok ? `Aktiv: ${rectangleMaskResult.width} mm × ${rectangleMaskResult.depth} mm, Richtung kommt von der Maus.` : rectangleMaskResult.error) : 'Aus: zweite Mausklick-Position bestimmt die Größe frei.'}</small>
+        {keyboardShortcutPanel}
         {mouseBindingPanel}
       </>
     ),
@@ -1577,7 +1626,7 @@ export default function App() {
               <strong className="toolbar-group-title">{group.label}</strong>
               <div className="toolbar-group-tools">
                 {group.tools.map((item) => {
-                  const shortcut = getToolShortcut(item.id);
+                  const shortcut = getToolShortcut(item.id, toolShortcuts);
                   return (
                     <button
                       key={item.id}
@@ -1624,7 +1673,7 @@ export default function App() {
       </header>
       <aside className="toolbar icon-rail" aria-label="Seitliche Icon-Werkzeugleiste">
         {orderedTools.map((item) => {
-          const shortcut = getToolShortcut(item.id);
+          const shortcut = getToolShortcut(item.id, toolShortcuts);
           return (
             <button
               key={item.id}
@@ -1689,6 +1738,7 @@ export default function App() {
           />
           <div className="drawing-plane-quick-controls" aria-label="Schnelle Zeichenebene">
             <strong>Rechteckrichtungen: X/Y, X/Z, Y/Z</strong>
+            <small>Live mit Maus: Richtung ziehen, CAD wählt X/Y, X/Z oder Y/Z automatisch.</small>
             <button type="button" className={drawingPlane === 'xy' ? 'active' : undefined} onClick={() => setDrawingPlane('xy')}>Boden X/Y</button>
             <button type="button" className={drawingPlane === 'xz' ? 'active' : undefined} onClick={() => setDrawingPlane('xz')}>Wand X/Z</button>
             <button type="button" className={drawingPlane === 'yz' ? 'active' : undefined} onClick={() => setDrawingPlane('yz')}>Seite Y/Z</button>

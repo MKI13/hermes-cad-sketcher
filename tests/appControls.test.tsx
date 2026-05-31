@@ -59,6 +59,16 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
+
+  it('renders user-editable quick key functions for CAD tools', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Tasten-Schnellfunktionen selber belegen');
+    expect(markup).toContain('aria-label="Schnelltaste für Linie"');
+    expect(markup).toContain('aria-label="Schnelltaste für Rechteck"');
+    expect(markup).toContain('Eine Taste eingeben: z. B. L, R, 1 oder 2. Eingabefelder werden nicht gestohlen.');
+  });
+
   it('groups the top workbar icons by CAD task so tools sit where they belong', () => {
     const markup = renderToStaticMarkup(<App />);
 
@@ -173,6 +183,7 @@ describe('App controls', () => {
     expect(markup).toContain('Wand X/Z');
     expect(markup).toContain('Seite Y/Z');
     expect(markup).toContain('Rechteckrichtungen: X/Y, X/Z, Y/Z');
+    expect(markup).toContain('Live mit Maus: Richtung ziehen, CAD wählt X/Y, X/Z oder Y/Z automatisch.');
   });
 
   it('offers copying for the selected entity and does not limit copy to components only', () => {

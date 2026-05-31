@@ -11,13 +11,16 @@ import {
   createOrbitCameraState,
   disposeObjectTree,
   getEntityIdFromObject,
+  inferRectanglePlaneFromScreenDrag,
   orbitCameraDrag,
   panOrbitCameraDrag,
   screenPointToDrawingPlane,
+  screenPointToAnchoredDrawingPlane,
   screenPointToObjectPoint,
   screenPointToAxisLockedPoint,
   screenDirectionForCadVector,
   type OrbitCameraState,
+  type ScreenPoint,
   type ViewportAxisLock
 } from './viewportController';
 import { resolveMouseInputAction, resolveWheelAction, type MouseAction, type MouseBindings } from './mouseBindings';
@@ -69,6 +72,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   const pushPullDragRef = useRef<PushPullDragState | undefined>(undefined);
   const pushPullPointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
   const toolStateRef = useRef<ToolState>(createInitialToolState());
+  const rectangleStartScreenRef = useRef<ScreenPoint | undefined>(undefined);
   const activeToolRef = useRef(activeTool);
   const selectedIdRef = useRef(selectedId);
   const selectedFaceRef = useRef<FaceSelection | undefined>(undefined);
@@ -310,6 +314,22 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       return { x: event.clientX - rect.left, y: event.clientY - rect.top, width: rect.width, height: rect.height };
     };
 
+    const liveRectanglePlaneForScreen = (screenPoint: ScreenPoint): DrawingPlane | undefined => {
+      const state = toolStateRef.current;
+      const startScreen = rectangleStartScreenRef.current;
+      if (activeToolRef.current !== 'rectangle' || state.mode !== 'drawing' || state.tool !== 'rectangle' || !startScreen) return undefined;
+      return inferRectanglePlaneFromScreenDrag({ camera, anchor: state.pendingPoint, startScreen, currentScreen: screenPoint, fallback: drawingPlaneRef.current });
+    };
+
+    const updateLiveRectanglePlane = (screenPoint: ScreenPoint): DrawingPlane | undefined => {
+      const state = toolStateRef.current;
+      const plane = liveRectanglePlaneForScreen(screenPoint);
+      if (plane && state.mode === 'drawing' && state.tool === 'rectangle' && state.plane !== plane) {
+        toolStateRef.current = { ...state, plane };
+      }
+      return plane;
+    };
+
     const pickFreeDrawingPointAtPointer = (event: PointerEvent | MouseEvent, axisLock = axisLockRef.current): Vec3 | undefined => {
       const screenPoint = screenPointForEvent(event);
       const toolState = toolStateRef.current;
@@ -317,10 +337,15 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
         const lockedPoint = screenPointToAxisLockedPoint(screenPoint, camera, toolState.pendingPoint, axisLock);
         if (lockedPoint) return lockedPoint;
       }
+      const livePlane = updateLiveRectanglePlane(screenPoint);
       const modelHit = screenPointToObjectPoint(screenPoint, camera, modelGroup.children);
       if (modelHit) return modelHit.point;
       const axisHit = screenPointToObjectPoint(screenPoint, camera, originGuides.children, AXIS_GUIDE_PICK_THRESHOLD);
       if (axisHit) return axisHit.point;
+      if (livePlane && toolState.mode === 'drawing') {
+        const anchored = screenPointToAnchoredDrawingPlane(screenPoint, camera, livePlane, toolState.pendingPoint);
+        if (anchored) return anchored;
+      }
       return screenPointToDrawingPlane(screenPoint, camera, drawingPlaneRef.current);
     };
 
@@ -379,14 +404,21 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
         }
       }
       if (groundPoint && usesGroundPoint) {
-        const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current, drawingPlaneRef.current);
+        const previousState = toolStateRef.current;
+        const activePlane = previousState.mode === 'drawing' && previousState.tool === 'rectangle' ? previousState.plane : drawingPlaneRef.current;
+        const step = handleGroundClick(toolStateRef.current, activeToolRef.current, groundPoint, selectedIdRef.current, activePlane);
         toolStateRef.current = step.state;
+        if (activeToolRef.current === 'rectangle') {
+          if (previousState.mode !== 'drawing' && step.state.mode === 'drawing' && step.state.tool === 'rectangle') rectangleStartScreenRef.current = screenPointForEvent(event);
+          if (step.command || step.state.mode !== 'drawing') rectangleStartScreenRef.current = undefined;
+        }
         executeCommand(step.command);
         updateDrawingPreview(groundPoint);
         updateMeasurementPreview(groundPoint);
         return;
       }
       toolStateRef.current = cancelToolState(toolStateRef.current);
+      rectangleStartScreenRef.current = undefined;
       setActivePushPullDrag(undefined);
       updateDrawingPreview();
       setSnapCue(undefined);
@@ -509,6 +541,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
     const contextMenu = (event: MouseEvent) => {
       event.preventDefault();
       toolStateRef.current = cancelToolState(toolStateRef.current);
+      rectangleStartScreenRef.current = undefined;
       setActivePushPullDrag(undefined);
       updateDrawingPreview();
       setSnapCue(undefined);
@@ -555,7 +588,8 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       }
       if (event.key === 'Escape') {
         toolStateRef.current = cancelToolState(toolStateRef.current);
-        setActivePushPullDrag(undefined);
+        rectangleStartScreenRef.current = undefined;
+      setActivePushPullDrag(undefined);
         setContextMenu(undefined);
         setActiveAxisLock(undefined);
         updateDrawingPreview();
