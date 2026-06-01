@@ -12,16 +12,36 @@ export type DynamicCabinetPanelProps = {
   onDownloadManufacturingDxf: () => void;
   onDownloadCncCsv: () => void;
   onOpenTemplate: (file: File) => void;
+  layout?: 'tray' | 'window';
+  onOpenWindow?: () => void;
 };
 
-export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTemplateChange, onParameterChange, onCreateModel, onDownloadTemplate, onDownloadManufacturingDxf, onDownloadCncCsv, onOpenTemplate }: DynamicCabinetPanelProps) {
+export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTemplateChange, onParameterChange, onCreateModel, onDownloadTemplate, onDownloadManufacturingDxf, onDownloadCncCsv, onOpenTemplate, layout = 'window', onOpenWindow }: DynamicCabinetPanelProps) {
   const params = cabinet.parameters;
   const errorCount = cabinet.validation.filter((issue) => issue.severity === 'error').length;
   const warningCount = cabinet.validation.filter((issue) => issue.severity === 'warning').length;
   const hintCount = cabinet.validation.filter((issue) => issue.severity === 'info').length;
+  const visiblePartCount = cabinet.parts.filter((part) => part.visible).length;
+
+  if (layout === 'tray') {
+    return (
+      <section className="dynamic-component-tray-launcher" aria-label="Dynamische Komponenten Kurzansicht" data-dynamic-tray-mode="compact">
+        <strong>Dynamische Komponenten</strong>
+        <p>{cabinet.name} · {visiblePartCount} Bauteile · {cabinet.cutlist.length} Zuschnitte · {cabinet.holeList.length} Bohrungen.</p>
+        <button type="button" className="primary" onClick={onOpenWindow}>Dynamische Komponenten als Fenster öffnen</button>
+        <button type="button" onClick={onCreateModel}>{cabinet.name} erzeugen</button>
+        <div className="dynamic-summary compact" aria-label="Dynamische Komponente Kurzauswertung">
+          <span>Bauteile: {visiblePartCount}</span>
+          <span>Stückliste: {cabinet.cutlist.length}</span>
+          <span>Bohrliste: {cabinet.holeList.length}</span>
+        </div>
+        <small>Maße, Listen und Exporte öffnen im eigenen verschiebbaren Fenster, damit rechts keine Leiste über der anderen liegt.</small>
+      </section>
+    );
+  }
 
   return (
-    <section className="dynamic-component-panel" aria-label="Dynamic Component Options">
+    <section className="dynamic-component-panel windowed" aria-label="Dynamic Component Options">
       <strong>Dynamische Komponenten</strong>
       <p>Schreiner-MVP: echte Bauteile statt optischer Skalierung. Vorlage: {cabinet.name}</p>
       <label>
@@ -92,7 +112,7 @@ export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTe
         </label>
       </fieldset>
       <div className="dynamic-summary" aria-label="Dynamische Komponente Auswertung">
-        <span>Bauteile: {cabinet.parts.filter((part) => part.visible).length}</span>
+        <span>Bauteile: {visiblePartCount}</span>
         <span>Stückliste: {cabinet.cutlist.length}</span>
         <span>Zuschnittliste: {cabinet.cutlist.length}</span>
         <span>Kantenliste: {cabinet.edgeList.length}</span>

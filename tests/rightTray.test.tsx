@@ -75,6 +75,16 @@ describe('right Hermes tray', () => {
     expect(markup).not.toContain('aria-label="Hermes Agent Fenster"');
   });
 
+  it('keeps the dynamic component editor out of the narrow tray and offers a floating window launcher', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="Dynamische Komponenten Kurzansicht"');
+    expect(markup).toContain('data-dynamic-tray-mode="compact"');
+    expect(markup).toContain('Dynamische Komponenten als Fenster öffnen');
+    expect(markup).toContain('Bauteile');
+    expect(markup).not.toContain('aria-label="Dynamic Component Options"');
+  });
+
   it('implements the right tray in dedicated UI modules instead of leaving it embedded in App', async () => {
     const [rightTraySource, trayPanelSource] = await Promise.all([
       readFile('src/ui/RightTray.tsx', 'utf8'),

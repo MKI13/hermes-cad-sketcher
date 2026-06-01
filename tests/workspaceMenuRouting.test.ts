@@ -43,6 +43,12 @@ describe('classic workspace menu routing', () => {
     expect(floatingWindowTitle('history')).not.toContain('Bearbeiten:');
   });
 
+  it('routes dynamic components to a dedicated floating window instead of the narrow right tray', () => {
+    expect(windowIdsForMenu('Komponenten')).toEqual(['dynamicComponents']);
+    expect(floatingWindowMenuButtonLabel('dynamicComponents')).toBe('Dynamische Komponenten');
+    expect(floatingWindowTitle('dynamicComponents')).toBe('Dynamische Komponenten');
+  });
+
   it('defines title-bar drag plus icon-only minimize, maximize and close controls without arrow nudging', () => {
     expect(windowControlLabels()).toEqual([
       'Fenster über Titelleiste ziehen',

@@ -992,8 +992,17 @@ export default function App() {
   }
 
   function defaultFloatingWindow(id: FloatingWindowId): FloatingWindowState {
-    const index = ['history', 'move', 'rotate', 'pushPull', 'dimensions', 'extrude', 'inspector', 'boxDimensions', 'rubyConsole', 'hermesAgent'].indexOf(id);
-    return { open: true, minimized: false, maximized: false, left: 120 + (index % 4) * 34, top: 150 + (index % 5) * 28, width: id === 'hermesAgent' ? 460 : 380, height: id === 'hermesAgent' ? 430 : 360 };
+    const index = ['history', 'move', 'rotate', 'pushPull', 'dimensions', 'extrude', 'inspector', 'boxDimensions', 'dynamicComponents', 'rubyConsole', 'hermesAgent'].indexOf(id);
+    const wideWindow = id === 'hermesAgent' || id === 'dynamicComponents';
+    return {
+      open: true,
+      minimized: false,
+      maximized: false,
+      left: id === 'dynamicComponents' ? 80 : 120 + (index % 4) * 34,
+      top: id === 'dynamicComponents' ? 128 : 150 + (index % 5) * 28,
+      width: id === 'dynamicComponents' ? 640 : wideWindow ? 460 : 380,
+      height: id === 'dynamicComponents' ? 680 : id === 'hermesAgent' ? 430 : 360
+    };
   }
 
   function openFloatingWindow(id: FloatingWindowId) {
@@ -1422,11 +1431,12 @@ export default function App() {
       )}
       {activeMenu === 'Komponenten' && (
         <div className="menu-button-links">
-          <button type="button" className="primary" onClick={createDynamicCabinetModel}>Neue dynamische Komponente: {dynamicCabinet.name}</button>
+          <button type="button" className="primary" onClick={() => openFloatingWindow('dynamicComponents')}>Dynamische Komponenten als Fenster öffnen</button>
+          <button type="button" onClick={createDynamicCabinetModel}>Neue dynamische Komponente: {dynamicCabinet.name}</button>
           <button type="button" onClick={saveDynamicCabinetTemplate}>Als JSON-Vorlage speichern</button>
           <button type="button" onClick={saveDynamicCabinetManufacturingDxf}>Fertigungs-DXF exportieren</button>
           <button type="button" onClick={saveDynamicCabinetCncCsv}>CNC-Bohrliste exportieren</button>
-          <span className="format-note">Schrankbibliothek: {dynamicCabinetTemplates.map((template) => template.name).join(', ')}. Dynamic Component Options im rechten Hermes Tray bearbeiten.</span>
+          <span className="format-note">Schrankbibliothek: {dynamicCabinetTemplates.map((template) => template.name).join(', ')}. Dynamic Component Options im eigenen Fenster bearbeiten.</span>
         </div>
       )}
       {activeMenu === 'Fenster' && (
@@ -1480,6 +1490,8 @@ export default function App() {
         onDownloadManufacturingDxf={saveDynamicCabinetManufacturingDxf}
         onDownloadCncCsv={saveDynamicCabinetCncCsv}
         onOpenTemplate={(file) => { void openDynamicCabinetTemplate(file); }}
+        layout="tray"
+        onOpenWindow={() => openFloatingWindow('dynamicComponents')}
       />
     ),
     tags: (
@@ -1632,6 +1644,21 @@ export default function App() {
     if (id === 'extrude') return <FaceExtrudePanel disabled={!selectedId || selected?.type !== 'face'} selectedType={selected?.type} selectedFace={selected?.type === 'face' ? selected : undefined} height={extrudeHeight} onHeightChange={(height) => { setExtrudeHeight(height); setFaceExtrusionStatus(''); }} onApply={applyFaceExtrusion} statusMessage={faceExtrusionStatus} />;
     if (id === 'inspector') return <InspectorPanel inspection={selectedInspection} />;
     if (id === 'boxDimensions') return <BoxDimensionsPanel dimensions={boxDimensions} onChange={setBoxDimensions} />;
+    if (id === 'dynamicComponents') return (
+      <DynamicCabinetPanel
+        cabinet={dynamicCabinet}
+        templates={dynamicCabinetTemplates}
+        activeTemplateId={dynamicCabinetTemplateId}
+        onTemplateChange={updateDynamicCabinetTemplate}
+        onParameterChange={updateDynamicCabinetParameter}
+        onCreateModel={createDynamicCabinetModel}
+        onDownloadTemplate={saveDynamicCabinetTemplate}
+        onDownloadManufacturingDxf={saveDynamicCabinetManufacturingDxf}
+        onDownloadCncCsv={saveDynamicCabinetCncCsv}
+        onOpenTemplate={(file) => { void openDynamicCabinetTemplate(file); }}
+        layout="window"
+      />
+    );
     if (id === 'rubyConsole') return <section className="cad-command-panel" aria-label="Ruby-Konsole"><p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, material, texture, delete</p><p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität.</p><textarea aria-label="Ruby-Konsole CAD-Befehle" value={rubyConsoleInput} onChange={(event) => setRubyConsoleInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={executeRubyConsole}><HermesIcon id="command-play-clear" label="Befehl ausführen" size={18} /> Ruby-Befehl ausführen</button><small>{rubyConsoleLog}</small></section>;
     return <section className="cad-command-panel" aria-label="Hermes Agent Zeichnungsmodus"><p>Hermes antwortet wie im Telegram-Chat und bekommt zusätzlich Zeichnungsmodus, Modellkontext und Auswahl über die Bridge des CAD-App-Hosts.</p><p>{agentBridgeStatus}</p><textarea aria-label="Nachricht an Hermes" value={agentChatInput} onChange={(event) => setAgentChatInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={() => void executeAgentChat()}><HermesIcon id="agent-chat-clear" label="Agent Chat" size={18} /> An Hermes senden</button><small>{agentChatLog}</small></section>;
   }
@@ -1866,6 +1893,7 @@ export default function App() {
       {renderFloatingWindow('extrude')}
       {renderFloatingWindow('inspector')}
       {renderFloatingWindow('boxDimensions')}
+      {renderFloatingWindow('dynamicComponents')}
       {renderFloatingWindow('rubyConsole')}
       {renderFloatingWindow('hermesAgent')}
     </main>

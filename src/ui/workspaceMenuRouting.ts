@@ -9,6 +9,7 @@ export type FloatingWindowId =
   | 'extrude'
   | 'inspector'
   | 'boxDimensions'
+  | 'dynamicComponents'
   | 'rubyConsole'
   | 'hermesAgent';
 
@@ -38,6 +39,7 @@ const menuButtons: Record<WorkbenchMenu, string> = {
 
 const menuWindows: Partial<Record<WorkbenchMenu, FloatingWindowId[]>> = {
   Bearbeiten: ['history', 'move', 'rotate', 'pushPull', 'dimensions', 'extrude', 'inspector', 'boxDimensions'],
+  Komponenten: ['dynamicComponents'],
   Fenster: ['hermesAgent', 'rubyConsole']
 };
 
@@ -50,6 +52,7 @@ const floatingWindowNames: Record<FloatingWindowId, string> = {
   extrude: 'Fläche extrudieren',
   inspector: 'Inspektor',
   boxDimensions: 'Körper-Standardmaße',
+  dynamicComponents: 'Dynamische Komponenten',
   rubyConsole: 'Ruby-Konsole',
   hermesAgent: 'Hermes Zeichnungsmodus'
 };
