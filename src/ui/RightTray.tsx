@@ -7,6 +7,7 @@ export type RightTrayPanelId =
   | 'entity-info'
   | 'outliner'
   | 'components'
+  | 'dynamic-components'
   | 'tags'
   | 'materials'
   | 'scenes'
@@ -28,6 +29,7 @@ export const RIGHT_TRAY_PANEL_DEFINITIONS: RightTrayPanelDefinition[] = [
   { id: 'entity-info', title: 'Entity Info / Inspector', defaultOpen: true },
   { id: 'outliner', title: 'Outliner', defaultOpen: true },
   { id: 'components', title: 'Komponenten', defaultOpen: false },
+  { id: 'dynamic-components', title: 'Dynamische Komponenten', defaultOpen: true },
   { id: 'tags', title: 'Tags', defaultOpen: false },
   { id: 'materials', title: 'Materialien', defaultOpen: true },
   { id: 'scenes', title: 'Szenen', defaultOpen: false },

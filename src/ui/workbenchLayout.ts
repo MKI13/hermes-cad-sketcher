@@ -8,7 +8,7 @@ export type WorkbenchTool = {
   tool?: ToolName;
 };
 
-export const WORKBENCH_MENUS = ['Datei', 'Bearbeiten', 'Ansicht', 'Kamera', 'Zeichnen', 'Werkzeuge', 'Fenster', 'Hilfe'] as const;
+export const WORKBENCH_MENUS = ['Datei', 'Bearbeiten', 'Ansicht', 'Kamera', 'Zeichnen', 'Werkzeuge', 'Komponenten', 'Fenster', 'Hilfe'] as const;
 export type WorkbenchMenu = (typeof WORKBENCH_MENUS)[number];
 
 export const WORKBENCH_TOOLS: WorkbenchTool[] = [

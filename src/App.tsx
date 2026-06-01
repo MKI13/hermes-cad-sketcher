@@ -36,6 +36,8 @@ import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, t
 import type { MeasurementDraftContext } from './ui/ThreeViewport';
 import { HermesIcon, type HermesIconId } from './ui/HermesIcon';
 import { RightTray, RIGHT_TRAY_STORAGE_KEY, sanitizeRightTrayState, type RightTrayPanelId, type RightTrayPanelContent, type RightTrayPanelIcons, type RightTrayState } from './ui/RightTray';
+import { DynamicCabinetPanel } from './ui/DynamicCabinetPanel';
+import { buildSketchModelFromDynamicComponent, defaultKitchenBaseCabinetParameters, exportDynamicComponentCncCsv, exportDynamicComponentManufacturingDxf, listDynamicCabinetTemplates, parseDynamicComponentTemplate, rebuildDynamicCabinet, serializeDynamicComponentTemplate, type DynamicCabinetTemplateId, type KitchenBaseCabinetParameters } from './core/dynamicComponents';
 import './styles.css';
 
 const LazyThreeViewport = React.lazy(() =>
@@ -191,6 +193,8 @@ export default function App() {
   const [materialLibrary, setMaterialLibrary] = useState<BrowserMaterialLibrary | undefined>();
   const [selectedMaterialCategory, setSelectedMaterialCategory] = useState<string | undefined>();
   const [agentBridgeStatus, setAgentBridgeStatus] = useState('Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus · noch nicht verbunden');
+  const [dynamicCabinetTemplateId, setDynamicCabinetTemplateId] = useState<DynamicCabinetTemplateId>('kitchen_base_cabinet');
+  const [dynamicCabinetParameters, setDynamicCabinetParameters] = useState<KitchenBaseCabinetParameters>(defaultKitchenBaseCabinetParameters);
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
   const [componentCreationDialog, setComponentCreationDialog] = useState<{ kind: 'Gruppe' | 'Komponente'; entityId: string } | undefined>();
@@ -251,6 +255,8 @@ export default function App() {
   const selectedPartMaterialStatus = selectedPartMaterialReadiness.ready ? 'bereit für Zuschnittliste' : selectedPartMaterialReadiness.messages.join(' · ');
   const visibleMaterialCategory = selectedMaterialCategory ?? materialLibrary?.categories[0];
   const visibleMaterialEntries = materialLibrary?.entries.filter((entry) => !visibleMaterialCategory || entry.category === visibleMaterialCategory) ?? [];
+  const dynamicCabinetTemplates = listDynamicCabinetTemplates();
+  const dynamicCabinet = rebuildDynamicCabinet(dynamicCabinetTemplateId, dynamicCabinetParameters);
   function updateToolShortcut(toolId: ToolName, rawValue: string) {
     setToolShortcuts((current) => sanitizeToolShortcuts({ ...current, [toolId]: rawValue }));
   }
@@ -1145,6 +1151,51 @@ export default function App() {
       : 'STL exportiert, aber das Modell enthält noch keine Körper, Flächen oder Referenzmeshes.');
   }
 
+  function updateDynamicCabinetParameter<K extends keyof KitchenBaseCabinetParameters>(key: K, value: KitchenBaseCabinetParameters[K]) {
+    setDynamicCabinetParameters((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateDynamicCabinetTemplate(templateId: DynamicCabinetTemplateId) {
+    const template = dynamicCabinetTemplates.find((entry) => entry.id === templateId);
+    setDynamicCabinetTemplateId(templateId);
+    setDynamicCabinetParameters({ ...defaultKitchenBaseCabinetParameters(), ...(template?.defaults ?? {}) });
+    setProjectStatus(`Dynamische Vorlage aktiv: ${template?.name ?? templateId}`);
+  }
+
+  function createDynamicCabinetModel() {
+    const next = buildSketchModelFromDynamicComponent(dynamicCabinet);
+    setModel(next);
+    setHistory(createHistory(next.snapshot()));
+    setSelectedId(next.allEntities()[0]?.id);
+    setProjectStatus(`Dynamische Komponente erzeugt: ${dynamicCabinet.name}; ${dynamicCabinet.cutlist.length} Zuschnittteile, ${dynamicCabinet.holeList.length} Bohrungen.`);
+  }
+
+  function saveDynamicCabinetTemplate() {
+    download(`${dynamicCabinet.templateId}.dynamic.hcad.json`, serializeDynamicComponentTemplate(dynamicCabinet), 'application/json');
+    setProjectStatus(`Dynamische Vorlage exportiert: ${dynamicCabinet.name}`);
+  }
+
+  function saveDynamicCabinetManufacturingDxf() {
+    download(`${dynamicCabinet.templateId}.fertigung.dxf`, exportDynamicComponentManufacturingDxf(dynamicCabinet), 'application/dxf');
+    setProjectStatus(`Fertigungs-DXF exportiert: ${dynamicCabinet.cutlist.length} Zuschnitte, ${dynamicCabinet.holeList.length} Bohrungen.`);
+  }
+
+  function saveDynamicCabinetCncCsv() {
+    download(`${dynamicCabinet.templateId}.cnc-bohrungen.csv`, exportDynamicComponentCncCsv(dynamicCabinet), 'text/csv');
+    setProjectStatus(`CNC-Bohrliste exportiert: ${dynamicCabinet.holeList.length} Bohrungen.`);
+  }
+
+  async function openDynamicCabinetTemplate(file: File) {
+    try {
+      const loaded = parseDynamicComponentTemplate(await file.text());
+      setDynamicCabinetTemplateId(loaded.templateId);
+      setDynamicCabinetParameters(loaded.parameters);
+      setProjectStatus(`Dynamische Vorlage geladen: ${loaded.name} (${file.name})`);
+    } catch (error) {
+      setProjectStatus(error instanceof Error ? error.message : 'Dynamische Vorlage konnte nicht geladen werden.');
+    }
+  }
+
   async function openProjectFile(file: File) {
     try {
       const text = await file.text();
@@ -1369,6 +1420,15 @@ export default function App() {
           ))}
         </section>
       )}
+      {activeMenu === 'Komponenten' && (
+        <div className="menu-button-links">
+          <button type="button" className="primary" onClick={createDynamicCabinetModel}>Neue dynamische Komponente: {dynamicCabinet.name}</button>
+          <button type="button" onClick={saveDynamicCabinetTemplate}>Als JSON-Vorlage speichern</button>
+          <button type="button" onClick={saveDynamicCabinetManufacturingDxf}>Fertigungs-DXF exportieren</button>
+          <button type="button" onClick={saveDynamicCabinetCncCsv}>CNC-Bohrliste exportieren</button>
+          <span className="format-note">Schrankbibliothek: {dynamicCabinetTemplates.map((template) => template.name).join(', ')}. Dynamic Component Options im rechten Hermes Tray bearbeiten.</span>
+        </div>
+      )}
       {activeMenu === 'Fenster' && (
         <div className="menu-button-links">
           <button type="button" onClick={connectHermesAgent}>Hermes Agent verbinden</button>
@@ -1407,6 +1467,20 @@ export default function App() {
           </ul>
         )}
       </div>
+    ),
+    'dynamic-components': (
+      <DynamicCabinetPanel
+        cabinet={dynamicCabinet}
+        templates={dynamicCabinetTemplates}
+        activeTemplateId={dynamicCabinetTemplateId}
+        onTemplateChange={updateDynamicCabinetTemplate}
+        onParameterChange={updateDynamicCabinetParameter}
+        onCreateModel={createDynamicCabinetModel}
+        onDownloadTemplate={saveDynamicCabinetTemplate}
+        onDownloadManufacturingDxf={saveDynamicCabinetManufacturingDxf}
+        onDownloadCncCsv={saveDynamicCabinetCncCsv}
+        onOpenTemplate={(file) => { void openDynamicCabinetTemplate(file); }}
+      />
     ),
     tags: (
       <>
@@ -1531,6 +1605,7 @@ export default function App() {
     'entity-info': <HermesIcon id="inspector-clear" label="Inspector" size={16} />,
     outliner: <HermesIcon id="outliner-clear" label="Outliner" size={16} />,
     components: <HermesIcon id="component-clear" label="Komponenten" size={16} />,
+    'dynamic-components': <HermesIcon id="component-clear" label="Dynamische Komponenten" size={16} />,
     tags: <HermesIcon id="tags-clear" label="Tags" size={16} />,
     materials: <HermesIcon id="materials-clear" label="Materialien" size={16} />,
     scenes: <HermesIcon id="scenes-clear" label="Szenen" size={16} />,

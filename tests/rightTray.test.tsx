@@ -11,6 +11,7 @@ describe('right Hermes tray', () => {
       'Entity Info / Inspector',
       'Outliner',
       'Komponenten',
+      'Dynamische Komponenten',
       'Tags',
       'Materialien',
       'Szenen',

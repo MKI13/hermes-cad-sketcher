@@ -19,6 +19,7 @@ const menuTitles: Record<WorkbenchMenu, string> = {
   Kamera: 'Kamera',
   Zeichnen: 'Zeichnen',
   Werkzeuge: 'Werkzeuge',
+  Komponenten: 'Dynamische Komponenten',
   Fenster: 'Fenster & Hermes',
   Hilfe: 'Hilfe'
 };
@@ -30,6 +31,7 @@ const menuButtons: Record<WorkbenchMenu, string> = {
   Kamera: 'Kamera-Funktionen öffnen',
   Zeichnen: 'Zeichnen-Funktionen öffnen',
   Werkzeuge: 'Werkzeuge öffnen',
+  Komponenten: 'Dynamische Komponenten öffnen',
   Fenster: 'Fenster & Hermes öffnen',
   Hilfe: 'Hilfe öffnen'
 };

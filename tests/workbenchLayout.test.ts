@@ -3,7 +3,7 @@ import { WORKBENCH_MENUS, WORKBENCH_TOOLS, toolStatusLabel, workbenchGroups } fr
 
 describe('SketchUp-inspired workbench layout', () => {
   it('keeps a broad CAD menu bar without using SketchUp branding', () => {
-    expect(WORKBENCH_MENUS).toEqual(['Datei', 'Bearbeiten', 'Ansicht', 'Kamera', 'Zeichnen', 'Werkzeuge', 'Fenster', 'Hilfe']);
+    expect(WORKBENCH_MENUS).toEqual(['Datei', 'Bearbeiten', 'Ansicht', 'Kamera', 'Zeichnen', 'Werkzeuge', 'Komponenten', 'Fenster', 'Hilfe']);
   });
 
   it('groups drawing, modeling, camera, structure and visualization tools', () => {
