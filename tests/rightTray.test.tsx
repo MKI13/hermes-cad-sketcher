@@ -81,6 +81,7 @@ describe('right Hermes tray', () => {
     expect(markup).toContain('aria-label="Dynamische Komponenten Kurzansicht"');
     expect(markup).toContain('data-dynamic-tray-mode="compact"');
     expect(markup).toContain('Dynamische Komponenten als Fenster öffnen');
+    expect(markup).toContain('Live-Vorschau im Fenster ist aktiv');
     expect(markup).toContain('Bauteile');
     expect(markup).not.toContain('aria-label="Dynamic Component Options"');
   });

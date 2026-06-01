@@ -59,6 +59,13 @@ describe('App controls', () => {
     expect(markup).toContain('Delete/Backspace löscht Auswahl nur außerhalb von Eingabefeldern.');
   });
 
+  it('offers a laptop mode entry point for trackpad-only use without a mouse', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Laptop-Hilfe öffnen');
+    expect(markup).toContain('Ohne Maus: Trackpad klicken, Shortcuts V L R B M P O T, Maßfeld mit Enter nutzen.');
+  });
+
 
   it('renders user-editable quick key functions for CAD tools', () => {
     const markup = renderToStaticMarkup(<App />);

@@ -37,6 +37,7 @@ import type { MeasurementDraftContext } from './ui/ThreeViewport';
 import { HermesIcon, type HermesIconId } from './ui/HermesIcon';
 import { RightTray, RIGHT_TRAY_STORAGE_KEY, sanitizeRightTrayState, type RightTrayPanelId, type RightTrayPanelContent, type RightTrayPanelIcons, type RightTrayState } from './ui/RightTray';
 import { DynamicCabinetPanel } from './ui/DynamicCabinetPanel';
+import { shouldUpdateDynamicCabinetLivePreview } from './ui/dynamicCabinetLivePreview';
 import { buildSketchModelFromDynamicComponent, defaultKitchenBaseCabinetParameters, exportDynamicComponentCncCsv, exportDynamicComponentManufacturingDxf, listDynamicCabinetTemplates, parseDynamicComponentTemplate, rebuildDynamicCabinet, serializeDynamicComponentTemplate, type DynamicCabinetTemplateId, type KitchenBaseCabinetParameters } from './core/dynamicComponents';
 import './styles.css';
 
@@ -195,6 +196,7 @@ export default function App() {
   const [agentBridgeStatus, setAgentBridgeStatus] = useState('Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus · noch nicht verbunden');
   const [dynamicCabinetTemplateId, setDynamicCabinetTemplateId] = useState<DynamicCabinetTemplateId>('kitchen_base_cabinet');
   const [dynamicCabinetParameters, setDynamicCabinetParameters] = useState<KitchenBaseCabinetParameters>(defaultKitchenBaseCabinetParameters);
+  const [dynamicCabinetLivePreview, setDynamicCabinetLivePreview] = useState(true);
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
   const [componentCreationDialog, setComponentCreationDialog] = useState<{ kind: 'Gruppe' | 'Komponente'; entityId: string } | undefined>();
@@ -992,7 +994,7 @@ export default function App() {
   }
 
   function defaultFloatingWindow(id: FloatingWindowId): FloatingWindowState {
-    const index = ['history', 'move', 'rotate', 'pushPull', 'dimensions', 'extrude', 'inspector', 'boxDimensions', 'dynamicComponents', 'rubyConsole', 'hermesAgent'].indexOf(id);
+    const index = ['history', 'move', 'rotate', 'pushPull', 'dimensions', 'extrude', 'inspector', 'boxDimensions', 'dynamicComponents', 'laptopControls', 'rubyConsole', 'hermesAgent'].indexOf(id);
     const wideWindow = id === 'hermesAgent' || id === 'dynamicComponents';
     return {
       open: true,
@@ -1000,8 +1002,8 @@ export default function App() {
       maximized: false,
       left: id === 'dynamicComponents' ? 80 : 120 + (index % 4) * 34,
       top: id === 'dynamicComponents' ? 128 : 150 + (index % 5) * 28,
-      width: id === 'dynamicComponents' ? 640 : wideWindow ? 460 : 380,
-      height: id === 'dynamicComponents' ? 680 : id === 'hermesAgent' ? 430 : 360
+      width: id === 'dynamicComponents' ? 640 : id === 'laptopControls' ? 520 : wideWindow ? 460 : 380,
+      height: id === 'dynamicComponents' ? 680 : id === 'laptopControls' ? 420 : id === 'hermesAgent' ? 430 : 360
     };
   }
 
@@ -1075,6 +1077,19 @@ export default function App() {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(RIGHT_TRAY_STORAGE_KEY, JSON.stringify(rightTrayState));
   }, [rightTrayState]);
+
+  useEffect(() => {
+    if (!shouldUpdateDynamicCabinetLivePreview({
+      windowOpen: Boolean(floatingWindows.dynamicComponents?.open),
+      livePreview: dynamicCabinetLivePreview
+    })) return;
+    const liveCabinet = rebuildDynamicCabinet(dynamicCabinetTemplateId, dynamicCabinetParameters);
+    const next = buildSketchModelFromDynamicComponent(liveCabinet);
+    setModel(next);
+    setHistory(createHistory(next.snapshot()));
+    setSelectedId(next.allEntities()[0]?.id);
+    setProjectStatus(`Live-Vorschau aktualisiert: ${liveCabinet.name}; ${liveCabinet.cutlist.length} Zuschnittteile, ${liveCabinet.holeList.length} Bohrungen.`);
+  }, [floatingWindows.dynamicComponents?.open, dynamicCabinetLivePreview, dynamicCabinetTemplateId, dynamicCabinetParameters]);
 
   function toggleRightTrayPanel(id: RightTrayPanelId) {
     setRightTrayState((current) => {
@@ -1441,6 +1456,7 @@ export default function App() {
       )}
       {activeMenu === 'Fenster' && (
         <div className="menu-button-links">
+          <button type="button" className="primary" onClick={() => openFloatingWindow('laptopControls')}>Laptop-/Trackpad-Bedienung öffnen</button>
           <button type="button" onClick={connectHermesAgent}>Hermes Agent verbinden</button>
           <button type="button" onClick={() => openFloatingWindow('hermesAgent')}>Hermes Zeichnungsmodus-Fenster öffnen</button>
           <button type="button" onClick={() => openFloatingWindow('rubyConsole')}>Ruby-Konsole als Fenster öffnen</button>
@@ -1491,6 +1507,8 @@ export default function App() {
         onDownloadCncCsv={saveDynamicCabinetCncCsv}
         onOpenTemplate={(file) => { void openDynamicCabinetTemplate(file); }}
         layout="tray"
+        livePreview={dynamicCabinetLivePreview}
+        onLivePreviewChange={setDynamicCabinetLivePreview}
         onOpenWindow={() => openFloatingWindow('dynamicComponents')}
       />
     ),
@@ -1606,6 +1624,7 @@ export default function App() {
         <p>Lokaler Hermes Agent des CAD-App-Hosts · Zeichnungsmodus</p>
         <p>Hermes antwortet wie im Telegram-Chat und kann bei Bedarf CAD-Befehle ausführen.</p>
         <button type="button" onClick={connectHermesAgent}>Hermes Agent verbinden</button>
+        <button type="button" onClick={() => openFloatingWindow('laptopControls')}>Laptop-Hilfe öffnen</button>
         <button type="button" onClick={() => openFloatingWindow('hermesAgent')}>Hermes Zeichnungsmodus-Fenster öffnen</button>
         <button type="button" onClick={() => openFloatingWindow('rubyConsole')}>Ruby-Konsole als Fenster öffnen</button>
         <small>{agentBridgeStatus}</small>
@@ -1657,7 +1676,20 @@ export default function App() {
         onDownloadCncCsv={saveDynamicCabinetCncCsv}
         onOpenTemplate={(file) => { void openDynamicCabinetTemplate(file); }}
         layout="window"
+        livePreview={dynamicCabinetLivePreview}
+        onLivePreviewChange={setDynamicCabinetLivePreview}
       />
+    );
+    if (id === 'laptopControls') return (
+      <section className="cad-command-panel laptop-control-panel" aria-label="Laptop-/Trackpad-Bedienung">
+        <strong>Ohne Maus arbeiten</strong>
+        <p>Trackpad: Ein-Finger-Klick setzt Punkte oder wählt. Zwei-Finger-Scroll zoomt. Shift+F10 öffnet bei vielen Laptops das Kontextmenü.</p>
+        <p>Shortcuts: V Auswahl · L Linie · R Rechteck · B Körper · M Verschieben · P Push/Pull · O Drehen · T Maßband · Escape bricht ab.</p>
+        <div className="laptop-tool-buttons" aria-label="Große Werkzeugtasten für Laptop">
+          {tools.map((item) => <button key={item.id} type="button" className={tool === item.id ? 'active' : undefined} onClick={() => setTool(item.id)}>{item.label}</button>)}
+        </div>
+        <small>Ohne Maus: Trackpad klicken, Shortcuts V L R B M P O T, Maßfeld mit Enter nutzen.</small>
+      </section>
     );
     if (id === 'rubyConsole') return <section className="cad-command-panel" aria-label="Ruby-Konsole"><p>Befehle: line, rectangle, box, move, rotate_z, resize, push_pull, extrude, material, texture, delete</p><p>Keine SketchUp-Ruby-API und keine .rb/.rbz Plugin-Kompatibilität.</p><textarea aria-label="Ruby-Konsole CAD-Befehle" value={rubyConsoleInput} onChange={(event) => setRubyConsoleInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={executeRubyConsole}><HermesIcon id="command-play-clear" label="Befehl ausführen" size={18} /> Ruby-Befehl ausführen</button><small>{rubyConsoleLog}</small></section>;
     return <section className="cad-command-panel" aria-label="Hermes Agent Zeichnungsmodus"><p>Hermes antwortet wie im Telegram-Chat und bekommt zusätzlich Zeichnungsmodus, Modellkontext und Auswahl über die Bridge des CAD-App-Hosts.</p><p>{agentBridgeStatus}</p><textarea aria-label="Nachricht an Hermes" value={agentChatInput} onChange={(event) => setAgentChatInput(event.currentTarget.value)} rows={4}/><button type="button" onClick={() => void executeAgentChat()}><HermesIcon id="agent-chat-clear" label="Agent Chat" size={18} /> An Hermes senden</button><small>{agentChatLog}</small></section>;
@@ -1853,6 +1885,8 @@ export default function App() {
           {selectedEditBlocked ? <span>Bearbeitung: erst Komponente öffnen</span> : <span>Bearbeitung: aktiv</span>}
           {canOpenSelectedComponent ? <button type="button" onClick={openSelectedComponentContext}>Komponente öffnen</button> : null}
           {activeEditContext.type !== 'root' ? <button type="button" onClick={closeEditContext}>Kontext schließen</button> : null}
+          <button type="button" onClick={() => openFloatingWindow('laptopControls')}>Laptop-Hilfe öffnen</button>
+          <span>Ohne Maus: Trackpad klicken, Shortcuts V L R B M P O T, Maßfeld mit Enter nutzen.</span>
           <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Gruppe')}>Gruppe erstellen</button>
           <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
           <button type="button" title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}>Auswahl kopieren</button>
@@ -1894,6 +1928,7 @@ export default function App() {
       {renderFloatingWindow('inspector')}
       {renderFloatingWindow('boxDimensions')}
       {renderFloatingWindow('dynamicComponents')}
+      {renderFloatingWindow('laptopControls')}
       {renderFloatingWindow('rubyConsole')}
       {renderFloatingWindow('hermesAgent')}
     </main>

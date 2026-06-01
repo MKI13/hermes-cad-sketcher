@@ -293,9 +293,14 @@ button { font: inherit; }
 .dynamic-component-panel label { display: grid; grid-template-columns: minmax(96px, 0.7fr) minmax(96px, 1fr) max-content; gap: 8px; align-items: center; padding: 0; }
 .dynamic-component-panel input, .dynamic-component-panel select { min-width: 0; box-sizing: border-box; border: 1px solid #94a3b8; border-radius: 4px; padding: 6px 7px; background: #ffffff; color: #111827; font: inherit; }
 .dynamic-component-panel input[type="checkbox"] { justify-self: start; width: auto; }
+.dynamic-live-preview-toggle { border: 1px solid #bae6fd; border-radius: 8px; background: #eff6ff; padding: 8px !important; }
+.dynamic-live-preview-toggle small { padding: 0; color: #075985; font-weight: 800; }
 .dynamic-component-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
 .dynamic-summary { display: flex; flex-wrap: wrap; gap: 6px; }
 .dynamic-summary span { border: 1px solid #bae6fd; border-radius: 999px; background: #e0f2fe; color: #075985; padding: 3px 7px; font-weight: 700; }
 .dynamic-summary.compact span { font-size: 11px; }
 .dynamic-validation { display: grid; gap: 5px; border: 1px solid #cbd5e1; border-radius: 8px; background: #ffffff; padding: 9px; }
 .dynamic-validation p, .dynamic-validation ul { margin: 0; }
+
+.laptop-tool-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.laptop-tool-buttons button.active { background: #f59e0b; border-color: #fbbf24; color: #111827; font-weight: 800; }

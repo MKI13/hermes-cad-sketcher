@@ -13,10 +13,12 @@ export type DynamicCabinetPanelProps = {
   onDownloadCncCsv: () => void;
   onOpenTemplate: (file: File) => void;
   layout?: 'tray' | 'window';
+  livePreview?: boolean;
+  onLivePreviewChange?: (enabled: boolean) => void;
   onOpenWindow?: () => void;
 };
 
-export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTemplateChange, onParameterChange, onCreateModel, onDownloadTemplate, onDownloadManufacturingDxf, onDownloadCncCsv, onOpenTemplate, layout = 'window', onOpenWindow }: DynamicCabinetPanelProps) {
+export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTemplateChange, onParameterChange, onCreateModel, onDownloadTemplate, onDownloadManufacturingDxf, onDownloadCncCsv, onOpenTemplate, layout = 'window', livePreview = false, onLivePreviewChange, onOpenWindow }: DynamicCabinetPanelProps) {
   const params = cabinet.parameters;
   const errorCount = cabinet.validation.filter((issue) => issue.severity === 'error').length;
   const warningCount = cabinet.validation.filter((issue) => issue.severity === 'warning').length;
@@ -35,7 +37,7 @@ export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTe
           <span>Stückliste: {cabinet.cutlist.length}</span>
           <span>Bohrliste: {cabinet.holeList.length}</span>
         </div>
-        <small>Maße, Listen und Exporte öffnen im eigenen verschiebbaren Fenster, damit rechts keine Leiste über der anderen liegt.</small>
+        <small>{livePreview ? 'Live-Vorschau im Fenster ist aktiv.' : 'Live-Vorschau im Fenster ist aus.'} Maße, Listen und Exporte öffnen im eigenen verschiebbaren Fenster.</small>
       </section>
     );
   }
@@ -49,6 +51,11 @@ export function DynamicCabinetPanel({ cabinet, templates, activeTemplateId, onTe
         <select value={activeTemplateId} onChange={(event) => onTemplateChange(event.currentTarget.value as DynamicCabinetTemplateId)}>
           {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
         </select>
+      </label>
+      <label className="dynamic-live-preview-toggle">
+        <span>Live-Vorschau</span>
+        <input type="checkbox" checked={livePreview} onChange={(event) => onLivePreviewChange?.(event.currentTarget.checked)} />
+        <small>{livePreview ? 'aktiv' : 'aus'}</small>
       </label>
       <div className="dynamic-component-actions">
         <button type="button" onClick={onCreateModel}>{cabinet.name} erzeugen</button>
