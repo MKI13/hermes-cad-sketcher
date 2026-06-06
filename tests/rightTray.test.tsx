@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import App from '../src/App';
-import { RIGHT_TRAY_PANEL_DEFINITIONS, RIGHT_TRAY_STORAGE_KEY, sanitizeRightTrayState } from '../src/ui/RightTray';
+import { RightTray, RIGHT_TRAY_PANEL_DEFINITIONS, RIGHT_TRAY_STORAGE_KEY, sanitizeRightTrayState, type RightTrayPanelContent } from '../src/ui/RightTray';
 
 describe('right Hermes tray', () => {
   it('defines the required Hermes tray panel list in product order', () => {
@@ -68,6 +68,27 @@ describe('right Hermes tray', () => {
     expect(markup).toContain('aria-label="Panel Entity Info / Inspector einklappen"');
     expect(markup).not.toContain('Shadows');
     expect(markup).not.toContain('Instructor');
+  });
+
+  it('gives every open Hermes tray panel its own scrollable body so one long panel does not hide the next panels', async () => {
+    const contents = Object.fromEntries(
+      RIGHT_TRAY_PANEL_DEFINITIONS.map((panel) => [panel.id, <div key={panel.id}>Sehr langer Inhalt für {panel.title}</div>])
+    ) as RightTrayPanelContent;
+    const markup = renderToStaticMarkup(
+      <RightTray
+        state={{ open: true, collapsedPanelIds: [] }}
+        contents={contents}
+        onOpenChange={() => {}}
+        onPanelToggle={() => {}}
+      />
+    );
+    const styleSource = await readFile('src/styles.css', 'utf8');
+
+    expect((markup.match(/data-tray-panel-scroll="true"/g) ?? [])).toHaveLength(RIGHT_TRAY_PANEL_DEFINITIONS.length);
+    expect(styleSource).toContain('.right-tray-panel.open { display: flex; flex-direction: column; max-height:');
+    expect(styleSource).toContain('.right-tray-panel-body { padding: 0; overflow-y: auto;');
+    expect(styleSource).toContain('overscroll-behavior: contain');
+    expect(styleSource).toContain('scrollbar-gutter: stable');
   });
 
   it('keeps floating windows optional instead of rendering inspector or agent windows by default', () => {

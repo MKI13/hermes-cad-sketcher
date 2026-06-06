@@ -25,6 +25,18 @@ export function RenderWorkspacePanel({ snapshot, bridgeStatus }: RenderWorkspace
         <strong>Preset</strong>
         <p>{previewPreset.name} · {previewPreset.engine} · {previewPreset.width}×{previewPreset.height}</p>
       </div>
+      <div className="render-workspace-card render-material-overview">
+        <strong>Materialübersicht</strong>
+        <ul aria-label="PBR-Materialübersicht">
+          {snapshot.materials.map((material) => (
+            <li key={material.id}>
+              <span className="render-material-chip" style={{ backgroundColor: material.baseColor }} aria-hidden="true" />
+              <span>{material.name}</span>
+              <small>{material.category} · rough {material.roughness.toFixed(2)} · metal {material.metalness.toFixed(2)}</small>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className="render-workspace-card">
         <strong>Lokale Render-Bridge</strong>
         <p>{externalReady ? 'bereit für Blender/externes Rendering' : 'nicht aktiv; externe Jobs bleiben fail-closed'}</p>

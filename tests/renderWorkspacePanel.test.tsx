@@ -18,6 +18,10 @@ describe('RenderWorkspacePanel', () => {
     expect(markup).toContain('interne Vorschau');
     expect(markup).toContain('Objekte');
     expect(markup).toContain('PBR-Materialien');
+    expect(markup).toContain('Materialübersicht');
+    expect(markup).toContain('Default');
+    expect(markup).toContain('Holz hell');
+    expect(markup).toContain('RAL 9010 Reinweiß');
     expect(markup).toContain('Kunden-Vorschau');
     expect(markup).toContain('three-preview');
     expect(markup).toContain('externe Jobs bleiben fail-closed');

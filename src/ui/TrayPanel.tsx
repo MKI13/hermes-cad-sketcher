@@ -29,7 +29,7 @@ export function TrayPanel({ id, title, collapsed, children, icon, className, onT
           {collapsed ? '+' : '−'}
         </button>
       </header>
-      {!collapsed && <div className="right-tray-panel-body">{children}</div>}
+      {!collapsed && <div className="right-tray-panel-body" data-tray-panel-scroll="true">{children}</div>}
     </section>
   );
 }
