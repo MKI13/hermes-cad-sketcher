@@ -332,3 +332,55 @@ button { font: inherit; }
 
 .laptop-tool-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .laptop-tool-buttons button.active { background: #f59e0b; border-color: #fbbf24; color: #111827; font-weight: 800; }
+
+.render-workspace-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.render-workspace-panel header {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.render-workspace-panel header span,
+.render-workspace-panel small,
+.render-workspace-rules {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.render-workspace-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.render-workspace-stats div,
+.render-workspace-card {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.04);
+  padding: 0.55rem;
+}
+
+.render-workspace-stats dt {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.render-workspace-stats dd {
+  margin: 0.15rem 0 0;
+  font-weight: 700;
+}
+
+.render-workspace-card p,
+.render-workspace-rules {
+  margin: 0.25rem 0 0;
+}
+
+.render-workspace-rules {
+  padding-left: 1.1rem;
+}
+

@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ef-sinn.local/hermes-cad/render-material.schema.json",
+  "title": "Hermes CAD Render Material",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "category",
+    "baseColor",
+    "roughness",
+    "metalness"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "category": {
+      "enum": [
+        "wood",
+        "board",
+        "veneer",
+        "paint",
+        "metal",
+        "glass",
+        "plastic",
+        "generic"
+      ]
+    },
+    "baseColor": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "roughness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "metalness": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "opacity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "transparent": {
+      "type": "boolean"
+    },
+    "textureScaleMm": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "y": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "grainDirection": {
+      "enum": [
+        "x",
+        "y",
+        "z",
+        "auto-panel-long-edge"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+name: hermes-render-workspace
+version: 0.1.0
+hermesCadCompatibility: ">=0.2 <0.5"
+type: internal-extension
+permissions:
+  - read-model-snapshot
+  - read-selection
+  - write-render-settings
+  - start-local-render-job
+forbidden:
+  - execute-shell
+  - load-remote-code
+  - mutate-geometry-without-command
+  - use-sketchup-assets
+entrypoints:
+  uiPanel: src/render/RenderWorkspacePanel.tsx
+  commands: src/render/renderCommands.ts
+  adapter: src/render/renderSceneAdapter.ts
+qualityGate:
+  requiredCommands:
+    - npm run check
+  requiredTests:
+    - render material validation
+    - render snapshot preserves ids
+    - render command fail-closed behavior

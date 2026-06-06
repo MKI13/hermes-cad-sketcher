@@ -31,6 +31,8 @@ import { floatingWindowMenuButtonLabel, floatingWindowTitle, menuButtonLabel, me
 import { buildHermesCadAgentRequest, loadOrCreateOwnerId, probeHermesCadBridge, sendHermesCadAgentRequest, shouldFallbackAfterAgentResponse, shouldUseLocalCadFallback, summarizeHermesBridgeIdentity } from './ui/hermesAgentBridge';
 import { buildDefaultMaterialSwatches, buildMaterialLibrary, materialAssignmentFromLibraryEntry, type BrowserMaterialLibraryEntry, type MaterialLibrary, type MaterialSwatch } from './ui/materialLibrary';
 import type { MaterialDefinition } from './core/materials';
+import { buildRenderSceneSnapshot } from './core/rendering';
+import { RenderWorkspacePanel } from './ui/RenderWorkspacePanel';
 import { shouldApplyDxfImportReport, statusFromDxfImportReport } from './ui/dxfImportPolicy';
 import { drawingPlaneAppearance } from './ui/drawingPlaneAppearance';
 import { formatActiveMeasurement, faceSelectionLabel, formatEntityMeasurement, type FaceSelection, type ViewportContextMenuCommand, type ViewportEntityAction } from './ui/viewportInteractionHelpers';
@@ -1593,6 +1595,8 @@ export default function App() {
     </section>
   ) : undefined;
 
+  const renderSceneSnapshot = buildRenderSceneSnapshot(model, { sourceProjectId: 'hermes-cad-live-session' });
+
   const rightTrayContents: RightTrayPanelContent = {
     'entity-info': (
       <dl>
@@ -1714,6 +1718,7 @@ export default function App() {
         </div>
       </>
     ),
+    rendering: <RenderWorkspacePanel snapshot={renderSceneSnapshot} bridgeStatus="internal-preview-only" />,
     scenes: <p>Szenen und Ansichten werden hier gesammelt.</p>,
     'display-styles': (
       <>
@@ -1775,6 +1780,7 @@ export default function App() {
     'dynamic-components': <HermesIcon id="component-clear" label="Dynamische Komponenten" size={16} />,
     tags: <HermesIcon id="tags-clear" label="Tags" size={16} />,
     materials: <HermesIcon id="materials-clear" label="Materialien" size={16} />,
+    rendering: <HermesIcon id="styles-clear" label="Render-Workspace" size={16} />,
     scenes: <HermesIcon id="scenes-clear" label="Szenen" size={16} />,
     'display-styles': <HermesIcon id="styles-clear" label="Anzeige / Styles" size={16} />,
     'hermes-agent': <HermesIcon id="hermes-agent-clear" label="Hermes Agent" size={16} />

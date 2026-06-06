@@ -14,6 +14,7 @@ describe('right Hermes tray', () => {
       'Dynamische Komponenten',
       'Tags',
       'Materialien',
+      'Render-Workspace',
       'Szenen',
       'Anzeige / Styles',
       'Hermes Agent'
@@ -53,6 +54,9 @@ describe('right Hermes tray', () => {
     expect(markup).toContain('Tags');
     expect(markup).toContain('data-tray-panel-id="materials"');
     expect(markup).toContain('Materialien');
+    expect(markup).toContain('data-tray-panel-id="rendering"');
+    expect(markup).toContain('Render-Workspace');
+    expect(markup).toContain('PBR-Materialien');
     expect(markup).toContain('data-tray-panel-id="scenes"');
     expect(markup).toContain('Szenen');
     expect(markup).toContain('data-tray-panel-id="display-styles"');

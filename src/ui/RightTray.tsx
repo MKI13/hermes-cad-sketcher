@@ -10,6 +10,7 @@ export type RightTrayPanelId =
   | 'dynamic-components'
   | 'tags'
   | 'materials'
+  | 'rendering'
   | 'scenes'
   | 'display-styles'
   | 'hermes-agent';
@@ -32,6 +33,7 @@ export const RIGHT_TRAY_PANEL_DEFINITIONS: RightTrayPanelDefinition[] = [
   { id: 'dynamic-components', title: 'Dynamische Komponenten', defaultOpen: true },
   { id: 'tags', title: 'Tags', defaultOpen: false },
   { id: 'materials', title: 'Materialien', defaultOpen: true },
+  { id: 'rendering', title: 'Render-Workspace', defaultOpen: true },
   { id: 'scenes', title: 'Szenen', defaultOpen: false },
   { id: 'display-styles', title: 'Anzeige / Styles', defaultOpen: false },
   { id: 'hermes-agent', title: 'Hermes Agent', defaultOpen: false }
