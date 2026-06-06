@@ -47,7 +47,13 @@ describe('material library folder import', () => {
       'multiplex',
       'glass-transparent',
       'metal',
-      'white-lacquered'
+      'white-lacquered',
+      'ral-9010',
+      'ral-7016',
+      'ral-9005',
+      'ral-8003',
+      'ral-3003',
+      'ral-1003'
     ]);
     expect(swatches.map((swatch) => swatch.name)).toContain('Glas transparent');
     expect(swatches.map((swatch) => swatch.name)).toContain('Weiß lackiert');

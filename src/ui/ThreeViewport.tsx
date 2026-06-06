@@ -48,6 +48,8 @@ type ThreeViewportProps = {
   onMouseBindingAction?: (action: MouseAction) => void;
   onContextMenuCommand?: (command: ViewportContextMenuCommand) => void;
   drawingPlane?: DrawingPlane;
+  activeComponentId?: string;
+  onOpenComponentContext?: (componentId: string) => void;
   rectangleDimensions?: RectangleDimensions;
   gridStepMm?: number;
   showGrid?: boolean;
@@ -57,7 +59,7 @@ export type MeasurementDraftContext =
   | { tool: 'line'; start: Vec3; pointer: Vec3 }
   | { tool: 'rectangle'; start: Vec3; pointer: Vec3; plane: DrawingPlane };
 
-export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onOpenComponent, onMeasurementPreview, onMeasurementDraftContext, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', rectangleDimensions, gridStepMm = 100, showGrid = true }: ThreeViewportProps) {
+export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onSelect, onCreateLine, onCreateRectangle, onCreateBox, onMeasure, onMove, onPushPull, onOpenComponent, onMeasurementPreview, onMeasurementDraftContext, mouseBindings, onMouseBindingAction, onContextMenuCommand, drawingPlane = 'xy', activeComponentId, onOpenComponentContext, rectangleDimensions, gridStepMm = 100, showGrid = true }: ThreeViewportProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; groups: ViewportContextMenuGroup[] } | undefined>();
   const [snapCue, setSnapCue] = useState<{ x: number; y: number; label: string; kind?: SnapPointKind } | undefined>();
@@ -93,6 +95,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   const mouseBindingsRef = useRef<MouseBindings>({});
   const onMouseBindingActionRef = useRef(onMouseBindingAction);
   const onContextMenuCommandRef = useRef(onContextMenuCommand);
+  const onOpenComponentContextRef = useRef(onOpenComponentContext);
   const drawingPlaneRef = useRef<DrawingPlane>(drawingPlane);
   const rectangleDimensionsRef = useRef<RectangleDimensions | undefined>(rectangleDimensions);
   activeToolRef.current = activeTool;
@@ -111,6 +114,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   mouseBindingsRef.current = (mouseBindings ?? {}) as MouseBindings;
   onMouseBindingActionRef.current = onMouseBindingAction;
   onContextMenuCommandRef.current = onContextMenuCommand;
+  onOpenComponentContextRef.current = onOpenComponentContext;
   drawingPlaneRef.current = drawingPlane;
   rectangleDimensionsRef.current = rectangleDimensions;
 
@@ -550,7 +554,9 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
       const selection = pickSelectionAtPointer(event);
       if (!selection.entityId) return;
       rememberSelection(selection.entityId, selection.faceSelection);
-      onOpenComponentRef.current?.(selection.entityId);
+      const entity = model.getEntity(selection.entityId);
+      if (entity?.componentId) onOpenComponentContextRef.current?.(entity.componentId);
+      else onOpenComponentRef.current?.(selection.entityId);
     };
 
     const contextMenu = (event: MouseEvent) => {
@@ -672,7 +678,7 @@ export function ThreeViewport({ model, activeTool, selectedId, selectedFace, onS
   }
 
   return (
-    <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool} onDoubleClick={() => undefined}>
+    <div className="three-viewport" ref={hostRef} data-selected-id={selectedId ?? ''} data-active-tool={activeTool} data-active-component-id={activeComponentId ?? ''} onDoubleClick={() => undefined}>
       {viewportError && <div className="viewport-error"><strong>3D-Viewport nicht verfügbar</strong><span>{viewportError}</span></div>}
       {contextMenu && (
         <section

@@ -214,6 +214,35 @@ describe('SketchModel geometry tools', () => {
     expect(model.getEntity(a.id)?.componentId).toBe(component.id);
   });
 
+  it('stores SketchUp-like component creation metadata for group vs reusable component workflows', () => {
+    const model = new SketchModel();
+    const panel = model.createBox(vec(0, 0, 0), 600, 400, 19);
+
+    const component = model.createComponent('PLT_Seitenwand_600x400x19', [panel.id], {
+      kind: 'component',
+      description: 'Wiederverwendbare Seitenwand mit späterer Stücklisten-Zählung'
+    });
+
+    expect(component).toMatchObject({
+      name: 'PLT_Seitenwand_600x400x19',
+      kind: 'component',
+      description: 'Wiederverwendbare Seitenwand mit späterer Stücklisten-Zählung',
+      entityIds: [panel.id]
+    });
+    expect(model.getComponent(component.id)).toEqual(component);
+    expect(model.snapshot().components[0]).toMatchObject({ kind: 'component', description: component.description });
+  });
+
+  it('records one-off groups separately from reusable components', () => {
+    const model = new SketchModel();
+    const helperLine = model.createLine(vec(0, 0, 0), vec(600, 0, 0));
+
+    const group = model.createComponent('Gruppe aus Hilfslinie', [helperLine.id], { kind: 'group' });
+
+    expect(group.kind).toBe('group');
+    expect(model.snapshot().components[0].kind).toBe('group');
+  });
+
   it('duplicates a component with new entity ids and a stable millimeter offset', () => {
     const model = new SketchModel();
     const box = model.createBox(vec(0, 0, 0), 100, 200, 300);

@@ -140,6 +140,22 @@ describe('Hermes CAD project files', () => {
     }))).toThrow('Projektdatei enthält ungültige Komponenten.');
   });
 
+  it('rejects malformed component kind and empty descriptions', () => {
+    const model = new SketchModel();
+    const line = model.createLine(vec(0, 0, 0), vec(100, 0, 0));
+    const parsed = JSON.parse(exportProjectFile(model));
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, components: [{ id: 'component_1', name: 'Platte', entityIds: [line.id], kind: 'block' }] }
+    }))).toThrow('Projektdatei enthält ungültige Komponenten.');
+
+    expect(() => importProjectFile(JSON.stringify({
+      ...parsed,
+      model: { ...parsed.model, components: [{ id: 'component_1', name: 'Platte', entityIds: [line.id], kind: 'component', description: '   ' }] }
+    }))).toThrow('Projektdatei enthält ungültige Komponenten.');
+  });
+
   it('round-trips a rectangle extruded to a component-backed body', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 1200, 600, {}, 'xy');

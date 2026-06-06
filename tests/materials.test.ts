@@ -12,7 +12,13 @@ describe('CAD material catalog', () => {
       'multiplex',
       'glass-transparent',
       'metal',
-      'white-lacquered'
+      'white-lacquered',
+      'ral-9010',
+      'ral-7016',
+      'ral-9005',
+      'ral-8003',
+      'ral-3003',
+      'ral-1003'
     ]);
     expect(materialById('glass-transparent')?.transparent).toBe(true);
   });

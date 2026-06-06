@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { SketchModel, partMaterialReadinessForEntity, type BoxFaceName, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
+import { SketchModel, partMaterialReadinessForEntity, type BoxFaceName, type ComponentKind, type DrawingPlane, type Entity, type MaterialAssignment, type ToolName } from './core/model';
 import { vec, type Vec3 } from './core/geometry';
 import { formatTapeMeasurement } from './core/toolState';
 import { parseMeasurementBoxInput } from './core/measurementInput';
 import { applyMeasurementBoxInputToModel } from './core/measurementApplication';
+import { componentContextLabel, componentEditBlockMessage, sketchUpClickDepthHint } from './core/componentContext';
 import { exportProjectFile, importProjectFile } from './core/projectFile';
 import { exportDxf, importDxfWithReport } from './core/dxf';
 import { exportAsciiStl, importStl } from './core/stl';
@@ -197,13 +198,22 @@ export default function App() {
   const [dynamicCabinetTemplateId, setDynamicCabinetTemplateId] = useState<DynamicCabinetTemplateId>('kitchen_base_cabinet');
   const [dynamicCabinetParameters, setDynamicCabinetParameters] = useState<KitchenBaseCabinetParameters>(defaultKitchenBaseCabinetParameters);
   const [dynamicCabinetLivePreview, setDynamicCabinetLivePreview] = useState(true);
+  const [componentDraftName, setComponentDraftName] = useState('Platte');
+  const [componentDraftDescription, setComponentDraftDescription] = useState('');
   const [floatingWindows, setFloatingWindows] = useState<Partial<Record<FloatingWindowId, FloatingWindowState>>>({});
   const [floatingWindowDrag, setFloatingWindowDrag] = useState<FloatingWindowDrag | undefined>();
   const [componentCreationDialog, setComponentCreationDialog] = useState<{ kind: 'Gruppe' | 'Komponente'; entityId: string } | undefined>();
   const [componentNameDraft, setComponentNameDraft] = useState('');
   const [componentRoleDraft, setComponentRoleDraft] = useState('');
+  const [componentReplaceSelection, setComponentReplaceSelection] = useState(true);
 
   const selected = selectedId ? model.getEntity(selectedId) : undefined;
+  const activeEditContext = model.activeEditContext();
+  const activeComponentId = activeEditContext.type === 'component' ? activeEditContext.componentId : undefined;
+  const activeComponent = activeComponentId ? model.getComponent(activeComponentId) : undefined;
+  const selectedComponentId = selected?.componentId;
+  const selectedComponent = selectedComponentId ? model.getComponent(selectedComponentId) : undefined;
+  const selectedEditBlockMessage = selected ? componentEditBlockMessage(selected, activeComponentId) : undefined;
   const selectedInspection = selected ? inspectEntity(selected) : undefined;
   const selectedMeasurement = selected ? formatEntityMeasurement(selected) : undefined;
   const selectedFaceLabel = selectedBoxFace && selectedBoxFace.entityId === selectedId ? faceSelectionLabel(selectedBoxFace) : faceSelectionLabel();
@@ -217,13 +227,10 @@ export default function App() {
     xz: drawingPlaneAppearance('xz').label,
     yz: drawingPlaneAppearance('yz').label
   };
-  const activeEditContext = model.activeEditContext();
   const activeContextLabel = activeEditContext.type === 'root'
     ? 'Root / lose Geometrie'
     : `Komponente ${activeEditContext.componentId}`;
   const selectedEditBlocked = Boolean(selectedId && !model.canEditEntity(selectedId));
-  const selectedComponentId = selected?.componentId;
-  const selectedComponent = selectedComponentId ? model.allComponents().find((component) => component.id === selectedComponentId) : undefined;
   const selectedComponentLabel = selectedComponent ? `${selectedComponent.name} (${selectedComponent.id})` : 'keine Gruppe/Komponente';
   const canOpenSelectedComponent = Boolean(selectedComponentId && activeEditContext.type === 'root');
 
@@ -328,6 +335,47 @@ export default function App() {
     action(next);
     setModel(next);
     setHistory((current) => pushHistory(current, next.snapshot()));
+  }
+
+  function editBlockMessageForEntity(entityId: string): string | undefined {
+    const entity = model.getEntity(entityId);
+    return entity ? componentEditBlockMessage(entity, activeComponentId) : undefined;
+  }
+
+  function requireEditableEntity(entityId: string, actionLabel: string): boolean {
+    const message = editBlockMessageForEntity(entityId);
+    if (!message) return true;
+    setProjectStatus(`${actionLabel}: ${message}`);
+    setMeasurementBoxStatus(message);
+    return false;
+  }
+
+  function openComponentContext(componentId: string) {
+    const component = model.getComponent(componentId);
+    if (!component) return;
+    mutate((m) => {
+      m.openComponent(componentId);
+      setSelectedId(component.entityIds[0]);
+      setSelectedBoxFace(undefined);
+    });
+    setProjectStatus(`Komponente geöffnet: ${component.name}. Innengeometrie kann jetzt bearbeitet werden.`);
+  }
+
+  function closeComponentContext() {
+    const name = activeComponent?.name ?? activeComponentId;
+    mutate((m) => {
+      m.closeActiveContext();
+    });
+    setSelectedBoxFace(undefined);
+    setProjectStatus(name ? `Komponentenkontext geschlossen: ${name}.` : 'Komponentenkontext geschlossen.');
+  }
+
+  function selectWholeComponent(componentId: string) {
+    const component = model.getComponent(componentId);
+    if (!component) return;
+    setSelectedId(component.entityIds[0]);
+    setSelectedBoxFace(undefined);
+    setProjectStatus(`Komponente ausgewählt: ${component.name}. Doppelklick öffnet sie zum Bearbeiten.`);
   }
 
   function applyCommandResult(result: ReturnType<typeof runCadConsoleScript>, setLog: (message: string) => void) {
@@ -604,6 +652,7 @@ export default function App() {
             setMeasurementBoxStatus(`Push/Pull-Distanz ${parsed.value} mm vorbereitet. Erst Körper oder Fläche auswählen.`);
             return;
           }
+          if (!requireEditableEntity(selectedId, 'Push/Pull')) return;
           let appliedAction: 'extruded' | 'resized' | undefined;
           mutate((m) => {
             const applied = applyMeasurementBoxInputToModel(m, {
@@ -645,6 +694,10 @@ export default function App() {
 
   function handleViewportSelect(entityId: string | undefined, faceSelection?: FaceSelection) {
     if (!entityId) {
+      if (activeEditContext.type !== 'root') {
+        closeComponentContext();
+        setProjectStatus('Komponentenkontext geschlossen. Root / lose Geometrie aktiv.');
+      }
       setSelectedId(undefined);
       setSelectedBoxFace(undefined);
       return;
@@ -653,11 +706,13 @@ export default function App() {
     setSelectedId(entityId);
     setSelectedBoxFace(target.type === 'entity' && faceSelection?.entityId === entityId ? faceSelection : undefined);
     if (target.type === 'component') {
-      setProjectStatus(`Komponente ${target.componentId} außen gewählt. Doppelklick/Edit-Kontext folgt in #50; innere Geometrie ist geschützt.`);
+      const component = model.getComponent(target.componentId);
+      setProjectStatus(`Komponente ausgewählt: ${component?.name ?? target.componentId}. Doppelklick öffnet den Bearbeitungskontext; innere Geometrie ist geschützt.`);
     }
   }
 
   function moveFromViewport(entityId: string, delta: Vec3) {
+    if (!requireEditableEntity(entityId, 'Verschieben')) return;
     let measurement: string | undefined;
     mutate((m) => {
       const entity = m.moveEntity(entityId, delta);
@@ -669,6 +724,7 @@ export default function App() {
 
   function applyMoveDelta() {
     if (!selectedId) return;
+    if (!requireEditableEntity(selectedId, 'Verschieben')) return;
     const parsed = parseMoveDelta(moveDelta);
     if (!parsed.ok) return;
     if (selected?.type === 'box' && selectedBoxFace?.entityId === selectedId) {
@@ -696,6 +752,7 @@ export default function App() {
 
   function applyRotateAngle() {
     if (!selectedId) return;
+    if (!requireEditableEntity(selectedId, 'Drehen')) return;
     const parsed = parseRotateAngle(rotateAngleDegrees);
     if (!parsed.ok) return;
     mutate((m) => {
@@ -712,6 +769,7 @@ export default function App() {
   }
 
   function applyPushPullSelection(entityId: string, deltaHeight: number, faceSelection?: FaceSelection) {
+    if (!requireEditableEntity(entityId, 'Push/Pull')) return;
     const entity = model.getEntity(entityId);
     if (!entity || (entity.type !== 'box' && entity.type !== 'face')) return;
     if (entity.type === 'face') {
@@ -753,6 +811,7 @@ export default function App() {
 
   function applySelectedDimensions() {
     if (!selectedId || selected?.type !== 'box') return;
+    if (!requireEditableEntity(selectedId, 'Körpermaße')) return;
     const parsed = parseSelectedBoxDimensions(selectedDimensions);
     if (!parsed.ok) return;
     mutate((m) => {
@@ -764,6 +823,7 @@ export default function App() {
 
   function applyFaceExtrusion() {
     if (!selectedId || selected?.type !== 'face') return;
+    if (!requireEditableEntity(selectedId, 'Fläche extrudieren')) return;
     const validation = validateExtrudableFace(selected, parseExtrudeHeight(extrudeHeight));
     if (!validation.ok) {
       setFaceExtrusionStatus(validation.error);
@@ -818,6 +878,7 @@ export default function App() {
 
   function deleteSelectedEntity() {
     if (!selectedId) return;
+    if (!requireEditableEntity(selectedId, 'Löschen')) return;
     mutate((m) => {
       m.deleteEntity(selectedId);
       setSelectedId(undefined);
@@ -856,6 +917,7 @@ export default function App() {
       setProjectStatus('Bitte erst eine Fläche oder einen Körper auswählen, dann Material anwenden.');
       return;
     }
+    if (!requireEditableEntity(selectedId, 'Material')) return;
     mutate((m) => {
       m.applyMaterial(selectedId, material);
     });
@@ -872,6 +934,7 @@ export default function App() {
 
   function hideSelectedEntity() {
     if (!selectedId) return;
+    if (!requireEditableEntity(selectedId, 'Ausblenden')) return;
     mutate((m) => {
       m.hideEntity(selectedId);
       setSelectedId(undefined);
@@ -882,10 +945,7 @@ export default function App() {
   function openComponentForEntity(entityId: string) {
     const entity = model.getEntity(entityId);
     if (!entity?.componentId || activeEditContext.type !== 'root') return;
-    mutate((m) => {
-      m.openComponent(entity.componentId!);
-      setSelectedId(entityId);
-    });
+    openComponentContext(entity.componentId);
     setProjectStatus(`Komponente ${entity.componentId} per Doppelklick geöffnet. Innere Kanten und Flächen sind jetzt bearbeitbar.`);
   }
 
@@ -895,21 +955,32 @@ export default function App() {
   }
 
   function closeEditContext() {
-    mutate((m) => {
-      m.closeActiveContext();
-    });
+    closeComponentContext();
     setProjectStatus('Bearbeitungskontext geschlossen. Root / lose Geometrie aktiv.');
   }
 
-  function makeSelectedComponent(prefix: 'Gruppe' | 'Komponente') {
+  function normalizeComponentKind(kind: ComponentKind | 'Gruppe' | 'Komponente'): ComponentKind {
+    return kind === 'Gruppe' || kind === 'group' ? 'group' : 'component';
+  }
+
+  function componentKindLabel(kind: ComponentKind): 'Gruppe' | 'Komponente' {
+    return kind === 'group' ? 'Gruppe' : 'Komponente';
+  }
+
+  function makeSelectedComponent(kindInput: ComponentKind | 'Gruppe' | 'Komponente') {
     if (!selectedId) return;
     if (!model.canEditEntity(selectedId)) {
       setProjectStatus('Erst Komponente öffnen, dann innere Elemente gruppieren.');
       return;
     }
-    setComponentNameDraft(`${prefix} aus Auswahl`);
+    const kind = normalizeComponentKind(kindInput);
+    const label = componentKindLabel(kind);
+    const nextComponentName = `Component#${model.allComponents().filter((component) => component.kind === 'component').length + 1}`;
+    const nextGroupName = `Group#${model.allComponents().filter((component) => component.kind === 'group').length + 1}`;
+    setComponentNameDraft(componentDraftName.trim() || (kind === 'component' ? nextComponentName : nextGroupName));
     setComponentRoleDraft('');
-    setComponentCreationDialog({ kind: prefix, entityId: selectedId });
+    setComponentReplaceSelection(true);
+    setComponentCreationDialog({ kind: label, entityId: selectedId });
   }
 
   function confirmComponentCreation() {
@@ -919,15 +990,21 @@ export default function App() {
       setComponentCreationDialog(undefined);
       return;
     }
+    const kind = normalizeComponentKind(componentCreationDialog.kind);
     const name = componentNameDraft.trim() || `${componentCreationDialog.kind} aus Auswahl`;
     const role = componentRoleDraft.trim();
+    const description = componentDraftDescription.trim();
+    const replaceSelectionWithComponent = componentReplaceSelection;
     mutate((m) => {
-      const component = m.createComponent(name, [componentCreationDialog.entityId]);
+      const component = m.createComponent(name, [componentCreationDialog.entityId], {
+        kind,
+        ...(description ? { description } : {})
+      });
       if (role) m.assignComponentWoodworkingClassification(component.id, 'assembly', role);
-      m.openComponent(component.id);
-      setSelectedId(component.entityIds[0]);
+      if (replaceSelectionWithComponent) setSelectedId(component.entityIds[0]);
+      setSelectedBoxFace(undefined);
     });
-    setProjectStatus(`${componentCreationDialog.kind} ${name} erstellt und zum Bearbeiten geöffnet.`);
+    setProjectStatus(`${componentCreationDialog.kind} ${name} erstellt. Auswahl wurde durch Komponente ersetzt; Doppelklick öffnet den Bearbeitungskontext.`);
     setComponentCreationDialog(undefined);
   }
 
@@ -952,11 +1029,11 @@ export default function App() {
       return;
     }
     if (action === 'makeGroup') {
-      makeSelectedComponent('Gruppe');
+      makeSelectedComponent('group');
       return;
     }
     if (action === 'makeComponent') {
-      makeSelectedComponent('Komponente');
+      makeSelectedComponent('component');
       return;
     }
     if (action === 'area') reportSelectedArea();
@@ -1265,6 +1342,21 @@ export default function App() {
     }
   }
 
+  const componentCreationPanel = (
+    <section className="component-creation-panel sketchup-component-launcher" aria-label="SketchUp Create Component launcher">
+      <strong>Create Component</strong>
+      <p>Wie im Video: Platte wählen, unten/über Rechtsklick <strong>Komponente erstellen</strong> starten, dann den SketchUp-Dialog ausfüllen.</p>
+      <p>Auswahl-Tiefe: {sketchUpClickDepthHint(1)} {sketchUpClickDepthHint(2)} {sketchUpClickDepthHint(3)}</p>
+      <p>{componentContextLabel({ activeComponentId, activeComponentName: activeComponent?.name })}</p>
+      {selectedComponent && selectedEditBlockMessage && <p className="component-context-warning">{selectedEditBlockMessage}</p>}
+      {activeComponentId && <button type="button" onClick={closeComponentContext}>Komponentenkontext schließen</button>}
+      <button type="button" className="primary" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('component')}>Create Component</button>
+      <small>Definition: Component#1 oder Platte · Replace selection with component ist im Dialog wie im Video aktiviert.</small>
+    </section>
+  );
+
+  const componentList = model.allComponents();
+
   const detailedControls = (
     <section className="top-function-workspace" aria-label="Klassischer CAD-Arbeitsplatz Funktionen">
       <section className="function-group file-function-group" aria-label="Datei & Import/Export">
@@ -1324,6 +1416,7 @@ export default function App() {
           </button>
         </div>
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
+        {componentCreationPanel}
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button>
         <button title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}><HermesIcon id="duplicate-component-clear" label="Auswahl kopieren" size={18} /> Auswahl kopieren</button>
         <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId} onClick={deleteSelectedEntity}>
@@ -1446,6 +1539,7 @@ export default function App() {
       )}
       {activeMenu === 'Komponenten' && (
         <div className="menu-button-links">
+          {componentCreationPanel}
           <button type="button" className="primary" onClick={() => openFloatingWindow('dynamicComponents')}>Dynamische Komponenten als Fenster öffnen</button>
           <button type="button" onClick={createDynamicCabinetModel}>Neue dynamische Komponente: {dynamicCabinet.name}</button>
           <button type="button" onClick={saveDynamicCabinetTemplate}>Als JSON-Vorlage speichern</button>
@@ -1479,15 +1573,20 @@ export default function App() {
     ),
     outliner: <p>{model.allEntities().length} Elemente im Modell · Auswahl gehört zu: {selectedComponentLabel}</p>,
     components: (
-      <div className="component-list" aria-label="Komponentenliste">
-        <p>{model.allComponents().length} Komponenten im Modell.</p>
-        {model.allComponents().length === 0 ? <small>Noch keine Gruppen oder Komponenten.</small> : (
+      <div className="components-tray-panel">
+        {componentCreationPanel}
+        <p>Komponentenliste: {componentList.length} Komponenten oder Gruppen im Modell.</p>
+        {componentList.length === 0 ? (
+          <small>Noch keine Komponenten. Wähle einen Körper, eine Fläche oder Linie und erstelle daraus eine Gruppe oder Komponente.</small>
+        ) : (
           <ul>
-            {model.allComponents().map((component) => (
+            {componentList.map((component) => (
               <li key={component.id}>
-                <strong>{component.name}</strong>
-                <span>{component.entityIds.length} Elemente</span>
+                <strong>{component.name}</strong> · {component.kind === 'group' ? 'Gruppe' : 'Komponente'} · {component.entityIds.length} Elemente
+                {component.description && <small>{component.description}</small>}
                 {component.id === selectedComponentId ? <em>ausgewählt</em> : null}
+                <button type="button" onClick={() => selectWholeComponent(component.id)}>Komponente auswählen</button>
+                <button type="button" onClick={() => openComponentContext(component.id)}>Komponente bearbeiten öffnen</button>
               </li>
             ))}
           </ul>
@@ -1845,6 +1944,8 @@ export default function App() {
               onMouseBindingAction={handleMouseBindingAction}
               onContextMenuCommand={handleViewportContextMenuCommand}
               drawingPlane={drawingPlane}
+              activeComponentId={activeComponentId}
+              onOpenComponentContext={openComponentContext}
               rectangleDimensions={activeRectangleDimensions}
               gridStepMm={viewportGridStepNumber}
               showGrid={showViewportGrid && Boolean(selectedId)}
@@ -1891,6 +1992,7 @@ export default function App() {
           <button type="button" disabled={!selectedId || selectedEditBlocked} onClick={() => makeSelectedComponent('Komponente')}>Komponente erstellen</button>
           <button type="button" title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}>Auswahl kopieren</button>
           <span>Fläche: {selectedFaceLabel.replace('Fläche: ', '').replace('Fläche ausgewählt: ', '')}</span>
+          <span>Komponente: {componentContextLabel({ activeComponentId, activeComponentName: activeComponent?.name })}</span>
           <span>Verlauf: {history.past.length} rückgängig / {history.future.length} wiederholbar</span>
           <span>Maßband: {lastMeasurement}</span>
           <span>Projekt: {projectStatus}</span>
@@ -1899,22 +2001,48 @@ export default function App() {
       </section>
 
       {componentCreationDialog && (
-        <section className="component-creation-dialog" role="dialog" aria-label={`${componentCreationDialog.kind} erstellen`}>
-          <header>
-            <strong>{componentCreationDialog.kind} erstellen</strong>
-            <button type="button" aria-label="Komponenten-Dialog schließen" onClick={() => setComponentCreationDialog(undefined)}>×</button>
+        <section className="component-creation-dialog sketchup-create-component-dialog" role="dialog" aria-label="Create Component">
+          <header className="sketchup-dialog-titlebar">
+            <strong>Create Component</strong>
+            <button type="button" aria-label="Close Create Component" onClick={() => setComponentCreationDialog(undefined)}>×</button>
           </header>
-          <label>
-            <span>Name der Komponente</span>
-            <input aria-label="Name der Komponente" value={componentNameDraft} onChange={(event) => setComponentNameDraft(event.currentTarget.value)} />
-          </label>
-          <label>
-            <span>Details / Rolle</span>
-            <input aria-label="Details / Rolle" placeholder="z. B. Tischbein, Korpus, Front" value={componentRoleDraft} onChange={(event) => setComponentRoleDraft(event.currentTarget.value)} />
-          </label>
-          <div className="component-dialog-actions">
-            <button type="button" onClick={() => setComponentCreationDialog(undefined)}>Abbrechen</button>
-            <button type="button" onClick={confirmComponentCreation}>Erstellen</button>
+          <div className="sketchup-dialog-body">
+            <fieldset>
+              <legend>General</legend>
+              <label className="sketchup-dialog-row">
+                <span>Definition:</span>
+                <input aria-label="Definition" value={componentNameDraft} onChange={(event) => setComponentNameDraft(event.currentTarget.value)} autoFocus />
+              </label>
+              <label className="sketchup-dialog-row description-row">
+                <span>Description:</span>
+                <textarea aria-label="Description" value={componentDraftDescription} onChange={(event) => setComponentDraftDescription(event.currentTarget.value)} rows={3} />
+              </label>
+            </fieldset>
+            <fieldset>
+              <legend>Alignment</legend>
+              <label className="sketchup-dialog-row">
+                <span>Glue to:</span>
+                <select aria-label="Glue to" value="None" onChange={() => undefined}>
+                  <option>None</option>
+                </select>
+              </label>
+              <button type="button" className="sketchup-wide-button">Set Component Axes</button>
+              <label className="sketchup-checkbox-row"><input type="checkbox" /> Cut opening</label>
+              <label className="sketchup-checkbox-row"><input type="checkbox" /> Always face camera</label>
+              <label className="sketchup-checkbox-row muted"><input type="checkbox" disabled /> Shadows face sun</label>
+            </fieldset>
+            <fieldset>
+              <legend>Advanced Attributes</legend>
+              <label className="sketchup-dialog-row"><span>Price:</span><input aria-label="Price" placeholder="Enter definition price" /></label>
+              <label className="sketchup-dialog-row"><span>Size:</span><input aria-label="Size" placeholder="Enter definition size" /></label>
+              <label className="sketchup-dialog-row"><span>URL:</span><input aria-label="URL" placeholder="Enter definition URL" /></label>
+              <label className="sketchup-dialog-row"><span>Type:</span><select aria-label="Type" value="Type: <undefined>" onChange={() => undefined}><option>Type: &lt;undefined&gt;</option></select></label>
+            </fieldset>
+            <label className="sketchup-replace-row"><input type="checkbox" checked={componentReplaceSelection} onChange={(event) => setComponentReplaceSelection(event.currentTarget.checked)} /> Replace selection with component</label>
+          </div>
+          <div className="component-dialog-actions sketchup-dialog-actions">
+            <button type="button" className="primary" onClick={confirmComponentCreation}>Create</button>
+            <button type="button" onClick={() => setComponentCreationDialog(undefined)}>Cancel</button>
           </div>
         </section>
       )}

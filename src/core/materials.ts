@@ -19,7 +19,13 @@ const DEFAULT_MATERIALS: MaterialDefinition[] = [
   { id: 'multiplex', name: 'Multiplex', color: '#c08457' },
   { id: 'glass-transparent', name: 'Glas transparent', color: '#93c5fd', transparent: true },
   { id: 'metal', name: 'Metall', color: '#94a3b8' },
-  { id: 'white-lacquered', name: 'Weiß lackiert', color: '#f8fafc' }
+  { id: 'white-lacquered', name: 'Weiß lackiert', color: '#f8fafc' },
+  { id: 'ral-9010', name: 'RAL 9010 Reinweiß', color: '#f1eee9' },
+  { id: 'ral-7016', name: 'RAL 7016 Anthrazitgrau', color: '#383e42' },
+  { id: 'ral-9005', name: 'RAL 9005 Tiefschwarz', color: '#0a0a0d' },
+  { id: 'ral-8003', name: 'RAL 8003 Lehmbraun', color: '#734222' },
+  { id: 'ral-3003', name: 'RAL 3003 Rubinrot', color: '#861a22' },
+  { id: 'ral-1003', name: 'RAL 1003 Signalgelb', color: '#f9a800' }
 ];
 
 export function defaultMaterials(): MaterialDefinition[] {

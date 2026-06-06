@@ -20,4 +20,14 @@ describe('ThreeViewport WebGL fallback', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('keeps the open component context visible on the viewport root', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 600, 400, 19);
+    const component = model.createComponent('Platte', [box.id], { kind: 'component' });
+
+    const markup = renderToStaticMarkup(<ThreeViewport model={model} activeTool="select" activeComponentId={component.id} />);
+
+    expect(markup).toContain(`data-active-component-id="${component.id}"`);
+  });
 });

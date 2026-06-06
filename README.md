@@ -76,6 +76,8 @@ Vorhanden im Code:
 - Undo/Redo-Verlauf für Modelländerungen über Rückgängig/Wiederholen
 - Box-Dimensionspanel für neue Boxen
 - Komponenten/Gruppen und Komponenten-Duplizierung mit Millimeter-Versatz
+- SketchUp-ähnlicher Komponentenkontext: Komponentengeometrie bleibt außerhalb geschlossen; Doppelklick beziehungsweise `Komponente bearbeiten öffnen` öffnet den Innenkontext für Push/Pull, Verschieben, Löschen und Materialänderungen
+- Material-Tray mit Startmaterialien plus RAL-inspirierten Farbfeldern, Hover-/Tooltip-Namen und lokalem Texturordner-Import
 - Maßband-Workflow mit Millimeteranzeige
 - `.hcad.json` Projektdatei-Export und -Import mit Versions- und Einheitenprüfung
 - DXF-Export-Grundlage in der UI, DXF-Dateiimport in der UI mit Importbericht, fail-closed Einheitenprüfung, einfacher DXF-LINE-Import und begrenzter DXF-LWPOLYLINE-Rechteckimport
@@ -109,6 +111,7 @@ Zuletzt verifizierter Stand des Produkt-Slice-Branches:
 - Präzises Verschieben: ΔX/ΔY/ΔZ in mm eingeben und anwenden.
 - Präzises Drehen: Winkel in Grad eingeben und anwenden.
 - Push/Pull: Box oder eine ihrer sichtbaren Seiten auswählen, ΔH in mm eingeben und anwenden. Bei Seitenflächen ändert sich die passende Breite/Tiefe entlang der lokalen Face-Richtung. Bei ausgewählten axis-aligned Rechteckflächen erzeugt eine positive Distanz einen Boxkörper.
+- Komponente bearbeiten: Eine Komponente außerhalb nur auswählen; Doppelklick auf die Komponente oder `Komponente bearbeiten öffnen` im Komponenten-Tray öffnet den Innenkontext. Erst dort sind Push/Pull, Verschieben, Löschen und Materialänderungen an der Innengeometrie erlaubt. `Komponentenkontext schließen` verlässt den Innenkontext wieder.
 - Auswahlmaße bearbeiten: Box auswählen, Breite/Tiefe/Höhe direkt in mm setzen.
 - Fläche extrudieren: axis-aligned Rechteck/Fläche auswählen, positive Höhe eingeben und zu einem Boxkörper extrudieren.
 - Rückgängig/Wiederholen: Modelländerungen mit den Schaltflächen `Rückgängig` und `Wiederholen` reversibel machen.

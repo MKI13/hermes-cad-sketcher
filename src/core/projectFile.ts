@@ -105,7 +105,9 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
     Array.isArray(value.entityIds) &&
     value.entityIds.length > 0 &&
     value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId)) &&
-    (!('woodworking' in value) || value.woodworking === undefined || isValidWoodworkingMetadata(value.woodworking))
+    (!('woodworking' in value) || value.woodworking === undefined || isValidWoodworkingMetadata(value.woodworking)) &&
+    (!('kind' in value) || value.kind === undefined || value.kind === 'group' || value.kind === 'component') &&
+    (!('description' in value) || value.description === undefined || (typeof value.description === 'string' && value.description.trim().length > 0))
   );
 }
 

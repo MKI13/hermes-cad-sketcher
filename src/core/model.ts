@@ -24,6 +24,7 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 
 export type EntityId = string;
 export type ComponentId = string;
+export type ComponentKind = 'group' | 'component';
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
 export type MaterialAssignment = { materialId?: MaterialId; name?: string; color?: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
 export type WoodworkingKind = 'assembly' | 'panel' | 'bar' | 'hardware' | 'cut' | 'helper';
@@ -136,7 +137,14 @@ export type Component = {
   id: ComponentId;
   name: string;
   entityIds: EntityId[];
+  kind: ComponentKind;
+  description?: string;
   woodworking?: WoodworkingMetadata;
+};
+
+export type ComponentCreationOptions = {
+  kind?: ComponentKind;
+  description?: string;
 };
 
 export type SketchModelSnapshot = {
@@ -175,7 +183,7 @@ export class SketchModel {
     model.tags = normalizeTags(snapshot.tags);
     model.materials = normalizeMaterialCatalog(snapshot.materials, { preserveStarterMaterials: true });
     for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(withDefaultEntityMetadata(entity)));
-    for (const component of snapshot.components) model.components.set(component.id, structuredClone(component));
+    for (const component of snapshot.components) model.components.set(component.id, normalizeComponent(component));
     const activeComponentId = snapshot.activePath?.at(-1);
     if (activeComponentId && model.components.has(activeComponentId)) model.activeContext = { type: 'component', componentId: activeComponentId };
     bumpNextNumberPastSnapshot(snapshot);
@@ -200,6 +208,11 @@ export class SketchModel {
 
   allComponents(): Component[] {
     return [...this.components.values()];
+  }
+
+  getComponent(id: ComponentId): Component | undefined {
+    const component = this.components.get(id);
+    return component ? structuredClone(component) : undefined;
   }
 
   allTags(): TagDefinition[] {
@@ -520,10 +533,17 @@ export class SketchModel {
     return id;
   }
 
-  createComponent(name: string, entityIds: EntityId[]): Component {
+  createComponent(name: string, entityIds: EntityId[], options: ComponentCreationOptions = {}): Component {
     if (entityIds.length === 0) throw new Error('Eine Komponente braucht mindestens ein Element.');
     for (const id of entityIds) this.requireEntity(id);
-    const component: Component = { id: nextId('component'), name, entityIds: [...entityIds] };
+    const cleanDescription = options.description?.trim();
+    const component: Component = {
+      id: nextId('component'),
+      name,
+      entityIds: [...entityIds],
+      kind: options.kind ?? 'component',
+      ...(cleanDescription ? { description: cleanDescription } : {})
+    };
     this.components.set(component.id, component);
     for (const id of entityIds) {
       for (const existing of [...this.components.values()]) {
@@ -554,7 +574,7 @@ export class SketchModel {
       copiedIds.push(copy.id);
       this.entities.set(copy.id, copy);
     }
-    return this.createComponent(name, copiedIds);
+    return this.createComponent(name, copiedIds, { kind: source.kind, description: source.description });
   }
 
   measure(a: Vec3, b: Vec3): number {
@@ -601,6 +621,15 @@ export class SketchModel {
 
 function withDefaultEntityMetadata<T extends Entity>(entity: T): T {
   return { ...entity, tagId: entity.tagId ?? defaultTagId, materialId: entity.materialId ?? defaultMaterialId } as T;
+}
+
+function normalizeComponent(component: Component): Component {
+  const cleanDescription = component.description?.trim();
+  return structuredClone({
+    ...component,
+    kind: component.kind ?? 'component',
+    ...(cleanDescription ? { description: cleanDescription } : {})
+  });
 }
 
 function safeIdFromName(name: string, fallback: string): string {

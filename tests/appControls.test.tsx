@@ -133,13 +133,27 @@ describe('App controls', () => {
     expect(markup).toContain('Materialien');
     expect(markup).toContain('Ordner vom PC wählen');
     expect(markup).toContain('Auswahl mit Material belegen');
-    expect(markup).toContain('Startmaterialien: 8');
+    expect(markup).toContain('Startmaterialien: 14');
     expect(markup).toContain('Holz hell');
     expect(markup).toContain('Glas transparent');
     expect(markup).toContain('Weiß lackiert');
     expect(markup).toContain('accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.svg"');
     expect(markup).toContain('Materialordner: Standard-Farbfelder');
     expect(markup).toContain('class="material-swatch"');
+  });
+
+  it('renders the compact SketchUp Create Component launcher instead of a custom component form', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('aria-label="SketchUp Create Component launcher"');
+    expect(markup).toContain('Create Component');
+    expect(markup).toContain('Definition: Component#1 oder Platte');
+    expect(markup).toContain('1 Klick: einzelne Fläche');
+    expect(markup).toContain('2 Klicks: zusammengehörige Fläche');
+    expect(markup).toContain('Außerhalb einer Komponente');
+    expect(markup).not.toContain('Komponentenname');
+    expect(markup).not.toContain('Auswahl als Gruppe erstellen');
+    expect(markup).not.toContain('Definition/Instanz-Prinzip');
   });
 
   it('shows the selected entity material from the stable starter catalog when no legacy display name exists', () => {
@@ -274,12 +288,32 @@ describe('App controls', () => {
   });
 
 
+  it('keeps SketchUp-like component edit context exit wired to empty viewport clicks', async () => {
+    const source = await readFile('src/App.tsx', 'utf8');
+    const selectBody = source.slice(source.indexOf('function handleViewportSelect'), source.indexOf('function moveFromViewport'));
+
+    expect(selectBody).toContain("if (!entityId)");
+    expect(selectBody).toContain("activeEditContext.type !== 'root'");
+    expect(selectBody).toContain('closeComponentContext();');
+    expect(selectBody).toContain('Komponentenkontext geschlossen');
+  });
+
   it('keeps SketchUp-like component UX hooks in the app source', async () => {
     const source = await readFile('src/App.tsx', 'utf8');
     const viewportSource = await readFile('src/ui/ThreeViewport.tsx', 'utf8');
 
-    expect(source).toContain('Name der Komponente');
-    expect(source).toContain('Details / Rolle');
+    expect(source).toContain('Create Component');
+    expect(source).toContain('General');
+    expect(source).toContain('Definition:');
+    expect(source).toContain('Glue to:');
+    expect(source).toContain('Set Component Axes');
+    expect(source).toContain('Cut opening');
+    expect(source).toContain('Always face camera');
+    expect(source).toContain('Shadows face sun');
+    expect(source).toContain('Advanced Attributes');
+    expect(source).toContain('Replace selection with component');
+    expect(source).toContain('Enter definition price');
+    expect(source).toContain('Type: <undefined>');
     expect(source).toContain('onOpenComponent');
     expect(viewportSource).toContain('onDoubleClick');
     expect(viewportSource).toContain("addEventListener('dblclick'");
@@ -287,6 +321,10 @@ describe('App controls', () => {
     expect(source).toContain('component-creation-dialog');
     expect(source).toContain('selectedComponentLabel');
     expect(source).toContain('componentCreationDialog.entityId');
+    const confirmBody = source.slice(source.indexOf('function confirmComponentCreation'), source.indexOf('function reportSelectedArea'));
+    expect(confirmBody).toContain('replaceSelectionWithComponent');
+    expect(confirmBody).not.toContain('m.openComponent');
+    expect(confirmBody).toContain('Auswahl wurde durch Komponente ersetzt');
     expect(source).toContain('model.canEditEntity(selectedId)');
     expect(source).toContain('disabled={!selectedId || selectedEditBlocked}');
     expect(viewportSource).not.toContain('selectedFaceRef.current?.entityId === selectedId\n      ? selectedFaceRef.current');
