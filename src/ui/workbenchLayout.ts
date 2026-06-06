@@ -4,7 +4,7 @@ export type WorkbenchTool = {
   id: string;
   label: string;
   group: string;
-  status: 'ready' | 'planned';
+  status: 'ready' | 'experimental' | 'planned';
   tool?: ToolName;
 };
 
@@ -28,14 +28,14 @@ export const WORKBENCH_TOOLS: WorkbenchTool[] = [
   { id: 'follow-path', label: 'Folgepfad', group: 'Modellieren', status: 'planned' },
   { id: 'tape', label: 'Maßband', group: 'Messen', status: 'ready', tool: 'tape' },
   { id: 'protractor', label: 'Winkelmesser', group: 'Messen', status: 'planned' },
-  { id: 'orbit', label: 'Orbit', group: 'Kamera', status: 'planned' },
-  { id: 'pan', label: 'Hand', group: 'Kamera', status: 'planned' },
-  { id: 'zoom', label: 'Zoom', group: 'Kamera', status: 'planned' },
+  { id: 'orbit', label: 'Orbit', group: 'Kamera', status: 'experimental' },
+  { id: 'pan', label: 'Hand', group: 'Kamera', status: 'experimental' },
+  { id: 'zoom', label: 'Zoom', group: 'Kamera', status: 'experimental' },
   { id: 'zoom-extents', label: 'Alles zeigen', group: 'Kamera', status: 'planned' },
-  { id: 'component', label: 'Komponente', group: 'Struktur', status: 'ready' },
-  { id: 'tags', label: 'Tags/Sichtbarkeit', group: 'Struktur', status: 'planned' },
+  { id: 'component', label: 'Komponente', group: 'Struktur', status: 'experimental' },
+  { id: 'tags', label: 'Tags/Sichtbarkeit', group: 'Struktur', status: 'experimental' },
   { id: 'scenes', label: 'Szenen', group: 'Struktur', status: 'planned' },
-  { id: 'materials', label: 'Materialien', group: 'Visualisierung', status: 'planned' },
+  { id: 'materials', label: 'Materialien', group: 'Visualisierung', status: 'experimental' },
   { id: 'shadows', label: 'Schatten', group: 'Visualisierung', status: 'planned' },
   { id: 'environment', label: 'Umgebung', group: 'Visualisierung', status: 'planned' },
   { id: 'ai-concept', label: 'AI-Konzeptbild', group: 'Visualisierung', status: 'planned' }
@@ -46,5 +46,7 @@ export function workbenchGroups(tools = WORKBENCH_TOOLS): string[] {
 }
 
 export function toolStatusLabel(status: WorkbenchTool['status']): string {
-  return status === 'ready' ? 'bereit' : 'geplant';
+  if (status === 'ready') return 'bereit';
+  if (status === 'experimental') return 'experimentell';
+  return 'geplant';
 }

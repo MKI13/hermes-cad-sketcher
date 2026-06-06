@@ -1,0 +1,87 @@
+project:
+  name: hermes-cad-sketcher
+  repository: MKI13/hermes-cad-sketcher
+  language_stack:
+    - TypeScript
+    - React
+    - Vite
+    - Three.js
+    - Vitest
+    - Python local bridge
+  base_unit: mm
+
+hard_rules:
+  no_direct_push_to_main: true
+  no_sketchup_icons: true
+  no_trimble_assets: true
+  no_decorative_ui: true
+  no_false_file_compatibility_claims: true
+  require_tests_for_core_features: true
+  require_npm_run_check: true
+  require_sketchup_behavior_comparison: true
+  require_rollback_note: true
+
+branching:
+  stable_branch: main
+  development_branch_pattern: dev/v*
+  feature_branch_pattern: agent/issue-<number>-<slug>
+  allowed_commit_style: conventional_commits
+  checkpoint_tag_pattern: checkpoint/issue-<number>-<state>
+
+function_status:
+  ready:
+    requires:
+      - model_logic
+      - ui_or_agent_access
+      - tests
+      - docs
+      - undo_redo
+      - save_load_if_stateful
+      - proof_bundle
+  experimental:
+    requires:
+      - visible_limitations
+      - tests_for_supported_scope
+      - disabled_unfinished_paths
+  planned:
+    requires:
+      - disabled_ui
+      - roadmap_entry
+      - no_claim_of_functionality
+
+priority_order:
+  - quality_gate_and_versioning
+  - command_based_undo_redo
+  - active_edit_context
+  - component_definitions_instances
+  - measurement_box
+  - inference_snapping_axis_lock
+  - push_pull_face_semantics
+  - outliner_tags_materials
+  - woodworking_components_cutlist_metadata
+  - rendering_workspace
+  - extension_system
+  - file_bridges
+
+required_commands:
+  install: npm ci
+  test: npm run test
+  build: npm run build
+  check: npm run check
+  smoke: npm run smoke:browser
+
+research:
+  required_before_major_function: true
+  source_log_path: docs/research/issue-<number>-sources.md
+  source_order:
+    - official_sketchup_help
+    - official_developer_docs
+    - behavior_videos
+    - github_architecture_examples
+    - current_repo_issues
+    - current_repo_code
+  forbidden:
+    - copied_icons
+    - copied_code_without_license_review
+    - copied_help_text
+    - copied_ui_assets

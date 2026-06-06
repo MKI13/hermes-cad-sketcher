@@ -1,0 +1,32 @@
+Area,Function,Current State,Target State,Priority,Must Have Before Ready
+Core,Millimeter unit,existing,stable everywhere,P0,all commands/import/export keep mm
+Core,Command architecture,partial/snapshot undo,explicit commands,P0,execute undo redo tests
+Drawing,Line,existing,SketchUp-like with inference and measurement,P1,snaps axis lock measurement input undo
+Drawing,Rectangle,existing,precise rectangle with plane support,P1,width depth input face normal tests
+Drawing,Box,existing,solid-ready box with materials/tags,P1,face data selection save load
+Viewport,Orbit,existing,stable orbit pan zoom extents,P1,mouse tests smoke docs
+Viewport,Picking,existing,context-aware selection,P1,no inner geometry outside context
+Viewport,Body rendering,existing but basic,clear face hover edges,P1,selected/hover face tests
+Inference,Snapping,partial,end/mid/edge/face/axis lock,P1,core inference tests overlay
+Input,Measurement Box,partial,active tool-aware input,P1,parser application tests
+Edit,Move,existing,object vs loose geometry stretch semantics,P1,active context topology tests
+Edit,Rotate,existing z-rotate,object/instance/loose geometry rules,P2,pivot angle instance transform tests
+Edit,Scale/Resize,partial,predictable resize/scale distinction,P2,no destructive furniture scaling
+Model,Groups,partial,true edit boundaries,P1,open close explode lock tests
+Model,Components,partial,true definition/instance model,P1,shared definition make unique tests
+Model,Make Unique,planned,instance-specific definition copy,P1,definition separation tests
+Model,Outliner,partial,hierarchy tree select rename visibility,P2,sync tests
+Organization,Tags,existing basic,visibility color-by-tag folders later,P2,visibility tests
+Organization,Materials,existing basic,woodworking and PBR-ready,P2,assignment tests
+Modeling,Push/Pull,partial,face-normal live preview precise,P1,measurement undo context tests
+ImportExport,hcad,existing,versioned migrations,P0,old/new fixture tests
+ImportExport,DXF,partial,truthful support matrix,P2,fixtures fail-closed units
+ImportExport,STL,partial,reference mesh honesty,P2,non-editable clear status
+Agent,DSL,existing,safe command parity with UI,P1,same command layer tests
+Agent,Bridge,existing,local secure bridge,P1,no browser API key
+UI,Icons,partial,own Hermes icon system,P1,no SketchUp assets central map
+UI,Right Tray,partial,functional panels not decorative,P1,connected state tests
+Rendering,Workspace,planned,separate render scene layer,P3,no CAD core pollution
+Extensions,hcad extension,planned,safe permissioned extension system,P4,manifest loader tests
+Woodworking,Korpus components,planned,parametric cabinet parts,P2,part metadata cutlist readiness
+Woodworking,OpenCutList readiness,planned,validation panel,P2,warnings and reports

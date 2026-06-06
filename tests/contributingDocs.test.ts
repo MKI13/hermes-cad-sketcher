@@ -52,6 +52,19 @@ describe('agent-friendly contribution surface', () => {
     expect(template).toContain('npm run check');
   });
 
+  it('documents the function-parity no-decoration workflow and keeps a changelog', async () => {
+    const [agents, changelog] = await Promise.all([
+      read('AGENTS.md'),
+      read('CHANGELOG.md')
+    ]);
+
+    expect(agents).toContain('Function-Parity-Regel');
+    expect(agents).toContain('ready / experimental / planned');
+    expect(agents).toContain('Keine Deko-Funktionen');
+    expect(changelog).toContain('## Unreleased');
+    expect(changelog).toContain('Function-Parity-Agent-Plan');
+  });
+
   it('keeps GitHub issue templates free of trailing whitespace', async () => {
     const templates = [
       '.github/ISSUE_TEMPLATE/agent-task.md',

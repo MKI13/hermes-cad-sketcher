@@ -14,8 +14,18 @@ describe('SketchUp-inspired workbench layout', () => {
     expect(WORKBENCH_TOOLS.find((tool) => tool.id === 'environment')?.status).toBe('planned');
   });
 
-  it('labels implemented tools honestly', () => {
+  it('labels implemented, experimental, and planned tools honestly', () => {
     expect(toolStatusLabel('ready')).toBe('bereit');
+    expect(toolStatusLabel('experimental')).toBe('experimentell');
     expect(toolStatusLabel('planned')).toBe('geplant');
+  });
+
+  it('does not mark decorative or disconnected workbench buttons as ready', () => {
+    const disconnectedReadyTools = WORKBENCH_TOOLS.filter((tool) => tool.status === 'ready' && !tool.tool);
+
+    expect(disconnectedReadyTools).toEqual([]);
+    expect(WORKBENCH_TOOLS.find((tool) => tool.id === 'component')?.status).toBe('experimental');
+    expect(WORKBENCH_TOOLS.find((tool) => tool.id === 'materials')?.status).toBe('experimental');
+    expect(WORKBENCH_TOOLS.find((tool) => tool.id === 'orbit')?.status).toBe('experimental');
   });
 });

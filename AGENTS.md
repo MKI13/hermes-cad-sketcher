@@ -127,6 +127,25 @@ Eine Erweiterung gilt erst als fertig, wenn alle Punkte erfüllt sind:
 - Der Commit beschreibt die Änderung konkret.
 - Der Commit enthält nicht mehrere unabhängige Features auf einmal.
 
+## Function-Parity-Regel: keine Deko-Funktionen
+
+Neue und bestehende CAD-Funktionen müssen nach dem Function-Parity-Agent-Plan gepflegt werden. **Keine Deko-Funktionen:** Eine sichtbare Funktion darf nie nur Dekoration sein.
+
+Jede sichtbare Funktion braucht einen klaren Status: `ready / experimental / planned`.
+
+- `ready` — vollständig nutzbar, getestet, dokumentiert und mit Modelllogik verbunden.
+- `experimental` — nutzbar oder teilweise integriert, aber Grenzen sind sichtbar und dokumentiert.
+- `planned` — noch nicht nutzbar; der Button oder Eintrag ist deaktiviert oder klar als geplant markiert.
+
+Pflicht für jede abgeschlossene Funktionsarbeit:
+
+- Modelllogik oder klar abgegrenzte UI-/Dokumentationslogik.
+- Tests zuerst oder aktualisierte Regressionstests.
+- SketchUp-Verhaltensvergleich als Workflow-Referenz, ohne SketchUp-/Trimble-Assets, Logos, Texte oder Code zu kopieren.
+- `npm run check` grün.
+- CHANGELOG- oder Release-Notiz mit Rollback-Hinweis.
+- Keine direkte `main`-Änderung ohne ausdrückliche Freigabe von Marios.
+
 ## Geplante Erweiterungen
 
 Diese Liste ist eine Arbeitsliste für zukünftige Agenten und Contributor. Wenn eine Erweiterung fertig ist, verschiebe sie in die erledigte Liste.

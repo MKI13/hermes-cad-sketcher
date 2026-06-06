@@ -1,0 +1,87 @@
+{
+  "select": {
+    "lucideCandidate": "MousePointer2",
+    "label": "Auswahl",
+    "tooltip": "Objekt oder Geometrie auswählen"
+  },
+  "line": {
+    "lucideCandidate": "PenLine",
+    "label": "Linie",
+    "tooltip": "Linie mit zwei Punkten zeichnen"
+  },
+  "rectangle": {
+    "lucideCandidate": "Square",
+    "label": "Rechteck",
+    "tooltip": "Rechteck über zwei Punkte zeichnen"
+  },
+  "box": {
+    "lucideCandidate": "Box",
+    "label": "Körper",
+    "tooltip": "Boxkörper mit festen Maßen erzeugen"
+  },
+  "pushPull": {
+    "lucideCandidate": "custom:face-push-pull",
+    "label": "Push/Pull",
+    "tooltip": "Fläche drücken oder ziehen"
+  },
+  "move": {
+    "lucideCandidate": "Move3D",
+    "label": "Verschieben",
+    "tooltip": "Auswahl verschieben"
+  },
+  "rotate": {
+    "lucideCandidate": "Rotate3D",
+    "label": "Drehen",
+    "tooltip": "Auswahl drehen"
+  },
+  "measure": {
+    "lucideCandidate": "Ruler",
+    "label": "Maßband",
+    "tooltip": "Abstand messen"
+  },
+  "orbit": {
+    "lucideCandidate": "Orbit",
+    "label": "Orbit",
+    "tooltip": "Ansicht drehen"
+  },
+  "pan": {
+    "lucideCandidate": "Hand",
+    "label": "Pan",
+    "tooltip": "Ansicht verschieben"
+  },
+  "zoom": {
+    "lucideCandidate": "ZoomIn",
+    "label": "Zoom",
+    "tooltip": "Ansicht zoomen"
+  },
+  "component": {
+    "lucideCandidate": "Blocks",
+    "label": "Komponente",
+    "tooltip": "Wiederverwendbare Komponente erstellen"
+  },
+  "makeUnique": {
+    "lucideCandidate": "CopyPlus+Sparkles",
+    "label": "Einzigartig machen",
+    "tooltip": "Instanz von gemeinsamer Definition trennen"
+  },
+  "outliner": {
+    "lucideCandidate": "ListTree",
+    "label": "Outliner",
+    "tooltip": "Modellhierarchie anzeigen"
+  },
+  "tags": {
+    "lucideCandidate": "Tags",
+    "label": "Tags",
+    "tooltip": "Sichtbarkeit und Organisation steuern"
+  },
+  "materials": {
+    "lucideCandidate": "PaintBucket",
+    "label": "Material",
+    "tooltip": "Material zuweisen"
+  },
+  "render": {
+    "lucideCandidate": "SunMedium+Camera",
+    "label": "Rendern",
+    "tooltip": "Render Workspace öffnen"
+  }
+}
