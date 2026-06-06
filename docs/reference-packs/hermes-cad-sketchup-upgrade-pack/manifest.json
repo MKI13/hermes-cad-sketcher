@@ -1,0 +1,31 @@
+{
+  "package": "hermes_cad_sketchup_upgrade_pack",
+  "created": "2026-06-06",
+  "purpose": "Prompts, agent logic rules, specs, issue templates, tests for Hermes CAD SketchUp-like component and UI upgrade",
+  "main_prompt": "00_MASTER_PROMPT_FOR_HERMES.md",
+  "files": [
+    "00_MASTER_PROMPT_FOR_HERMES.md",
+    "01_AGENT_OPERATING_RULES.md",
+    "02_WEB_RESEARCH_PROTOCOL.md",
+    "03_COMPONENTS_SKETCHUP_PARITY_SPEC.md",
+    "04_DYNAMIC_COMPONENTS_CABINET_SPEC.md",
+    "05_UI_UX_SKETCHUP_LIKE_BUT_ORIGINAL.md",
+    "06_ICON_BRAND_AND_LICENSE_RULES.md",
+    "07_IMPLEMENTATION_ROADMAP.md",
+    "08_ACCEPTANCE_TESTS_CHECKLIST.md",
+    "09_github_issue_templates/issue_01_component_system.md",
+    "09_github_issue_templates/issue_02_dynamic_components.md",
+    "09_github_issue_templates/issue_03_outliner.md",
+    "09_github_issue_templates/issue_04_cabinet_generator.md",
+    "09_github_issue_templates/issue_05_ui_measurement_inference.md",
+    "09_github_issue_templates/issue_06_icon_system.md",
+    "10_HERMES_AGENT_MEMORY_RULES.md",
+    "11_COPY_PASTE_SHORT_PROMPT.md",
+    "12_COMPONENT_DATA_MODEL_SCHEMA.md",
+    "13_CABINET_PRESETS_SPEC.md",
+    "14_QA_REGRESSION_PROTOCOL.md",
+    "README.md",
+    "hermes_agent_config.yaml",
+    "source_log_template.md"
+  ]
+}

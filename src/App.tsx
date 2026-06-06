@@ -959,6 +959,36 @@ export default function App() {
     setProjectStatus('Bearbeitungskontext geschlossen. Root / lose Geometrie aktiv.');
   }
 
+  function makeSelectedComponentUnique(componentId = selectedComponentId) {
+    if (!componentId) {
+      setProjectStatus('Bitte zuerst eine Komponenten-Instanz auswählen.');
+      return;
+    }
+    let uniqueName = '';
+    mutate((m) => {
+      const updated = m.makeComponentUnique(componentId);
+      uniqueName = updated.name;
+      setSelectedId(updated.entityIds[0]);
+      setSelectedBoxFace(undefined);
+    });
+    setProjectStatus(`Make Unique ausgeführt: ${uniqueName}. Diese Instanz hat jetzt eine eigene Definition.`);
+  }
+
+  function explodeSelectedComponent(componentId = selectedComponentId) {
+    if (!componentId) {
+      setProjectStatus('Bitte zuerst eine Gruppe oder Komponente auswählen.');
+      return;
+    }
+    let releasedCount = 0;
+    mutate((m) => {
+      const releasedIds = m.explodeComponent(componentId);
+      releasedCount = releasedIds.length;
+      setSelectedId(releasedIds[0]);
+      setSelectedBoxFace(undefined);
+    });
+    setProjectStatus(`Explode ausgeführt: ${releasedCount} Elemente sind wieder lose editierbare Geometrie.`);
+  }
+
   function normalizeComponentKind(kind: ComponentKind | 'Gruppe' | 'Komponente'): ComponentKind {
     return kind === 'Gruppe' || kind === 'group' ? 'group' : 'component';
   }
@@ -1356,6 +1386,7 @@ export default function App() {
   );
 
   const componentList = model.allComponents();
+  const componentDefinitionList = model.allComponentDefinitions();
 
   const detailedControls = (
     <section className="top-function-workspace" aria-label="Klassischer CAD-Arbeitsplatz Funktionen">
@@ -1418,6 +1449,8 @@ export default function App() {
         <p className="tool-instruction">{getToolInstructions(tool)}</p>
         {componentCreationPanel}
         <button onClick={duplicateSelectedComponent} disabled={!selected?.componentId}><HermesIcon id="duplicate-component-clear" label="Komponente duplizieren" size={18} /> Komponente duplizieren</button>
+        <button title="Trennt die gewählte Instanz von ihrer gemeinsamen Definition" disabled={!selected?.componentId} onClick={() => makeSelectedComponentUnique()}>Make Unique</button>
+        <button title="Löst Gruppe oder Komponente zurück in lose Geometrie auf" disabled={!selected?.componentId} onClick={() => explodeSelectedComponent()}>Explode</button>
         <button title="Kopiert einzelnes Element oder ganze Komponente mit Millimeter-Versatz" disabled={!selectedId} onClick={copySelectedEntity}><HermesIcon id="duplicate-component-clear" label="Auswahl kopieren" size={18} /> Auswahl kopieren</button>
         <button title="Ausgewähltes Element löschen (Delete/Backspace)" disabled={!selectedId} onClick={deleteSelectedEntity}>
           <HermesIcon id="eraser-clear" label="Auswahl löschen" size={18} /> Auswahl löschen
@@ -1575,7 +1608,8 @@ export default function App() {
     components: (
       <div className="components-tray-panel">
         {componentCreationPanel}
-        <p>Komponentenliste: {componentList.length} Komponenten oder Gruppen im Modell.</p>
+        <p>Komponentenliste: {componentList.length} Komponenten oder Gruppen im Modell. Definitionen: {componentDefinitionList.length}</p>
+        <small>Instanzen derselben Definition werden beim Bearbeiten im Kontext synchron aktualisiert. Make Unique trennt nur die ausgewählte Instanz. Explode löst eine Gruppe oder Komponente zurück in lose Geometrie.</small>
         {componentList.length === 0 ? (
           <small>Noch keine Komponenten. Wähle einen Körper, eine Fläche oder Linie und erstelle daraus eine Gruppe oder Komponente.</small>
         ) : (
@@ -1583,10 +1617,13 @@ export default function App() {
             {componentList.map((component) => (
               <li key={component.id}>
                 <strong>{component.name}</strong> · {component.kind === 'group' ? 'Gruppe' : 'Komponente'} · {component.entityIds.length} Elemente
+                <small>Definition: {model.componentDefinition(component.definitionId)?.name ?? component.definitionId} · Instanzen: {model.componentInstanceCount(component.definitionId)}</small>
                 {component.description && <small>{component.description}</small>}
                 {component.id === selectedComponentId ? <em>ausgewählt</em> : null}
                 <button type="button" onClick={() => selectWholeComponent(component.id)}>Komponente auswählen</button>
                 <button type="button" onClick={() => openComponentContext(component.id)}>Komponente bearbeiten öffnen</button>
+                <button type="button" onClick={() => { selectWholeComponent(component.id); makeSelectedComponentUnique(component.id); }}>Make Unique</button>
+                <button type="button" onClick={() => { selectWholeComponent(component.id); explodeSelectedComponent(component.id); }}>Explode</button>
               </li>
             ))}
           </ul>

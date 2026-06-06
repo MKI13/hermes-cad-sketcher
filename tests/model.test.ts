@@ -271,6 +271,66 @@ describe('SketchModel geometry tools', () => {
     }
   });
 
+  it('keeps copied reusable components linked to one definition until Make Unique is used', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const original = model.createComponent('Schrankseite', [box.id], { description: 'Wiederverwendbare Seitenwand' });
+
+    const duplicate = model.duplicateComponent(original.id, 'Schrankseite Kopie', vec(1000, 0, 0));
+
+    expect(duplicate.definitionId).toBe(original.definitionId);
+    expect(model.componentDefinition(original.definitionId)).toMatchObject({ name: 'Schrankseite', description: 'Wiederverwendbare Seitenwand' });
+    expect(model.componentInstanceCount(original.definitionId)).toBe(2);
+
+    const unique = model.makeComponentUnique(duplicate.id, 'Schrankseite Sondermaß');
+
+    expect(unique.definitionId).not.toBe(original.definitionId);
+    expect(model.componentDefinition(unique.definitionId)).toMatchObject({ name: 'Schrankseite Sondermaß' });
+    expect(model.componentInstanceCount(original.definitionId)).toBe(1);
+    expect(model.componentInstanceCount(unique.definitionId)).toBe(1);
+  });
+
+  it('syncs definition edits to other linked component instances while preserving their offset', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const original = model.createComponent('Korpus-Seite', [box.id]);
+    const duplicate = model.duplicateComponent(original.id, 'Korpus-Seite Kopie', vec(1000, 0, 0));
+    const duplicateBoxId = duplicate.entityIds[0];
+
+    model.openComponent(original.id);
+    const resized = model.resizeBox(box.id, { width: 120, height: 320 });
+
+    expect(resized).toMatchObject({ width: 120, depth: 200, height: 320 });
+    expect(model.getEntity(duplicateBoxId)).toMatchObject({ type: 'box', origin: vec(1000, 0, 0), width: 120, depth: 200, height: 320 });
+  });
+
+  it('separates an instance with Make Unique before later definition edits', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const original = model.createComponent('Korpus-Seite', [box.id]);
+    const duplicate = model.duplicateComponent(original.id, 'Korpus-Seite Kopie', vec(1000, 0, 0));
+    const unique = model.makeComponentUnique(duplicate.id, 'Korpus-Seite Sondermaß');
+
+    model.openComponent(original.id);
+    model.resizeBox(box.id, { width: 140 });
+
+    expect(model.getEntity(box.id)).toMatchObject({ type: 'box', width: 140 });
+    expect(model.getEntity(unique.entityIds[0])).toMatchObject({ type: 'box', width: 100 });
+  });
+
+  it('explodes a component back into editable geometry and purges unused definitions', () => {
+    const model = new SketchModel();
+    const box = model.createBox(vec(0, 0, 0), 100, 200, 300);
+    const component = model.createComponent('Explode-Test', [box.id]);
+
+    const releasedIds = model.explodeComponent(component.id);
+
+    expect(releasedIds).toEqual([box.id]);
+    expect(model.getEntity(box.id)?.componentId).toBeUndefined();
+    expect(model.allComponents()).toEqual([]);
+    expect(model.componentDefinition(component.definitionId)).toBeUndefined();
+  });
+
   it('copies a single selected entity without requiring a component', () => {
     const model = new SketchModel();
     const face = model.createRectangle(vec(10, 20, 0), 300, 200);

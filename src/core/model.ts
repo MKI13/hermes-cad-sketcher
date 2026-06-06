@@ -24,6 +24,7 @@ export function isAxisAlignedRectangleFace(vertices: Vec3[]): boolean {
 
 export type EntityId = string;
 export type ComponentId = string;
+export type ComponentDefinitionId = string;
 export type ComponentKind = 'group' | 'component';
 export type DrawingPlane = 'xy' | 'xz' | 'yz';
 export type MaterialAssignment = { materialId?: MaterialId; name?: string; color?: string; previewUrl?: string; textureDataUrl?: string; textureFileName?: string };
@@ -133,8 +134,17 @@ export type SelectionTarget = Readonly<
   | { type: 'component'; componentId: ComponentId; hitEntityId: EntityId }
 >;
 
+export type ComponentDefinition = {
+  id: ComponentDefinitionId;
+  name: string;
+  kind: ComponentKind;
+  description?: string;
+  version: number;
+};
+
 export type Component = {
   id: ComponentId;
+  definitionId: ComponentDefinitionId;
   name: string;
   entityIds: EntityId[];
   kind: ComponentKind;
@@ -145,12 +155,14 @@ export type Component = {
 export type ComponentCreationOptions = {
   kind?: ComponentKind;
   description?: string;
+  definitionId?: ComponentDefinitionId;
 };
 
 export type SketchModelSnapshot = {
   unit: 'mm';
   entities: Entity[];
   components: Component[];
+  componentDefinitions?: ComponentDefinition[];
   tags?: TagDefinition[];
   materials?: MaterialDefinition[];
   activePath?: ComponentId[];
@@ -162,7 +174,11 @@ function nextId(prefix: string): string {
 }
 
 function bumpNextNumberPastSnapshot(snapshot: SketchModelSnapshot): void {
-  const ids = [...snapshot.entities.map((entity) => entity.id), ...snapshot.components.map((component) => component.id)];
+  const ids = [
+    ...snapshot.entities.map((entity) => entity.id),
+    ...snapshot.components.map((component) => component.id),
+    ...(snapshot.componentDefinitions ?? []).map((definition) => definition.id)
+  ];
   const highest = ids.reduce((max, id) => {
     const match = /_(\d+)$/.exec(id);
     return match ? Math.max(max, Number(match[1])) : max;
@@ -174,6 +190,7 @@ export class SketchModel {
   readonly unit = 'mm' as const;
   private entities = new Map<EntityId, Entity>();
   private components = new Map<ComponentId, Component>();
+  private componentDefinitions = new Map<ComponentDefinitionId, ComponentDefinition>();
   private activeContext: EditContext = { type: 'root' };
   private tags: TagDefinition[] = defaultTags();
   private materials: MaterialDefinition[] = defaultMaterials();
@@ -183,7 +200,15 @@ export class SketchModel {
     model.tags = normalizeTags(snapshot.tags);
     model.materials = normalizeMaterialCatalog(snapshot.materials, { preserveStarterMaterials: true });
     for (const entity of snapshot.entities) model.entities.set(entity.id, structuredClone(withDefaultEntityMetadata(entity)));
-    for (const component of snapshot.components) model.components.set(component.id, normalizeComponent(component));
+    for (const definition of snapshot.componentDefinitions ?? []) model.componentDefinitions.set(definition.id, normalizeComponentDefinition(definition));
+    for (const componentPayload of snapshot.components) {
+      const component = normalizeComponent(componentPayload);
+      model.components.set(component.id, component);
+      if (!model.componentDefinitions.has(component.definitionId)) {
+        model.componentDefinitions.set(component.definitionId, componentDefinitionFromComponent(component));
+      }
+    }
+    model.purgeUnusedComponentDefinitions();
     const activeComponentId = snapshot.activePath?.at(-1);
     if (activeComponentId && model.components.has(activeComponentId)) model.activeContext = { type: 'component', componentId: activeComponentId };
     bumpNextNumberPastSnapshot(snapshot);
@@ -196,6 +221,7 @@ export class SketchModel {
       unit: this.unit,
       entities: [...this.entities.values()].map((entity) => structuredClone(withDefaultEntityMetadata(entity))),
       components: [...this.components.values()].map((component) => structuredClone(component)),
+      componentDefinitions: [...this.componentDefinitions.values()].map((definition) => structuredClone(definition)),
       tags: this.tags.map((tag) => ({ ...tag })),
       materials: this.materials.map((material) => ({ ...material }))
     };
@@ -213,6 +239,19 @@ export class SketchModel {
   getComponent(id: ComponentId): Component | undefined {
     const component = this.components.get(id);
     return component ? structuredClone(component) : undefined;
+  }
+
+  allComponentDefinitions(): ComponentDefinition[] {
+    return [...this.componentDefinitions.values()].map((definition) => structuredClone(definition));
+  }
+
+  componentDefinition(id: ComponentDefinitionId): ComponentDefinition | undefined {
+    const definition = this.componentDefinitions.get(id);
+    return definition ? structuredClone(definition) : undefined;
+  }
+
+  componentInstanceCount(definitionId: ComponentDefinitionId): number {
+    return [...this.components.values()].filter((component) => component.definitionId === definitionId).length;
   }
 
   allTags(): TagDefinition[] {
@@ -287,8 +326,7 @@ export class SketchModel {
     if (currentLength <= 0) throw new Error('Eine Linie braucht zwei verschiedene Punkte.');
     const direction = scale(sub(entity.end, entity.start), 1 / currentLength);
     const updated: EdgeEntity = { ...entity, end: add(entity.start, scale(direction, lengthMm)) };
-    this.entities.set(id, updated);
-    return updated;
+    return this.storeEditedEntity(id, entity, updated);
   }
 
   createRectangle(origin: Vec3, width: number, depth: number, metadata: CadMetadata = {}, plane: DrawingPlane = 'xy'): FaceEntity {
@@ -306,8 +344,7 @@ export class SketchModel {
     const plane = rectangleFacePlane(entity.vertices);
     if (!plane) throw new Error('Rechteckmaß unterstützt nur axis-aligned Rechteckflächen.');
     const updated: FaceEntity = { ...entity, vertices: rectangleVertices(entity.vertices[0], width, depth, plane) };
-    this.entities.set(id, updated);
-    return updated;
+    return this.storeEditedEntity(id, entity, updated);
   }
 
   extrudeFaceToBox(id: EntityId, height: number): BoxEntity {
@@ -389,9 +426,8 @@ export class SketchModel {
       height: dimensions.height ?? entity.height
     };
     assertPositiveBoxDimensions(next.width, next.depth, next.height);
-    const updated = { ...entity, ...next };
-    this.entities.set(id, updated);
-    return updated;
+    const updated: BoxEntity = { ...entity, ...next };
+    return this.storeEditedEntity(id, entity, updated);
   }
 
   pushPullBoxFace(id: EntityId, deltaHeight: number): BoxEntity;
@@ -402,8 +438,7 @@ export class SketchModel {
     const face = typeof faceOrDelta === 'number' ? 'top' : faceOrDelta;
     const delta = typeof faceOrDelta === 'number' ? faceOrDelta : maybeDelta ?? 0;
     const updated = previewPushPullBoxFace(entity, face, delta);
-    this.entities.set(id, updated);
-    return updated;
+    return this.storeEditedEntity(id, entity, updated);
   }
 
   moveEntity(id: EntityId, delta: Vec3): Entity {
@@ -413,8 +448,7 @@ export class SketchModel {
     else if (entity.type === 'face') moved = { ...entity, vertices: entity.vertices.map((v) => add(v, delta)) };
     else if (entity.type === 'referenceMesh') moved = { ...entity, triangles: entity.triangles.map((triangle) => ({ vertices: translateVertices(triangle.vertices, delta) })) };
     else moved = { ...entity, origin: add(entity.origin, delta) };
-    this.entities.set(id, moved);
-    return moved;
+    return this.storeEditedEntity(id, entity, moved);
   }
 
   private rotateEntity(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
@@ -424,29 +458,33 @@ export class SketchModel {
 
   rotateEntityZ(id: EntityId, angleRadians: number, origin = this.entityCenter(id)): Entity {
     const rotated = this.rotateEntity(id, angleRadians, origin);
+    const before = this.requireEntity(id);
     this.entities.set(id, rotated);
+    this.syncSharedComponentEntity(id, before, rotated);
     return rotated;
   }
 
   deleteEntity(id: EntityId): boolean {
     if (!this.entities.has(id)) return false;
-    this.requireEntityEditable(id);
-    this.entities.delete(id);
+    const entity = this.requireEntityEditable(id);
+    const linkedIds = this.linkedSharedDefinitionEntityIds(id, entity);
+    const idsToDelete = new Set([id, ...linkedIds]);
+    for (const entityId of idsToDelete) this.entities.delete(entityId);
     for (const component of [...this.components.values()]) {
-      const entityIds = component.entityIds.filter((entityId) => entityId !== id);
+      const entityIds = component.entityIds.filter((entityId) => !idsToDelete.has(entityId));
       if (entityIds.length === 0) {
         this.components.delete(component.id);
         if (this.isActiveComponentContext(component.id)) this.closeActiveContext();
       } else if (entityIds.length !== component.entityIds.length) this.components.set(component.id, { ...component, entityIds });
     }
+    this.purgeUnusedComponentDefinitions();
     return true;
   }
 
   hideEntity(id: EntityId): Entity {
     const entity = this.requireEntityEditable(id);
     const hidden = { ...entity, hidden: true } as Entity;
-    this.entities.set(id, hidden);
-    return hidden;
+    return this.storeEditedEntity(id, entity, hidden);
   }
 
   showAllEntities(): number {
@@ -465,8 +503,7 @@ export class SketchModel {
     if (!materialById(materialId, this.materials)) throw new Error(`Material nicht gefunden: ${materialId}`);
     const entity = this.requireEntityEditable(id);
     const painted = { ...entity, materialId, material: material.name || material.color || material.previewUrl || material.textureDataUrl ? { ...material, materialId } : undefined } as Entity;
-    this.entities.set(id, painted);
-    return painted;
+    return this.storeEditedEntity(id, entity, painted);
   }
 
   assignPartMaterial(id: EntityId, metadata: PartMaterialMetadata): Entity {
@@ -490,8 +527,7 @@ export class SketchModel {
     }
     const entity = this.requireEntityEditable(id);
     const tagged = { ...entity, tagId } as Entity;
-    this.entities.set(id, tagged);
-    return tagged;
+    return this.storeEditedEntity(id, entity, tagged);
   }
 
   assignWoodworkingClassification(id: EntityId, kind: WoodworkingKind, role?: string): Entity {
@@ -537,12 +573,23 @@ export class SketchModel {
     if (entityIds.length === 0) throw new Error('Eine Komponente braucht mindestens ein Element.');
     for (const id of entityIds) this.requireEntity(id);
     const cleanDescription = options.description?.trim();
+    const kind = options.kind ?? 'component';
+    const existingDefinition = options.definitionId ? this.componentDefinitions.get(options.definitionId) : undefined;
+    const definition: ComponentDefinition = existingDefinition ?? {
+      id: options.definitionId ?? nextId('definition'),
+      name,
+      kind,
+      version: 1,
+      ...(cleanDescription ? { description: cleanDescription } : {})
+    };
+    this.componentDefinitions.set(definition.id, definition);
     const component: Component = {
       id: nextId('component'),
+      definitionId: definition.id,
       name,
       entityIds: [...entityIds],
-      kind: options.kind ?? 'component',
-      ...(cleanDescription ? { description: cleanDescription } : {})
+      kind,
+      ...(cleanDescription ? { description: cleanDescription } : existingDefinition?.description ? { description: existingDefinition.description } : {})
     };
     this.components.set(component.id, component);
     for (const id of entityIds) {
@@ -555,6 +602,7 @@ export class SketchModel {
       const entity = this.requireEntity(id);
       this.entities.set(id, { ...entity, componentId: component.id } as Entity);
     }
+    this.purgeUnusedComponentDefinitions();
     return component;
   }
 
@@ -574,7 +622,64 @@ export class SketchModel {
       copiedIds.push(copy.id);
       this.entities.set(copy.id, copy);
     }
-    return this.createComponent(name, copiedIds, { kind: source.kind, description: source.description });
+    return this.createComponent(name, copiedIds, {
+      kind: source.kind,
+      description: source.description,
+      ...(source.kind === 'component' ? { definitionId: source.definitionId } : {})
+    });
+  }
+
+  makeComponentUnique(id: ComponentId, name?: string): Component {
+    const source = this.requireComponent(id);
+    const sourceDefinition = this.componentDefinitions.get(source.definitionId);
+    const cleanName = name?.trim() || `${sourceDefinition?.name ?? source.name} Unique`;
+    const cleanDescription = source.description?.trim() || sourceDefinition?.description?.trim();
+    const definition: ComponentDefinition = {
+      id: nextId('definition'),
+      name: cleanName,
+      kind: source.kind,
+      version: (sourceDefinition?.version ?? 1) + 1,
+      ...(cleanDescription ? { description: cleanDescription } : {})
+    };
+    this.componentDefinitions.set(definition.id, definition);
+    const updated: Component = {
+      ...source,
+      definitionId: definition.id,
+      name: cleanName,
+      ...(cleanDescription ? { description: cleanDescription } : {})
+    };
+    this.components.set(id, updated);
+    this.purgeUnusedComponentDefinitions();
+    return structuredClone(updated);
+  }
+
+  replaceComponentDefinition(id: ComponentId, replacementDefinitionId: ComponentDefinitionId): Component {
+    const component = this.requireComponent(id);
+    const replacement = this.componentDefinitions.get(replacementDefinitionId);
+    if (!replacement) throw new Error(`Komponentendefinition nicht gefunden: ${replacementDefinitionId}`);
+    const updated: Component = {
+      ...component,
+      definitionId: replacement.id,
+      kind: replacement.kind,
+      name: replacement.name,
+      ...(replacement.description ? { description: replacement.description } : {})
+    };
+    this.components.set(id, updated);
+    this.purgeUnusedComponentDefinitions();
+    return structuredClone(updated);
+  }
+
+  explodeComponent(id: ComponentId): EntityId[] {
+    const component = this.requireComponent(id);
+    const releasedIds = [...component.entityIds];
+    for (const entityId of releasedIds) {
+      const entity = this.entities.get(entityId);
+      if (entity) this.entities.set(entityId, withoutComponentId(entity));
+    }
+    this.components.delete(id);
+    if (this.isActiveComponentContext(id)) this.closeActiveContext();
+    this.purgeUnusedComponentDefinitions();
+    return releasedIds;
   }
 
   measure(a: Vec3, b: Vec3): number {
@@ -586,6 +691,47 @@ export class SketchModel {
     const points = entityPoints(entity);
     const box = bbox(points);
     return add(box.min, { x: box.size.x / 2, y: box.size.y / 2, z: box.size.z / 2 });
+  }
+
+  private storeEditedEntity<T extends Entity>(id: EntityId, before: Entity, updated: T): T {
+    this.entities.set(id, updated);
+    this.syncSharedComponentEntity(id, before, updated);
+    return updated;
+  }
+
+  private syncSharedComponentEntity(sourceEntityId: EntityId, before: Entity, after: Entity): void {
+    if (!before.componentId || !this.isActiveComponentContext(before.componentId)) return;
+    const sourceComponent = this.components.get(before.componentId);
+    if (!sourceComponent || sourceComponent.kind !== 'component') return;
+    const sourceIndex = sourceComponent.entityIds.indexOf(sourceEntityId);
+    if (sourceIndex < 0) return;
+    for (const component of this.components.values()) {
+      if (component.id === sourceComponent.id || component.definitionId !== sourceComponent.definitionId) continue;
+      const targetEntityId = component.entityIds[sourceIndex];
+      if (!targetEntityId) continue;
+      const target = this.entities.get(targetEntityId);
+      if (!target || target.type !== before.type || target.type !== after.type) continue;
+      this.entities.set(targetEntityId, applySharedDefinitionEdit(before, after, target));
+    }
+  }
+
+  private linkedSharedDefinitionEntityIds(sourceEntityId: EntityId, before: Entity): EntityId[] {
+    if (!before.componentId || !this.isActiveComponentContext(before.componentId)) return [];
+    const sourceComponent = this.components.get(before.componentId);
+    if (!sourceComponent || sourceComponent.kind !== 'component') return [];
+    const sourceIndex = sourceComponent.entityIds.indexOf(sourceEntityId);
+    if (sourceIndex < 0) return [];
+    return [...this.components.values()]
+      .filter((component) => component.id !== sourceComponent.id && component.definitionId === sourceComponent.definitionId)
+      .map((component) => component.entityIds[sourceIndex])
+      .filter((entityId): entityId is EntityId => typeof entityId === 'string');
+  }
+
+  private purgeUnusedComponentDefinitions(): void {
+    const used = new Set([...this.components.values()].map((component) => component.definitionId));
+    for (const definitionId of this.componentDefinitions.keys()) {
+      if (!used.has(definitionId)) this.componentDefinitions.delete(definitionId);
+    }
   }
 
   private requireEntity(id: EntityId): Entity {
@@ -627,9 +773,96 @@ function normalizeComponent(component: Component): Component {
   const cleanDescription = component.description?.trim();
   return structuredClone({
     ...component,
+    definitionId: component.definitionId ?? legacyDefinitionIdForComponent(component.id),
     kind: component.kind ?? 'component',
     ...(cleanDescription ? { description: cleanDescription } : {})
   });
+}
+
+function normalizeComponentDefinition(definition: ComponentDefinition): ComponentDefinition {
+  const cleanDescription = definition.description?.trim();
+  return structuredClone({
+    ...definition,
+    kind: definition.kind ?? 'component',
+    version: Number.isFinite(definition.version) && definition.version > 0 ? definition.version : 1,
+    ...(cleanDescription ? { description: cleanDescription } : {})
+  });
+}
+
+function componentDefinitionFromComponent(component: Component): ComponentDefinition {
+  return {
+    id: component.definitionId,
+    name: component.name,
+    kind: component.kind,
+    version: 1,
+    ...(component.description ? { description: component.description } : {})
+  };
+}
+
+function legacyDefinitionIdForComponent(componentId: ComponentId): ComponentDefinitionId {
+  return `definition-${componentId}`;
+}
+
+function withoutComponentId<T extends Entity>(entity: T): T {
+  const copy = { ...entity } as T & { componentId?: ComponentId };
+  delete copy.componentId;
+  return copy as T;
+}
+
+function applySharedDefinitionEdit(before: Entity, after: Entity, target: Entity): Entity {
+  const metadata = sharedEditableMetadata(after);
+  if (before.type === 'box' && after.type === 'box' && target.type === 'box') {
+    return {
+      ...target,
+      ...metadata,
+      origin: add(target.origin, sub(after.origin, before.origin)),
+      width: after.width,
+      depth: after.depth,
+      height: after.height,
+      rotationZ: after.rotationZ
+    } as Entity;
+  }
+  if (before.type === 'edge' && after.type === 'edge' && target.type === 'edge') {
+    return {
+      ...target,
+      ...metadata,
+      start: add(target.start, sub(after.start, before.start)),
+      end: add(target.end, sub(after.end, before.end))
+    } as Entity;
+  }
+  if (before.type === 'face' && after.type === 'face' && target.type === 'face' && before.vertices.length === after.vertices.length && after.vertices.length === target.vertices.length) {
+    return {
+      ...target,
+      ...metadata,
+      vertices: target.vertices.map((vertex, index) => add(vertex, sub(after.vertices[index], before.vertices[index])))
+    } as Entity;
+  }
+  if (before.type === 'referenceMesh' && after.type === 'referenceMesh' && target.type === 'referenceMesh') {
+    return {
+      ...target,
+      ...metadata,
+      triangles: target.triangles.map((triangle, triangleIndex) => ({
+        vertices: triangle.vertices.map((vertex, vertexIndex) => {
+          const beforeVertex = before.triangles[triangleIndex]?.vertices[vertexIndex];
+          const afterVertex = after.triangles[triangleIndex]?.vertices[vertexIndex];
+          return beforeVertex && afterVertex ? add(vertex, sub(afterVertex, beforeVertex)) : vertex;
+        }) as [Vec3, Vec3, Vec3]
+      }))
+    } as Entity;
+  }
+  return target;
+}
+
+function sharedEditableMetadata(entity: Entity): Partial<Entity> {
+  return {
+    hidden: entity.hidden,
+    tagId: entity.tagId,
+    materialId: entity.materialId,
+    material: entity.material,
+    woodworking: entity.woodworking,
+    partMaterial: entity.partMaterial,
+    cutOperations: entity.cutOperations
+  } as Partial<Entity>;
 }
 
 function safeIdFromName(name: string, fallback: string): string {

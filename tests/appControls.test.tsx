@@ -156,6 +156,16 @@ describe('App controls', () => {
     expect(markup).not.toContain('Definition/Instanz-Prinzip');
   });
 
+  it('exposes SketchUp-like component instance actions without copying protected SketchUp branding', () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain('Make Unique');
+    expect(markup).toContain('Explode');
+    expect(markup).toContain('Definitionen: 0');
+    expect(markup).toContain('Instanzen derselben Definition werden beim Bearbeiten im Kontext synchron aktualisiert.');
+    expect(markup).not.toContain('Trimble');
+  });
+
   it('shows the selected entity material from the stable starter catalog when no legacy display name exists', () => {
     const model = createInitialSketchModel();
     const box = model.createBox({ x: 0, y: 0, z: 0 }, 600, 400, 200);

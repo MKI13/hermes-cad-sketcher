@@ -1,0 +1,60 @@
+project: Hermes CAD
+mission: >
+  Build Hermes CAD as an original, carpenter-focused CAD application with
+  SketchUp-like workflow for components, dynamic components, outliner, precise input,
+  and fast modeling, without copying SketchUp assets or proprietary code.
+
+non_negotiable_rules:
+  - Research before every new feature or extension.
+  - Document sources in docs/research.
+  - Do not use SketchUp icons, logos, screenshots, copied text, or proprietary code.
+  - Build original Hermes UI and icons.
+  - Implement data model before UI.
+  - Every user action must support undo/redo.
+  - Integrate selection with viewport, outliner, entity info, and component panels.
+  - Prioritize carpenter workflows: cabinets, kitchens, wardrobes, cutlist metadata.
+  - Test before marking complete.
+
+feature_priority:
+  - entity_selection_kernel
+  - groups
+  - component_definition_instance
+  - create_component_dialog
+  - edit_in_context
+  - make_unique
+  - outliner
+  - component_browser
+  - measurement_box
+  - inference_lock
+  - dynamic_attributes
+  - formula_engine
+  - cabinet_generator
+  - bom_cutlist_metadata
+  - original_icon_system
+
+required_docs_per_feature:
+  - docs/research/<feature>_research.md
+  - docs/specs/<feature>_spec.md
+  - docs/tests/<feature>_acceptance.md
+
+required_tests:
+  - unit
+  - integration
+  - ui
+  - undo_redo
+  - performance
+  - license_asset_check
+
+asset_policy:
+  allowed:
+    - self_created_icons
+    - compatible_open_source_icons_with_documented_license
+    - behavior_descriptions_in_own_words
+  forbidden:
+    - sketchup_icons
+    - sketchup_logo
+    - trimble_logo
+    - screenshots_as_assets
+    - copied_help_text
+    - proprietary_code
+    - unclear_license_assets

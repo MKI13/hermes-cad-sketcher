@@ -62,8 +62,13 @@ export function importProjectFile(text: string): SketchModel {
     throw new Error('Projektdatei enthält ungültige Elemente.');
   }
 
+  if (!hasValidComponentDefinitions(model.componentDefinitions)) {
+    throw new Error('Projektdatei enthält ungültige Komponenten.');
+  }
+
   const entityIds = new Set(model.entities.map((entity) => entity.id));
-  if (!model.components.every((component) => isComponentPayload(component, entityIds))) {
+  const definitionIds = idsFromOptionalComponentDefinitions(model.componentDefinitions);
+  if (!model.components.every((component) => isComponentPayload(component, entityIds, definitionIds))) {
     throw new Error('Projektdatei enthält ungültige Komponenten.');
   }
 
@@ -97,7 +102,7 @@ function isEntityPayload(value: unknown, knownTagIds: ReadonlySet<string>, known
   return false;
 }
 
-function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>): value is SketchModelSnapshot['components'][number] {
+function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>, knownDefinitionIds: ReadonlySet<string> | undefined): value is SketchModelSnapshot['components'][number] {
   return (
     isRecord(value) &&
     typeof value.id === 'string' &&
@@ -105,10 +110,31 @@ function isComponentPayload(value: unknown, knownEntityIds: ReadonlySet<string>)
     Array.isArray(value.entityIds) &&
     value.entityIds.length > 0 &&
     value.entityIds.every((entityId) => typeof entityId === 'string' && knownEntityIds.has(entityId)) &&
+    (!('definitionId' in value) || value.definitionId === undefined || (typeof value.definitionId === 'string' && isSafeCatalogId(value.definitionId) && (!knownDefinitionIds || knownDefinitionIds.has(value.definitionId)))) &&
     (!('woodworking' in value) || value.woodworking === undefined || isValidWoodworkingMetadata(value.woodworking)) &&
     (!('kind' in value) || value.kind === undefined || value.kind === 'group' || value.kind === 'component') &&
     (!('description' in value) || value.description === undefined || (typeof value.description === 'string' && value.description.trim().length > 0))
   );
+}
+
+function hasValidComponentDefinitions(definitions: unknown): boolean {
+  if (definitions === undefined) return true;
+  if (!Array.isArray(definitions)) return false;
+  const seen = new Set<string>();
+  for (const definition of definitions) {
+    if (!isRecord(definition) || typeof definition.id !== 'string' || typeof definition.name !== 'string') return false;
+    if (!isSafeCatalogId(definition.id) || definition.name.trim().length === 0 || seen.has(definition.id)) return false;
+    if (!('kind' in definition) || (definition.kind !== 'group' && definition.kind !== 'component')) return false;
+    if (!('version' in definition) || !isPositiveNumber(definition.version)) return false;
+    if ('description' in definition && definition.description !== undefined && (typeof definition.description !== 'string' || definition.description.trim().length === 0)) return false;
+    seen.add(definition.id);
+  }
+  return true;
+}
+
+function idsFromOptionalComponentDefinitions(definitions: unknown): Set<string> | undefined {
+  if (!Array.isArray(definitions)) return undefined;
+  return new Set(definitions.map((definition) => isRecord(definition) && typeof definition.id === 'string' ? definition.id : ''));
 }
 
 function hasValidLayerMetadata(value: Record<string, unknown>): boolean {
